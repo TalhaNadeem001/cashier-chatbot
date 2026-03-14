@@ -1,20 +1,19 @@
-from fastapi import FastAPI
 from contextlib import asynccontextmanager
-from src.database import engine
-from sqlalchemy import text
+from fastapi import FastAPI
+from src.cache import close_redis, init_redis
+from src.chatbot.exception_handlers import register_exception_handlers
+from src.chatbot.router import router as chatbot_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Verify DB
-    async with engine.connect() as conn:
-        await conn.execute(text("SELECT 1"))
-
+    await init_redis()
     yield
+    await close_redis()
 
-    # Graceful shutdown
-    await engine.dispose()
 
 app = FastAPI(lifespan=lifespan)
 
-# Include all the routes
+register_exception_handlers(app)
+
+app.include_router(chatbot_router)

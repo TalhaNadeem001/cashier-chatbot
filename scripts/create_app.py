@@ -109,7 +109,7 @@ def main():
     args = parser.parse_args()
 
     module_name = to_snake_case(args.app_name)
-    root = Path(__file__).resolve().parent
+    root = Path(__file__).resolve().parent.parent
     app_dir = root / "src" / module_name
     tests_dir = root / "tests"
 
