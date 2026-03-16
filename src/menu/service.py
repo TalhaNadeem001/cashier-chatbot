@@ -1,0 +1,3 @@
+# Business logic for menu
+# class MenuService:
+#     ...

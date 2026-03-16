@@ -20,14 +20,35 @@ class OrderItem(BaseModel):
     modifier: str | None = None
 
 
+class ModifyItem(BaseModel):
+    name: str
+    quantity: int | None = None
+    modifier: str | None = None
+    clear_modifier: bool = False
+
+
+class SwapItems(BaseModel):
+    remove: list[OrderItem]
+    add: list[OrderItem]
+
+
 class BotMessageRequest(BaseModel):
     user_id: str
     message_history: list[Message] | None = None
     latest_message: str = Field(..., max_length=1000)
     order_state: dict | None = None
+    previous_state: str | None = None
+    previous_food_order_state: str | None = None
+    awaiting_order_confirmation: bool = False
+    has_pending_clarification: bool = False
 
 
 class BotMessageResponse(BaseModel):
     chatbot_message: str
     pickup_ping: bool = False
+    ping_for_human: bool = False
     order_state: dict | None = None
+    previous_state: str | None = None
+    previous_food_order_state: str | None = None
+    awaiting_order_confirmation: bool = False
+    has_pending_clarification: bool = False
