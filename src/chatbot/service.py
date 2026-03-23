@@ -21,6 +21,7 @@ class ChatReplyService:
         self.resolver = StateResolver(ai=self.ai)
 
     async def process_and_reply(self, request: BotMessageRequest) -> BotMessageResponse:
+        print(f"Request: {request}")
         if request.awaiting_order_confirmation:
             finalization = await self.ai.resolve_order_finalization(
                 latest_message=request.latest_message,
@@ -56,4 +57,5 @@ class ChatReplyService:
             response.previous_state = ConversationState.FINALIZING_ORDER.value
         else:
             response.previous_state = state.value
+        print(f"Response: {response.order_state}")
         return response

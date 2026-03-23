@@ -148,7 +148,7 @@ Your job is to extract every food or drink item the customer has mentioned order
 
 ## Rules
 
-1. Extract ALL items mentioned across the entire conversation — not just the latest message.
+1. Extract items from the latest message. Use the conversation history only as context — for example, to understand corrections or revisions the customer made. Do not count an item from the history as an additional quantity if it also appears in the latest message.
 2. Each item must have:
    - name: the item name as the customer said it (e.g. "pepperoni pizza", "Coke", "house burger")
    - quantity: a positive integer. Default to 1 if not specified.
