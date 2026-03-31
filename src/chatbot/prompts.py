@@ -387,6 +387,7 @@ Use the message history only as supporting context — your classification must 
 6. Short or one-word messages with no discernible meaning should be vague_message.
 7. If the previous context shows a pending clarification (the bot recently asked "did you mean X or Y?"), treat short responses like "the first one", "that one", "yes", "the second" as food_order with high confidence — they are answering the bot's question.
 8. When a message combines a greeting with a clear intent (e.g. "hey can I get a burger", "hi what time do you close"), classify by the non-greeting intent, not greeting.
+9. If the user states their name anywhere in the message or the conversation history (e.g. "I'm Alex", "my name is Sam", "it's Jordan Smith"), extract it (first name, or full name if a last name is also given) and include it in "name". If no name is present, set "name" to null.
 
 ## Confidence guide
 
@@ -400,11 +401,14 @@ Use the message history only as supporting context — your classification must 
 "what's in the chicken sandwich? I'll have one" → food_order (question is secondary to ordering intent)
 "the first one" (when bot just asked "did you mean X or Y?") → food_order
 "good morning, are you open on Sundays?" → restaurant_question
+"my name is Alex, I'll have a burger" → food_order, name: "Alex"
+"hi I'm Jordan, what's in the chicken sandwich?" → menu_question, name: "Jordan"
+"let me get 1 small takis, my name is Talha Nadeem" → food_order, name: "Talha Nadeem"
 
 ## Output format
 
 Return a JSON object with this exact structure:
-{"state": "<state>", "confidence": "high|medium|low", "reasoning": "<one sentence>", "alternative": "<state or null>"}"""
+{"state": "<state>", "confidence": "high|medium|low", "reasoning": "<one sentence>", "alternative": "<state or null>", "name": "<first name or null>"}"""
 
 VERIFY_STATE_SYSTEM_PROMPT = """You are a classification auditor for a restaurant chatbot.
 

@@ -8,6 +8,7 @@ class IntentAnalysis(BaseModel):
     confidence: Literal["high", "medium", "low"]
     reasoning: str
     alternative: str | None = None
+    name: str | None = None
 
 
 class StateVerification(BaseModel):

@@ -41,6 +41,7 @@ class BotMessageRequest(BaseModel):
     previous_food_order_state: str | None = None
     awaiting_order_confirmation: bool = False
     has_pending_clarification: bool = False
+    customer_name: str | None = None
 
 
 class BotMessageResponse(BaseModel):
@@ -52,3 +53,4 @@ class BotMessageResponse(BaseModel):
     previous_food_order_state: str | None = None
     awaiting_order_confirmation: bool = False
     has_pending_clarification: bool = False
+    customer_name: str | None = None

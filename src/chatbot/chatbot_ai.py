@@ -62,7 +62,7 @@ class ChatbotAI:
             response = await _client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=messages,
-                max_tokens=120,
+                max_tokens=200,
                 temperature=0,
                 response_format={"type": "json_object"},
             )
@@ -70,7 +70,8 @@ class ChatbotAI:
             raise AIServiceError(f"OpenAI request failed: {e}") from e
 
         try:
-            return IntentAnalysis(**json.loads(response.choices[0].message.content))
+            raw = response.choices[0].message.content
+            return IntentAnalysis(**json.loads(raw))
         except Exception as e:
             raise AIServiceError(f"Failed to parse intent analysis: {e}") from e
 

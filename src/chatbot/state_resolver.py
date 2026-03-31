@@ -130,6 +130,9 @@ class StateResolver:
     ) -> bool:
         if proposed is None:
             return False
+        # Customer can ask for a human from any conversation phase.
+        if proposed == ConversationState.HUMAN_ESCALATION:
+            return True
         allowed = VALID_TRANSITIONS.get(previous, _ALL_STATES)
         return proposed in allowed
 
@@ -139,7 +142,7 @@ class StateResolver:
         message_history: list[Message] | None,
         previous_state: ConversationState | None,
         has_pending_clarification: bool = False,
-    ) -> ConversationState:
+    ) -> tuple[ConversationState, str | None]:
         analysis = await self._ai.analyze_intent(
             latest_message=latest_message,
             message_history=message_history,
@@ -152,7 +155,7 @@ class StateResolver:
 
         # Fast path
         if analysis.confidence == "high" and transition_valid and proposed is not None:
-            return proposed
+            return proposed, analysis.name
 
         # Slow path — independent verifier
         try:
@@ -171,19 +174,19 @@ class StateResolver:
 
         if verification is not None:
             if verification.confirmed and proposed is not None:
-                return proposed
+                return proposed, analysis.name
             if verification.corrected_state:
                 corrected = _parse_conversation_state(verification.corrected_state)
                 if corrected is not None:
-                    return corrected
+                    return corrected, analysis.name
 
         # Fallback chain: alternative → vague_message
         if analysis.alternative:
             alt = _parse_conversation_state(analysis.alternative)
             if alt is not None:
-                return alt
+                return alt, analysis.name
 
-        return ConversationState.VAGUE_MESSAGE
+        return ConversationState.VAGUE_MESSAGE, analysis.name
 
 
 # ---------------------------------------------------------------------------

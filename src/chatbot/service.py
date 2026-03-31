@@ -21,7 +21,11 @@ class ChatReplyService:
         self.resolver = StateResolver(ai=self.ai)
 
     async def process_and_reply(self, request: BotMessageRequest) -> BotMessageResponse:
-        print(f"Request: {request}")
+        response = await self._build_reply(request)
+        print(f"Response: {response.model_dump()}")
+        return response
+
+    async def _build_reply(self, request: BotMessageRequest) -> BotMessageResponse:
         if request.awaiting_order_confirmation:
             finalization = await self.ai.resolve_order_finalization(
                 latest_message=request.latest_message,
@@ -34,6 +38,7 @@ class ChatReplyService:
                     pickup_ping=True,
                     order_state=request.order_state,
                     previous_state=ConversationState.FINALIZING_ORDER.value,
+                    customer_name=request.customer_name,
                 )
             elif finalization.intent == "modify":
                 request = request.model_copy(update={"awaiting_order_confirmation": False})
@@ -44,19 +49,21 @@ class ChatReplyService:
                     order_state=request.order_state,
                     awaiting_order_confirmation=True,
                     previous_state=ConversationState.FINALIZING_ORDER.value,
+                    customer_name=request.customer_name,
                 )
 
         previous_state = _parse_safely(request.previous_state, ConversationState)
-        state = await self.resolver.resolve(
+        state, extracted_name = await self.resolver.resolve(
             latest_message=request.latest_message,
             message_history=request.message_history,
             previous_state=previous_state,
             has_pending_clarification=request.has_pending_clarification,
         )
+        customer_name = extracted_name or request.customer_name
         response = await self.handler_factory.handle(state, request)
         if response.awaiting_order_confirmation:
             response.previous_state = ConversationState.FINALIZING_ORDER.value
         else:
             response.previous_state = state.value
-        print(f"Response: {response.order_state}")
+        response.customer_name = customer_name
         return response
