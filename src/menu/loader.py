@@ -79,6 +79,14 @@ async def get_item_price(name: str) -> float | None:
     return float(price) if price is not None else None
 
 
+async def get_item_category(name: str) -> str | None:
+    items = _MENU_DATA.get("menu", {}).get("items", {})
+    key = name.lower().strip()
+    item = items.get(key)
+    if item is None:
+        return None
+    return item.get("category")
+
 def get_item_definition(name: str) -> dict | None:
     items = _MENU_DATA.get("menu", {}).get("items", {})
     key = name.lower().strip()
@@ -130,62 +138,17 @@ def validate_mod_selections(item_name: str, selected_mods: dict) -> tuple[list[s
     missing_required = [k for k in requires if k not in selected_mods]
     return validation_errors, missing_required
 
-
-def _parse_combo_key(combo_key: str) -> list[tuple[int, str]]:
-    """'2 chicken sandos, 1 regular fries' → [(2, 'chicken sandos'), (1, 'regular fries')]"""
-    parts = []
-    for segment in combo_key.split(","):
-        segment = segment.strip()
-        tokens = segment.split(" ", 1)
-        if len(tokens) == 2:
-            try:
-                parts.append((int(tokens[0]), tokens[1].strip().lower()))
-            except ValueError:
-                pass
-    return parts
-
-
-def detect_combo(order_items: list[dict]) -> dict | None:
-    """
-    Returns the best-matching combo dict {key, original_name, price, description}
-    if the order is a superset of any combo, else None.
-    """
-    combos = _MENU_DATA.get("menu", {}).get("combos", {})
-    canonical_names = set(_MENU_DATA.get("menu", {}).get("items", {}).keys())
-
-    order_counts: dict[str, int] = {}
+def detect_mods_allowed(order_items: list[dict]) -> bool:
     for item in order_items:
-        k = item["name"].lower()
-        order_counts[k] = order_counts.get(k, 0) + item["quantity"]
+        if item.get("modifier") is not None:
+            return True
+    return False
 
-    matched: list[tuple[str, dict]] = []
-    for combo_key, combo_info in combos.items():
-        combo_items = _parse_combo_key(combo_key)
-        if not combo_items:
-            continue
-        all_match = True
-        for qty, name in combo_items:
-            canonical = name if name in canonical_names else (
-                name[:-1] if name.endswith("s") and name[:-1] in canonical_names else None
-            )
-            if canonical is None or order_counts.get(canonical, 0) < qty:
-                all_match = False
-                break
-        if all_match:
-            matched.append((combo_key, combo_info))
-
-    if not matched:
-        return None
-
-    matched.sort(key=lambda x: x[1].get("price", 0), reverse=True)
-    best_key, best_info = matched[0]
-    return {
-        "key": best_key,
-        "original_name": best_info.get("original name"),
-        "price": best_info.get("price"),
-        "description": best_info.get("description"),
-    }
-
+def detect_add_ons_allowed(order_items: list[dict]) -> bool:
+    for item in order_items:
+        if item.get("add_on") is not None:
+            return True
+    return False
 
 def get_menu_context() -> str:
     items = _MENU_DATA.get("menu", {}).get("items", {})

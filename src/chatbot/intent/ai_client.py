@@ -9,18 +9,14 @@ from src.chatbot.internal_schemas import (
     FoodOrderStateVerification,
     IntentAnalysis,
     ModifierJourneyAnalysis,
-    ModifierStateIntentAnalysis,
-    ModifierStateVerification,
     StateVerification,
 )
 from src.chatbot.intent.prompts import (
     ANALYZE_FOOD_ORDER_INTENT_SYSTEM_PROMPT,
     ANALYZE_INTENT_SYSTEM_PROMPT,
     ANALYZE_MODIFIER_JOURNEY_INTENT_SYSTEM_PROMPT,
-    ANALYZE_MODIFIER_STATE_INTENT_SYSTEM_PROMPT,
     GET_CUSTOMER_NAME_SYSTEM_PROMPT,
     VERIFY_FOOD_ORDER_STATE_SYSTEM_PROMPT,
-    VERIFY_MODIFIER_STATE_SYSTEM_PROMPT,
     VERIFY_STATE_SYSTEM_PROMPT,
 )
 from src.chatbot.schema import Message
@@ -94,71 +90,6 @@ async def verify_state(
         return StateVerification(**json.loads(response.choices[0].message.content))
     except Exception as e:
         raise AIServiceError(f"Failed to parse state verification: {e}") from e
-
-
-async def analyze_modifier_state_intent(
-    latest_message: str,
-    order_state: dict,
-    message_history: list[Message] | None = None,
-) -> ModifierStateIntentAnalysis:
-    history = [m.model_dump() for m in (message_history or [])[-6:]]
-    messages: list[dict] = [{"role": "system", "content": ANALYZE_MODIFIER_STATE_INTENT_SYSTEM_PROMPT}]
-    messages.append({"role": "system", "content": f"Current order: {order_state}"})
-    messages.extend(history)
-    messages.append({"role": "user", "content": latest_message})
-
-    try:
-        response = await _client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=messages,
-            max_tokens=120,
-            temperature=0,
-            response_format={"type": "json_object"},
-        )
-    except OpenAIError as e:
-        raise AIServiceError(f"OpenAI request failed: {e}") from e
-
-    try:
-        return ModifierStateIntentAnalysis(**json.loads(response.choices[0].message.content))
-    except Exception as e:
-        raise AIServiceError(f"Failed to parse modifier state intent analysis: {e}") from e
-
-
-async def verify_modifier_state(
-    latest_message: str,
-    order_state: dict,
-    message_history: list[Message] | None = None,
-    proposed_state: str | None = None,
-    analysis_reasoning: str = "",
-) -> ModifierStateVerification:
-    history = [m.model_dump() for m in (message_history or [])[-6:]]
-    context_lines = [
-        f"Current order: {order_state}",
-        f"Proposed modifier sub-state: {proposed_state}",
-        f"Original reasoning: {analysis_reasoning}",
-    ]
-    messages: list[dict] = [
-        {"role": "system", "content": VERIFY_MODIFIER_STATE_SYSTEM_PROMPT},
-        {"role": "system", "content": "\n".join(context_lines)},
-        *history,
-        {"role": "user", "content": latest_message},
-    ]
-
-    try:
-        response = await _client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=messages,
-            max_tokens=80,
-            temperature=0,
-            response_format={"type": "json_object"},
-        )
-    except OpenAIError as e:
-        raise AIServiceError(f"OpenAI request failed: {e}") from e
-
-    try:
-        return ModifierStateVerification(**json.loads(response.choices[0].message.content))
-    except Exception as e:
-        raise AIServiceError(f"Failed to parse modifier state verification: {e}") from e
 
 
 async def analyze_food_order_intent(
@@ -249,7 +180,7 @@ async def get_customer_name(
         response = await _client.chat.completions.create(
             model="gpt-4o-mini",
             messages=messages,
-            max_tokens=80,
+            max_tokens=150,
             temperature=0,
             response_format={"type": "json_object"},
         )

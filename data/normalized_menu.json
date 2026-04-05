@@ -205,7 +205,7 @@
                 "original name": "All American",
                 "category": "Smash Burgers",
                 "description": "Shredded lettuce, mayo, ketchup, mustard, sliced tomato, pickles, diced white onion, American cheese.",
-                "price": "8.99\u201316.99",
+                "price": "variable",
                 "requires": [
                 "patties",
                 "make_it_a_combo_with_fries",
@@ -348,7 +348,7 @@
                 "original name": "Hot Honey Burger",
                 "category": "Smash Burgers",
                 "description": "Smash sauce, diced Spanish onion, American cheese, fresh shaved jalape\u00f1os, hot honey.",
-                "price": "8.99\u201316.99",
+                "price": "variable",
                 "requires": [
                   "patties",
                   "make_it_a_combo_with_fries",
@@ -479,7 +479,7 @@
                 "original name": "Classic",
                 "category": "Smash Burgers",
                 "description": "Shaved grilled onions, pickles, American cheese, smash sauce.",
-                "price": "8.99\u201316.99",
+                "price": "variable",
                 "requires": [
                 "patties",
                 "make_it_a_combo_with_fries",
@@ -606,7 +606,7 @@
                 "original name": "Chef's Signature",
                 "category": "Smash Burgers",
                 "description": "Umami BBQ, fresh jalape\u00f1os, shredded lettuce, crispy battered onion ring, American cheese.",
-                "price": "8.99\u201316.99",
+                "price": "variable",
                 "requires": [
                 "patties",
                 "make_it_a_combo_with_fries",

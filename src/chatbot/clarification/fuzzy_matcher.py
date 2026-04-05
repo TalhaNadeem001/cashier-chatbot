@@ -3,7 +3,8 @@ from typing import Literal
 
 from rapidfuzz import fuzz, process, utils
 
-from src.chatbot.schema import OrderItem
+from src.chatbot.clarification.ai_resolver import resolve_ambiguous_match
+from src.chatbot.schema import Message, OrderItem
 
 # Thresholds
 CONFIRMED_THRESHOLD = 70     # single top match at or above this → confirmed
@@ -17,6 +18,7 @@ class _MatchResult:
     status: Literal["confirmed", "ambiguous", "not_found"]
     canonical_name: str | None = None
     candidates: list[str] = field(default_factory=list)
+    clarification_message: str | None = None
 
 
 @dataclass
@@ -27,7 +29,13 @@ class _FreeModifierMatch:
 
 
 class FuzzyMatcher:
-    def match_item(self, item: OrderItem, menu_names: list[str]) -> _MatchResult:
+    async def match_item(
+        self,
+        item: OrderItem,
+        menu_names: list[str],
+        message_history: list[Message] | None = None,
+        latest_message: str = "",
+    ) -> _MatchResult:
         if not menu_names:
             return _MatchResult(item=item, status="not_found")
 
@@ -42,6 +50,7 @@ class FuzzyMatcher:
             scorer=_combined_scorer,
             limit=5,
         )  # [(name, score, index), ...]
+        print(f"top_matches: {top_matches}")
 
         if not top_matches or top_matches[0][1] < NOT_FOUND_THRESHOLD:
             return _MatchResult(item=item, status="not_found")
@@ -52,10 +61,26 @@ class FuzzyMatcher:
             # Check for a tie — multiple items within AMBIGUITY_GAP of the best score
             close_matches = [m for m in top_matches if best_score - m[1] <= AMBIGUITY_GAP]
             if len(close_matches) > 1:
+                candidates = [m[0] for m in close_matches]
+                resolution = await resolve_ambiguous_match(
+                    candidates, latest_message, message_history
+                )
+                if resolution.confident:
+                    # Find the exact candidate string the AI chose (case-insensitive)
+                    matched = next(
+                        (c for c in candidates if c.lower() == (resolution.canonical or "").lower()),
+                        candidates[0],
+                    )
+                    return _MatchResult(
+                        item=item,
+                        status="confirmed",
+                        canonical_name=matched,
+                    )
                 return _MatchResult(
                     item=item,
                     status="ambiguous",
-                    candidates=[m[0] for m in close_matches],
+                    candidates=candidates,
+                    clarification_message=resolution.clarification_message,
                 )
             return _MatchResult(
                 item=item,

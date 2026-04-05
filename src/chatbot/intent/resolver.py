@@ -1,13 +1,11 @@
 from typing import Literal
-from src.chatbot.constants import ConversationState, FoodOrderState, ModifierState
+from src.chatbot.constants import ConversationState, FoodOrderState
 from src.chatbot.exceptions import AIServiceError
 from src.chatbot.intent.ai_client import (
     analyze_food_order_intent,
-    analyze_modifier_state_intent,
     detect_user_intent,
     get_customer_name,
     verify_food_order_state,
-    verify_modifier_state,
 )
 from src.chatbot.intent.transitions import (
     VALID_FOOD_ORDER_TRANSITIONS,
@@ -16,7 +14,7 @@ from src.chatbot.intent.transitions import (
     _ALL_STATES,
 )
 from src.chatbot.schema import Message
-from src.chatbot.utils import _parse_food_order_state, _parse_modifier_state
+from src.chatbot.utils import _parse_food_order_state
 
 
 class ConversationStateResolver:
@@ -121,49 +119,3 @@ class FoodOrderStateResolver:
                 return alt
 
         return FoodOrderState.ADD_TO_ORDER
-
-
-class ModifierStateResolver:
-    async def resolve(
-        self,
-        latest_message: str,
-        order_state: dict,
-        message_history: list[Message] | None,
-    ) -> ModifierState:
-        analysis = await analyze_modifier_state_intent(
-            latest_message=latest_message,
-            order_state=order_state,
-            message_history=message_history,
-        )
-        proposed = _parse_modifier_state(analysis.state)
-
-        if analysis.confidence == "high" and proposed is not None:
-            return proposed
-
-        try:
-            verification = await verify_modifier_state(
-                latest_message=latest_message,
-                order_state=order_state,
-                message_history=message_history,
-                proposed_state=analysis.state,
-                analysis_reasoning=analysis.reasoning,
-            )
-        except AIServiceError:
-            raise
-        except Exception:
-            verification = None
-
-        if verification is not None:
-            if verification.confirmed and proposed is not None:
-                return proposed
-            if verification.corrected_state:
-                corrected = _parse_modifier_state(verification.corrected_state)
-                if corrected is not None:
-                    return corrected
-
-        if analysis.alternative:
-            alt = _parse_modifier_state(analysis.alternative)
-            if alt is not None:
-                return alt
-
-        return ModifierState.NEW_MODIFIER

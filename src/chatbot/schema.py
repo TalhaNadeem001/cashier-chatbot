@@ -35,6 +35,16 @@ class SwapItems(BaseModel):
     add: list[OrderItem]
 
 
+class ModifierUpdate(BaseModel):
+    item_id: str
+    modifier: str
+
+
+class AddItemsResult(BaseModel):
+    new_items: list[OrderItem]
+    modifier_updates: list[ModifierUpdate]
+
+
 _LONG_MESSAGE_THRESHOLD = 400  # chars; menu dumps are typically 300–800 chars
 
 

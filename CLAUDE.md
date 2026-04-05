@@ -67,3 +67,7 @@ These diagnostics are expected and can be ignored:
 | `DATABASE_URL` | `postgresql+asyncpg://user:pass@localhost/dbname` |
 | `REDIS_URL` | `redis://localhost:6379/0` |
 | `ENVIRONMENT` | `development` (default), `staging`, or `production` |
+
+# Fast API Architecure Rule
+
+Make sure every function has async await. Never make a function that is not async await

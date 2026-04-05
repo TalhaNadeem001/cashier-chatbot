@@ -7,7 +7,6 @@ VALID_TRANSITIONS: dict[ConversationState | None, set[ConversationState]] = {
     None: _ALL_STATES,
     ConversationState.GREETING: {
         ConversationState.FOOD_ORDER,
-        ConversationState.ADDING_MODIFIERS,
         ConversationState.MENU_QUESTION,
         ConversationState.RESTAURANT_QUESTION,
         ConversationState.VAGUE_MESSAGE,
@@ -19,7 +18,6 @@ VALID_TRANSITIONS: dict[ConversationState | None, set[ConversationState]] = {
         ConversationState.GREETING,
         ConversationState.MISC,
         ConversationState.FOOD_ORDER,
-        ConversationState.ADDING_MODIFIERS,
         ConversationState.MENU_QUESTION,
         ConversationState.RESTAURANT_QUESTION,
         ConversationState.VAGUE_MESSAGE,
@@ -27,18 +25,6 @@ VALID_TRANSITIONS: dict[ConversationState | None, set[ConversationState]] = {
         ConversationState.ORDER_COMPLETE,
     },
     ConversationState.FOOD_ORDER: {
-        ConversationState.FOOD_ORDER,
-        ConversationState.ADDING_MODIFIERS,
-        ConversationState.MENU_QUESTION,
-        ConversationState.RESTAURANT_QUESTION,
-        ConversationState.PICKUP_PING,
-        ConversationState.FAREWELL,
-        ConversationState.VAGUE_MESSAGE,
-        ConversationState.MISC,
-        ConversationState.ORDER_COMPLETE,
-    },
-    ConversationState.ADDING_MODIFIERS: {
-        ConversationState.ADDING_MODIFIERS,
         ConversationState.FOOD_ORDER,
         ConversationState.MENU_QUESTION,
         ConversationState.RESTAURANT_QUESTION,
@@ -51,7 +37,6 @@ VALID_TRANSITIONS: dict[ConversationState | None, set[ConversationState]] = {
     ConversationState.MENU_QUESTION: {
         ConversationState.MENU_QUESTION,
         ConversationState.FOOD_ORDER,
-        ConversationState.ADDING_MODIFIERS,
         ConversationState.RESTAURANT_QUESTION,
         ConversationState.FAREWELL,
         ConversationState.VAGUE_MESSAGE,
@@ -61,7 +46,6 @@ VALID_TRANSITIONS: dict[ConversationState | None, set[ConversationState]] = {
     ConversationState.RESTAURANT_QUESTION: {
         ConversationState.RESTAURANT_QUESTION,
         ConversationState.FOOD_ORDER,
-        ConversationState.ADDING_MODIFIERS,
         ConversationState.MENU_QUESTION,
         ConversationState.FAREWELL,
         ConversationState.VAGUE_MESSAGE,
@@ -70,7 +54,6 @@ VALID_TRANSITIONS: dict[ConversationState | None, set[ConversationState]] = {
     },
     ConversationState.PICKUP_PING: {
         ConversationState.FOOD_ORDER,
-        ConversationState.ADDING_MODIFIERS,
         ConversationState.PICKUP_PING,
         ConversationState.FAREWELL,
         ConversationState.MISC,
@@ -84,7 +67,6 @@ VALID_TRANSITIONS: dict[ConversationState | None, set[ConversationState]] = {
     ConversationState.ORDER_COMPLETE: {
         ConversationState.GREETING,
         ConversationState.FOOD_ORDER,
-        ConversationState.ADDING_MODIFIERS,
         ConversationState.FAREWELL,
         ConversationState.MISC,
         ConversationState.VAGUE_MESSAGE,
@@ -98,8 +80,7 @@ VALID_FOOD_ORDER_TRANSITIONS: dict[FoodOrderState | None, set[FoodOrderState]] =
     None: _ALL_FOOD_STATES,
     FoodOrderState.NEW_ORDER: _ALL_FOOD_STATES,
     FoodOrderState.ADD_TO_ORDER: _ALL_FOOD_STATES,
-    FoodOrderState.MODIFY_ORDER: _ALL_FOOD_STATES,
-    FoodOrderState.REMOVE_FROM_ORDER: _ALL_FOOD_STATES,
+FoodOrderState.REMOVE_FROM_ORDER: _ALL_FOOD_STATES,
     FoodOrderState.SWAP_ITEM: _ALL_FOOD_STATES,
     FoodOrderState.CANCEL_ORDER: {FoodOrderState.NEW_ORDER},
     FoodOrderState.ADDING_MODIFIERS: _ALL_FOOD_STATES,

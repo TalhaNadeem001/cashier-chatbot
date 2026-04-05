@@ -1,7 +1,7 @@
 import json
 
 from src.cache import cache_get
-from src.chatbot.cart.handlers import OrderStateHandler, ModifierStateHandler
+from src.chatbot.cart.handlers import OrderStateHandler
 from src.chatbot.constants import ConversationState
 from src.chatbot.exceptions import UnhandledStateError
 from src.chatbot.schema import BotInteractionRequest, ChatbotResponse
@@ -93,7 +93,6 @@ def _build_restaurant_context(profile: dict[str, str]) -> str | None:
 class StateHandlerFactory:
     def __init__(self):
         self.current_order_state = OrderStateHandler()
-        self.current_modifier_state = ModifierStateHandler()
         self._handlers = {
             ConversationState.GREETING: self._handle_greeting,
             ConversationState.FAREWELL: self._handle_farewell,
@@ -101,7 +100,6 @@ class StateHandlerFactory:
             ConversationState.RESTAURANT_QUESTION: self._handle_restaurant_question,
             ConversationState.MENU_QUESTION: self._handle_menu_question,
             ConversationState.FOOD_ORDER: self._handle_food_order,
-            ConversationState.ADDING_MODIFIERS: self._handle_modifiers,
             ConversationState.PICKUP_PING: self._handle_pickup_ping,
             ConversationState.MISC: self._handle_misc,
             ConversationState.HUMAN_ESCALATION: self._handle_human_escalation,
@@ -183,8 +181,7 @@ class StateHandlerFactory:
         return response
     
     async def _handle_modifiers(self, request: BotInteractionRequest) -> ChatbotResponse:
-        response = await self.current_modifier_state.handle(request)
-        return response
+        return await self.current_order_state.handle(request)
 
     async def _handle_pickup_ping(self, request: BotInteractionRequest) -> ChatbotResponse:
         return ChatbotResponse(chatbot_message="", pickup_ping=True, order_state=request.order_state)

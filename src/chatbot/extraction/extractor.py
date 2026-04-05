@@ -1,5 +1,5 @@
 from src.chatbot.extraction import ai_client
-from src.chatbot.schema import Message, ModifyItem, OrderItem, SwapItems
+from src.chatbot.schema import AddItemsResult, Message, ModifyItem, OrderItem, SwapItems
 
 
 class OrderExtractor:
@@ -14,7 +14,7 @@ class OrderExtractor:
         latest_message: str,
         order_state: dict,
         message_history: list[Message] | None = None,
-    ) -> list[OrderItem]:
+    ) -> AddItemsResult:
         return await ai_client.extract_add_items(
             latest_message=latest_message,
             order_state=order_state,

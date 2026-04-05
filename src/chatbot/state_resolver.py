@@ -2,14 +2,12 @@
 from src.chatbot.intent.resolver import (
     ConversationStateResolver,
     FoodOrderStateResolver,
-    ModifierStateResolver,
 )
 from src.chatbot.intent.transitions import VALID_FOOD_ORDER_TRANSITIONS, VALID_TRANSITIONS
 
 __all__ = [
     "ConversationStateResolver",
     "FoodOrderStateResolver",
-    "ModifierStateResolver",
     "VALID_TRANSITIONS",
     "VALID_FOOD_ORDER_TRANSITIONS",
 ]

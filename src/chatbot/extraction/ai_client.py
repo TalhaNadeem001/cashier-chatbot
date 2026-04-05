@@ -2,7 +2,7 @@ import json
 from openai import AsyncOpenAI, OpenAIError
 from src.chatbot.exceptions import AIServiceError
 from src.chatbot.extraction.prompts import EXTRACT_ORDER_ITEMS_SYSTEM_PROMPT, EXTRACT_ADD_ITEMS_SYSTEM_PROMPT, EXTRACT_MODIFY_ITEMS_SYSTEM_PROMPT, EXTRACT_SWAP_ITEMS_SYSTEM_PROMPT, RESOLVE_CONFIRMATION_SYSTEM_PROMPT, RESOLVE_REMOVE_ITEM_SYSTEM_PROMPT, EXTRACT_PENDING_MOD_SELECTIONS_SYSTEM_PROMPT
-from src.chatbot.schema import Message, ModifyItem, OrderItem, SwapItems
+from src.chatbot.schema import AddItemsResult, Message, ModifierUpdate, ModifyItem, OrderItem, SwapItems
 from src.config import settings
 from src.menu.loader import get_menu_context
 
@@ -14,7 +14,7 @@ async def extract_order_items(
     message_history: list[Message] | None = None,
 ) -> list[OrderItem]:
     history = [m.model_dump() for m in message_history] if message_history else []
-    system = EXTRACT_ORDER_ITEMS_SYSTEM_PROMPT.replace("{menu_context}", get_menu_context())
+    system = EXTRACT_ORDER_ITEMS_SYSTEM_PROMPT
     messages = [
         {"role": "system", "content": system},
         *history,
@@ -40,12 +40,16 @@ async def extract_add_items(
     latest_message: str,
     order_state: dict,
     message_history: list[Message] | None = None,
-) -> list[OrderItem]:
+) -> AddItemsResult:
     history = [m.model_dump() for m in message_history] if message_history else []
+
+    raw_items = order_state.get("items", [])
+    tagged_items = [{**item, "item_id": f"item_{i}"} for i, item in enumerate(raw_items)]
+    tagged_order_state = {**order_state, "items": tagged_items}
+
     system = (
         EXTRACT_ADD_ITEMS_SYSTEM_PROMPT
-        .replace("{order_state}", str(order_state))
-        .replace("{menu_context}", get_menu_context())
+        .replace("{order_state}", str(tagged_order_state))
     )
     messages = [
         {"role": "system", "content": system},
@@ -65,7 +69,10 @@ async def extract_add_items(
         raise AIServiceError(f"OpenAI request failed: {e}") from e
 
     raw = json.loads(response.choices[0].message.content)
-    return [OrderItem(**item) for item in raw.get("items", [])]
+    return AddItemsResult(
+        new_items=[OrderItem(**item) for item in raw.get("new_items", [])],
+        modifier_updates=[ModifierUpdate(**u) for u in raw.get("modifier_updates", [])],
+    )
 
 
 async def extract_modify_items(
