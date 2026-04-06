@@ -50,6 +50,17 @@ class ModifierJourneyAnalysis(BaseModel):
     reasoning: str
 
 
+class ModifierOrderIntentAnalysis(BaseModel):
+    state: str
+    confidence: Literal["high", "medium", "low"]
+    reasoning: str
+    alternative: str | None = None
+
+
 class CustomerNameAnalysis(BaseModel):
     full_name: str | None = None
     confidence: Literal["high", "medium", "low"]
+
+
+class ModifierAssignmentResult(BaseModel):
+    items: list[dict]

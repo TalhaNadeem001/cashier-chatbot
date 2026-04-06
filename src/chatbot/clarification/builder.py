@@ -86,8 +86,16 @@ class ClarificationBuilder:
             messages.append(f"Got it! I've added {names} to your order.")
 
         if not_found:
-            names = ", ".join(f'"{r.item.name}"' for r in not_found)
-            messages.append(f"Sorry, I couldn't find {names} on our menu. If you want to know what we provide please ask about our menu, or order something else. Thanks!")
+            custom = list(
+                dict.fromkeys(m for r in not_found if (m := r.clarification_message))
+            )
+            messages.extend(custom)
+            generic = [r for r in not_found if not r.clarification_message]
+            if generic:
+                names = ", ".join(f'"{r.item.name}"' for r in generic)
+                messages.append(
+                    f"Sorry, I couldn't find {names} on our menu. If you want to know what we provide please ask about our menu, or order something else. Thanks!"
+                )
 
         if ambiguous:
             for r in ambiguous:
@@ -129,8 +137,14 @@ class ClarificationBuilder:
                 messages.append(f"{names} wasn't in your order.")
 
         if not_found:
-            names = ", ".join(f'"{r.item.name}"' for r in not_found)
-            messages.append(f"Sorry, I couldn't find {names} on our menu.")
+            custom = list(
+                dict.fromkeys(m for r in not_found if (m := r.clarification_message))
+            )
+            messages.extend(custom)
+            generic = [r for r in not_found if not r.clarification_message]
+            if generic:
+                names = ", ".join(f'"{r.item.name}"' for r in generic)
+                messages.append(f"Sorry, I couldn't find {names} on our menu.")
 
         if ambiguous:
             for r in ambiguous:

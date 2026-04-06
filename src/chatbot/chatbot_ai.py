@@ -32,6 +32,7 @@ from src.chatbot.prompts import (
     VERIFY_FOOD_ORDER_STATE_SYSTEM_PROMPT,
     VERIFY_STATE_SYSTEM_PROMPT,
 )
+from src.chatbot.openai_messages import openai_chat_history_from_messages
 from src.chatbot.schema import Message, ModifyItem, OrderItem, SwapItems
 from src.config import settings
 
@@ -45,7 +46,7 @@ class ChatbotAI:
         message_history: list[Message] | None = None,
         previous_state: str | None = None,
     ) -> IntentAnalysis:
-        history = [m.model_dump() for m in (message_history or [])[-10:]]
+        history = openai_chat_history_from_messages(message_history, tail=10)
         messages: list[dict] = [{"role": "system", "content": ANALYZE_INTENT_SYSTEM_PROMPT}]
         if previous_state:
             messages.append({"role": "system", "content": f"Previous conversation state: {previous_state}"})
@@ -78,7 +79,7 @@ class ChatbotAI:
         transition_valid: bool = True,
         analysis_reasoning: str = "",
     ) -> StateVerification:
-        history = [m.model_dump() for m in (message_history or [])[-10:]]
+        history = openai_chat_history_from_messages(message_history, tail=10)
         context_lines = [
             f"Proposed state: {proposed_state}",
             f"Previous state: {previous_state}",
@@ -115,7 +116,7 @@ class ChatbotAI:
         message_history: list[Message] | None = None,
         previous_food_order_state: str | None = None,
     ) -> FoodOrderIntentAnalysis:
-        history = [m.model_dump() for m in (message_history or [])[-6:]]
+        history = openai_chat_history_from_messages(message_history, tail=6)
         messages: list[dict] = [{"role": "system", "content": ANALYZE_FOOD_ORDER_INTENT_SYSTEM_PROMPT}]
         context_lines = [f"Current order: {order_state}"]
         if previous_food_order_state:
@@ -150,7 +151,7 @@ class ChatbotAI:
         transition_valid: bool = True,
         analysis_reasoning: str = "",
     ) -> FoodOrderStateVerification:
-        history = [m.model_dump() for m in (message_history or [])[-6:]]
+        history = openai_chat_history_from_messages(message_history, tail=6)
         context_lines = [
             f"Current order: {order_state}",
             f"Proposed sub-state: {proposed_state}",
@@ -186,7 +187,7 @@ class ChatbotAI:
         latest_message: str,
         message_history: list[Message] | None = None,
     ) -> str:
-        history = [m.model_dump() for m in message_history] if message_history else []
+        history = openai_chat_history_from_messages(message_history)
         messages = [
             {"role": "system", "content": FAREWELL_SYSTEM_PROMPT},
             *history,
@@ -210,7 +211,7 @@ class ChatbotAI:
         latest_message: str,
         message_history: list[Message] | None = None,
     ) -> str:
-        history = [m.model_dump() for m in message_history] if message_history else []
+        history = openai_chat_history_from_messages(message_history)
         messages = [
             {"role": "system", "content": CLARIFY_VAGUE_MESSAGE_SYSTEM_PROMPT},
             *history,
@@ -234,7 +235,7 @@ class ChatbotAI:
         latest_message: str,
         message_history: list[Message] | None = None,
     ) -> str:
-        history = [m.model_dump() for m in message_history] if message_history else []
+        history = openai_chat_history_from_messages(message_history)
         messages = [
             {"role": "system", "content": MISC_SYSTEM_PROMPT},
             *history,
@@ -258,7 +259,7 @@ class ChatbotAI:
         latest_message: str,
         message_history: list[Message] | None = None,
     ) -> list[OrderItem]:
-        history = [m.model_dump() for m in message_history] if message_history else []
+        history = openai_chat_history_from_messages(message_history)
         messages = [
             {"role": "system", "content": EXTRACT_ORDER_ITEMS_SYSTEM_PROMPT},
             *history,
@@ -284,7 +285,7 @@ class ChatbotAI:
         latest_message: str,
         message_history: list[Message] | None = None,
     ) -> SwapItems:
-        history = [m.model_dump() for m in message_history] if message_history else []
+        history = openai_chat_history_from_messages(message_history)
         messages = [
             {"role": "system", "content": EXTRACT_SWAP_ITEMS_SYSTEM_PROMPT},
             *history,
@@ -313,7 +314,7 @@ class ChatbotAI:
         latest_message: str,
         message_history: list[Message] | None = None,
     ) -> str:
-        history = [m.model_dump() for m in message_history] if message_history else []
+        history = openai_chat_history_from_messages(message_history)
         messages = [
             {"role": "system", "content": UNRECOGNIZED_STATE_SYSTEM_PROMPT},
             *history,
@@ -337,7 +338,7 @@ class ChatbotAI:
         latest_message: str,
         message_history: list[Message] | None = None,
     ) -> list[OrderItem]:
-        history = [m.model_dump() for m in message_history] if message_history else []
+        history = openai_chat_history_from_messages(message_history)
         messages = [
             {"role": "system", "content": RESOLVE_CONFIRMATION_SYSTEM_PROMPT},
             *history,
@@ -364,7 +365,7 @@ class ChatbotAI:
         order_state: dict,
         message_history: list[Message] | None = None,
     ) -> list[OrderItem]:
-        history = [m.model_dump() for m in message_history] if message_history else []
+        history = openai_chat_history_from_messages(message_history)
         system = EXTRACT_ADD_ITEMS_SYSTEM_PROMPT.replace("{order_state}", str(order_state))
         messages = [
             {"role": "system", "content": system},
@@ -392,7 +393,7 @@ class ChatbotAI:
         order_state: dict,
         message_history: list[Message] | None = None,
     ) -> list[ModifyItem]:
-        history = [m.model_dump() for m in message_history] if message_history else []
+        history = openai_chat_history_from_messages(message_history)
         system = EXTRACT_MODIFY_ITEMS_SYSTEM_PROMPT.replace("{order_state}", str(order_state))
         messages = [
             {"role": "system", "content": system},
@@ -419,7 +420,7 @@ class ChatbotAI:
         latest_message: str,
         message_history: list[Message] | None = None,
     ) -> list[OrderItem]:
-        history = [m.model_dump() for m in message_history] if message_history else []
+        history = openai_chat_history_from_messages(message_history)
         messages = [
             {"role": "system", "content": RESOLVE_REMOVE_ITEM_SYSTEM_PROMPT},
             *history,
@@ -446,7 +447,7 @@ class ChatbotAI:
         menu_context: str,
         message_history: list[Message] | None = None,
     ) -> str:
-        history = [m.model_dump() for m in message_history] if message_history else []
+        history = openai_chat_history_from_messages(message_history)
         system = MENU_QUESTION_SYSTEM_PROMPT.format(menu_context=menu_context)
         messages = [
             {"role": "system", "content": system},
@@ -472,7 +473,7 @@ class ChatbotAI:
         latest_message: str,
         message_history: list[Message] | None = None,
     ) -> str:
-        history = [m.model_dump() for m in (message_history or [])]
+        history = openai_chat_history_from_messages(message_history)
         system = POLISH_FOOD_ORDER_REPLY_SYSTEM_PROMPT.format(order_state=order_state)
         messages: list[dict] = [
             {"role": "system", "content": system},
@@ -498,7 +499,7 @@ class ChatbotAI:
         order_state: dict,
         message_history: list[Message] | None = None,
     ) -> OrderFinalizationIntent:
-        history = [m.model_dump() for m in (message_history or [])]
+        history = openai_chat_history_from_messages(message_history)
         system = RESOLVE_ORDER_FINALIZATION_SYSTEM_PROMPT.format(order_state=order_state)
         messages: list[dict] = [
             {"role": "system", "content": system},
@@ -528,7 +529,7 @@ class ChatbotAI:
         latest_message: str,
         message_history: list[Message] | None = None,
     ) -> OrderSupervisionResult:
-        history = [m.model_dump() for m in (message_history or [])]
+        history = openai_chat_history_from_messages(message_history)
         context_lines = [
             f"Proposed order state: {proposed_order_state}",
         ]
@@ -561,7 +562,7 @@ class ChatbotAI:
         restaurant_context: str,
         message_history: list[Message] | None = None,
     ) -> str:
-        history = [m.model_dump() for m in message_history] if message_history else []
+        history = openai_chat_history_from_messages(message_history)
         system = RESTAURANT_QUESTION_SYSTEM_PROMPT.format(restaurant_context=restaurant_context)
         messages = [
             {"role": "system", "content": system},

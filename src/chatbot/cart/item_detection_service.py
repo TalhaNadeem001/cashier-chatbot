@@ -3,7 +3,7 @@ from rapidfuzz import process
 from src.menu.loader import _MENU_DATA
 from src.menu.loader import get_item_category
 from src.chatbot.schema import ChatbotResponse
-from src.chatbot.clarification.fuzzy_matcher import _combined_scorer, CONFIRMED_THRESHOLD
+from src.chatbot.clarification.fuzzy_matcher import _combined_scorer, CONFIRMED_THRESHOLD, MODS_CONFIRMED_THRESHOLD
 
 async def validate_order_items(order_items: list[dict], response: ChatbotResponse) -> ChatbotResponse:
     for item in order_items:
@@ -11,6 +11,8 @@ async def validate_order_items(order_items: list[dict], response: ChatbotRespons
         if name in _MENU_DATA.get("menu", {}).get("items", {}).keys():
             response = await detect_non_default_items(item, name, response)
             response = await detect_mods_allowed(item, name, response)
+        else:
+            response.chatbot_message += f"\n\nSorry, this is not an allowed modifier"
     return response
 
 async def detect_mods_allowed(order_items: dict, item_name: str, response: ChatbotResponse) -> ChatbotResponse:
@@ -23,18 +25,20 @@ async def validate_mod_selections(item_name: str, users_mods: list[str], order_i
     allowed_names: list[str] = []
     for mod in item_data.get("mods", {}).values():
         allowed_names.extend(opt["name"] for opt in mod.get("options", []))
-
+    print(f"allowed_names: {allowed_names}")
     if not allowed_names:
         return response
 
     valid_mods: list[str] = []
 
     for mod_text in users_mods:
+        print(f"mod_text: {mod_text}")
         mod_text = mod_text.strip()
         if not mod_text:
             continue
         result = process.extractOne(mod_text, allowed_names, scorer=_combined_scorer)
-        if result is None or result[1] < CONFIRMED_THRESHOLD:
+        print(f"result: {result}")
+        if result is None or result[1] < MODS_CONFIRMED_THRESHOLD:
             response.chatbot_message += (
                 f'\n\n"{mod_text}" is not a valid modifier for {item_name}. '
                 f"Allowed options are: {', '.join(allowed_names)}"

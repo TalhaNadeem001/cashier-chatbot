@@ -8,17 +8,24 @@ from src.chatbot.internal_schemas import (
     FoodOrderIntentAnalysis,
     FoodOrderStateVerification,
     IntentAnalysis,
+    ModifierAssignmentResult,
     ModifierJourneyAnalysis,
+    ModifierOrderIntentAnalysis,
     StateVerification,
 )
 from src.chatbot.intent.prompts import (
     ANALYZE_FOOD_ORDER_INTENT_SYSTEM_PROMPT,
     ANALYZE_INTENT_SYSTEM_PROMPT,
     ANALYZE_MODIFIER_JOURNEY_INTENT_SYSTEM_PROMPT,
+    ANALYZE_MODIFIER_ORDER_STATE_SYSTEM_PROMPT,
     GET_CUSTOMER_NAME_SYSTEM_PROMPT,
     VERIFY_FOOD_ORDER_STATE_SYSTEM_PROMPT,
     VERIFY_STATE_SYSTEM_PROMPT,
+    ASSIGN_ITEM_MODIFIERS_SYSTEM_PROMPT,
+    REMOVE_ITEM_MODIFIERS_SYSTEM_PROMPT,
+    SWAP_ITEM_MODIFIERS_SYSTEM_PROMPT,
 )
+from src.chatbot.openai_messages import openai_chat_history_from_messages
 from src.chatbot.schema import Message
 from src.config import settings
 
@@ -30,7 +37,7 @@ async def detect_user_intent(
     message_history: list[Message] | None = None,
     previous_state: str | None = None,
 ) -> IntentAnalysis:
-    history = [m.model_dump() for m in (message_history or [])[-10:]]
+    history = openai_chat_history_from_messages(message_history, tail=10)
     messages: list[dict] = [{"role": "system", "content": ANALYZE_INTENT_SYSTEM_PROMPT}]
     if previous_state:
         messages.append({"role": "system", "content": f"Previous conversation state: {previous_state}"})
@@ -62,7 +69,7 @@ async def verify_state(
     previous_state: str | None = None,
     analysis_reasoning: str = "",
 ) -> StateVerification:
-    history = [m.model_dump() for m in (message_history or [])[-10:]]
+    history = openai_chat_history_from_messages(message_history, tail=10)
     context_lines = [
         f"Proposed state: {proposed_state}",
         f"Previous state: {previous_state}",
@@ -98,7 +105,7 @@ async def analyze_food_order_intent(
     message_history: list[Message] | None = None,
     previous_food_order_state: str | None = None,
 ) -> FoodOrderIntentAnalysis:
-    history = [m.model_dump() for m in (message_history or [])[-6:]]
+    history = openai_chat_history_from_messages(message_history, tail=6)
     messages: list[dict] = [{"role": "system", "content": ANALYZE_FOOD_ORDER_INTENT_SYSTEM_PROMPT}]
     context_lines = [f"Current order: {order_state}"]
     if previous_food_order_state:
@@ -133,7 +140,7 @@ async def verify_food_order_state(
     transition_valid: bool = True,
     analysis_reasoning: str = "",
 ) -> FoodOrderStateVerification:
-    history = [m.model_dump() for m in (message_history or [])[-6:]]
+    history = openai_chat_history_from_messages(message_history, tail=6)
     context_lines = [
         f"Current order: {order_state}",
         f"Proposed sub-state: {proposed_state}",
@@ -169,7 +176,7 @@ async def get_customer_name(
     message_history: list[Message] | None,
     latest_message: str,
 ) -> CustomerNameAnalysis:
-    history = [m.model_dump() for m in (message_history or [])[-10:]]
+    history = openai_chat_history_from_messages(message_history, tail=10)
     messages: list[dict] = [
         {"role": "system", "content": GET_CUSTOMER_NAME_SYSTEM_PROMPT},
         *history,
@@ -191,6 +198,35 @@ async def get_customer_name(
         return CustomerNameAnalysis(**json.loads(response.choices[0].message.content))
     except Exception as e:
         raise AIServiceError(f"Failed to parse customer name analysis: {e}") from e
+
+
+async def analyze_modifier_order_state(
+    latest_message: str,
+    order_state: dict,
+    message_history: list[Message] | None = None,
+) -> ModifierOrderIntentAnalysis:
+    history = openai_chat_history_from_messages(message_history, tail=6)
+    messages: list[dict] = [{"role": "system", "content": ANALYZE_MODIFIER_ORDER_STATE_SYSTEM_PROMPT}]
+    context_lines = [f"Current order: {order_state}"]
+    messages.append({"role": "system", "content": "\n".join(context_lines)})
+    messages.extend(history)
+    messages.append({"role": "user", "content": latest_message})
+
+    try:
+        response = await _client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            max_tokens=120,
+            temperature=0,
+            response_format={"type": "json_object"},
+        )
+    except OpenAIError as e:
+        raise AIServiceError(f"OpenAI request failed: {e}") from e
+
+    try:
+        return ModifierOrderIntentAnalysis(**json.loads(response.choices[0].message.content))
+    except Exception as e:
+        raise AIServiceError(f"Failed to parse modifier order state analysis: {e}") from e
 
 
 async def analyze_modifier_journey_intent(
@@ -220,3 +256,93 @@ async def analyze_modifier_journey_intent(
         return ModifierJourneyAnalysis(**json.loads(response.choices[0].message.content))
     except Exception as e:
         raise AIServiceError(f"Failed to parse modifier journey intent: {e}") from e
+
+
+async def assign_item_modifiers(
+    latest_message: str,
+    items: list[dict],
+    message_history: list[Message] | None = None,
+) -> ModifierAssignmentResult:
+    history = openai_chat_history_from_messages(message_history, tail=6)
+    messages: list[dict] = [
+        {"role": "system", "content": ASSIGN_ITEM_MODIFIERS_SYSTEM_PROMPT},
+        {"role": "system", "content": f"Items to assign modifiers to: {json.dumps(items, ensure_ascii=False, allow_nan=False)}"},
+        *history,
+        {"role": "user", "content": latest_message},
+    ]
+
+    try:
+        response = await _client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            max_tokens=300,
+            temperature=0,
+            response_format={"type": "json_object"},
+        )
+    except OpenAIError as e:
+        raise AIServiceError(f"OpenAI request failed: {e}") from e
+
+    try:
+        return ModifierAssignmentResult(**json.loads(response.choices[0].message.content))
+    except Exception as e:
+        raise AIServiceError(f"Failed to parse modifier assignment result: {e}") from e
+
+
+async def swap_item_modifiers(
+    latest_message: str,
+    items: list[dict],
+    message_history: list[Message] | None = None,
+) -> ModifierAssignmentResult:
+    history = openai_chat_history_from_messages(message_history, tail=6)
+    messages: list[dict] = [
+        {"role": "system", "content": SWAP_ITEM_MODIFIERS_SYSTEM_PROMPT},
+        {"role": "system", "content": f"Items to swap modifiers on: {json.dumps(items, ensure_ascii=False, allow_nan=False)}"},
+        *history,
+        {"role": "user", "content": latest_message},
+    ]
+
+    try:
+        response = await _client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            max_tokens=300,
+            temperature=0,
+            response_format={"type": "json_object"},
+        )
+    except OpenAIError as e:
+        raise AIServiceError(f"OpenAI request failed: {e}") from e
+
+    try:
+        return ModifierAssignmentResult(**json.loads(response.choices[0].message.content))
+    except Exception as e:
+        raise AIServiceError(f"Failed to parse modifier swap result: {e}") from e
+
+
+async def remove_item_modifiers(
+    latest_message: str,
+    items: list[dict],
+    message_history: list[Message] | None = None,
+) -> ModifierAssignmentResult:
+    history = openai_chat_history_from_messages(message_history, tail=6)
+    messages: list[dict] = [
+        {"role": "system", "content": REMOVE_ITEM_MODIFIERS_SYSTEM_PROMPT},
+        {"role": "system", "content": f"Items to remove modifiers from: {json.dumps(items, ensure_ascii=False, allow_nan=False)}"},
+        *history,
+        {"role": "user", "content": latest_message},
+    ]
+
+    try:
+        response = await _client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            max_tokens=300,
+            temperature=0,
+            response_format={"type": "json_object"},
+        )
+    except OpenAIError as e:
+        raise AIServiceError(f"OpenAI request failed: {e}") from e
+
+    try:
+        return ModifierAssignmentResult(**json.loads(response.choices[0].message.content))
+    except Exception as e:
+        raise AIServiceError(f"Failed to parse modifier removal result: {e}") from e

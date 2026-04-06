@@ -2,7 +2,8 @@ import json
 from openai import AsyncOpenAI, OpenAIError
 from src.chatbot.exceptions import AIServiceError
 from src.chatbot.extraction.prompts import EXTRACT_ORDER_ITEMS_SYSTEM_PROMPT, EXTRACT_ADD_ITEMS_SYSTEM_PROMPT, EXTRACT_MODIFY_ITEMS_SYSTEM_PROMPT, EXTRACT_SWAP_ITEMS_SYSTEM_PROMPT, RESOLVE_CONFIRMATION_SYSTEM_PROMPT, RESOLVE_REMOVE_ITEM_SYSTEM_PROMPT, EXTRACT_PENDING_MOD_SELECTIONS_SYSTEM_PROMPT
-from src.chatbot.schema import AddItemsResult, Message, ModifierUpdate, ModifyItem, OrderItem, SwapItems
+from src.chatbot.openai_messages import openai_chat_history_from_messages
+from src.chatbot.schema import AddItemsResult, Message, ModifyItem, OrderItem, SwapItems
 from src.config import settings
 from src.menu.loader import get_menu_context
 
@@ -13,7 +14,7 @@ async def extract_order_items(
     latest_message: str,
     message_history: list[Message] | None = None,
 ) -> list[OrderItem]:
-    history = [m.model_dump() for m in message_history] if message_history else []
+    history = openai_chat_history_from_messages(message_history)
     system = EXTRACT_ORDER_ITEMS_SYSTEM_PROMPT
     messages = [
         {"role": "system", "content": system},
@@ -41,15 +42,11 @@ async def extract_add_items(
     order_state: dict,
     message_history: list[Message] | None = None,
 ) -> AddItemsResult:
-    history = [m.model_dump() for m in message_history] if message_history else []
-
-    raw_items = order_state.get("items", [])
-    tagged_items = [{**item, "item_id": f"item_{i}"} for i, item in enumerate(raw_items)]
-    tagged_order_state = {**order_state, "items": tagged_items}
+    history = openai_chat_history_from_messages(message_history)
 
     system = (
         EXTRACT_ADD_ITEMS_SYSTEM_PROMPT
-        .replace("{order_state}", str(tagged_order_state))
+        .replace("{order_state}", str(order_state))
     )
     messages = [
         {"role": "system", "content": system},
@@ -71,7 +68,6 @@ async def extract_add_items(
     raw = json.loads(response.choices[0].message.content)
     return AddItemsResult(
         new_items=[OrderItem(**item) for item in raw.get("new_items", [])],
-        modifier_updates=[ModifierUpdate(**u) for u in raw.get("modifier_updates", [])],
     )
 
 
@@ -80,7 +76,7 @@ async def extract_modify_items(
     order_state: dict,
     message_history: list[Message] | None = None,
 ) -> list[ModifyItem]:
-    history = [m.model_dump() for m in message_history] if message_history else []
+    history = openai_chat_history_from_messages(message_history)
     system = (
         EXTRACT_MODIFY_ITEMS_SYSTEM_PROMPT
         .replace("{order_state}", str(order_state))
@@ -111,7 +107,7 @@ async def extract_swap_items(
     latest_message: str,
     message_history: list[Message] | None = None,
 ) -> SwapItems:
-    history = [m.model_dump() for m in message_history] if message_history else []
+    history = openai_chat_history_from_messages(message_history)
     messages = [
         {"role": "system", "content": EXTRACT_SWAP_ITEMS_SYSTEM_PROMPT},
         *history,
@@ -140,7 +136,7 @@ async def resolve_remove_item(
     latest_message: str,
     message_history: list[Message] | None = None,
 ) -> list[OrderItem]:
-    history = [m.model_dump() for m in message_history] if message_history else []
+    history = openai_chat_history_from_messages(message_history)
     messages = [
         {"role": "system", "content": RESOLVE_REMOVE_ITEM_SYSTEM_PROMPT},
         *history,
@@ -195,7 +191,7 @@ async def resolve_confirmation(
     latest_message: str,
     message_history: list[Message] | None = None,
 ) -> list[OrderItem]:
-    history = [m.model_dump() for m in message_history] if message_history else []
+    history = openai_chat_history_from_messages(message_history)
     messages = [
         {"role": "system", "content": RESOLVE_CONFIRMATION_SYSTEM_PROMPT},
         *history,

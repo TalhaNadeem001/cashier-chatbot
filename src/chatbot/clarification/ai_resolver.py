@@ -5,6 +5,7 @@ from openai import AsyncOpenAI, OpenAIError
 
 from src.chatbot.exceptions import AIServiceError
 from src.chatbot.clarification.prompts import AMBIGUOUS_MATCH_RESOLUTION_SYSTEM_PROMPT
+from src.chatbot.openai_messages import openai_chat_history_from_messages
 from src.chatbot.schema import Message
 from src.config import settings
 
@@ -24,7 +25,7 @@ async def resolve_ambiguous_match(
     system_content = AMBIGUOUS_MATCH_RESOLUTION_SYSTEM_PROMPT.format(
         candidates=", ".join(f'"{c}"' for c in candidates),
     )
-    history = [m.model_dump() for m in (message_history or [])]
+    history = openai_chat_history_from_messages(message_history)
     print(f"history: {history}")
     print(f"latest_message: {latest_message}")
     messages: list[dict] = [

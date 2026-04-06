@@ -8,7 +8,12 @@ from src.chatbot.schema import Message, OrderItem
 
 # Thresholds
 CONFIRMED_THRESHOLD = 70     # single top match at or above this → confirmed
-NOT_FOUND_THRESHOLD = 50     # top match below this → item does not exist on menu
+MODS_CONFIRMED_THRESHOLD = 80 # single top match at or above this → confirmed
+NOT_FOUND_THRESHOLD = 50     # match_free_modifier: top match below this → not on option list
+LOW_MENU_MATCH_THRESHOLD = 55  # match_item: below this → not on menu (no ambiguity / gap pass)
+LOW_MENU_MATCH_MESSAGE = (
+    "This item doesn't exist on our menu. Please refer to our menu for available options!"
+)
 AMBIGUITY_GAP = 6            # top N matches within this score range of each other → ambiguous
 
 
@@ -52,8 +57,12 @@ class FuzzyMatcher:
         )  # [(name, score, index), ...]
         print(f"top_matches: {top_matches}")
 
-        if not top_matches or top_matches[0][1] < NOT_FOUND_THRESHOLD:
-            return _MatchResult(item=item, status="not_found")
+        if not top_matches or top_matches[0][1] < LOW_MENU_MATCH_THRESHOLD:
+            return _MatchResult(
+                item=item,
+                status="not_found",
+                clarification_message=LOW_MENU_MATCH_MESSAGE,
+            )
 
         best_score = top_matches[0][1]
 

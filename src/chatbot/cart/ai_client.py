@@ -9,6 +9,7 @@ from src.chatbot.prompts import (
     RESOLVE_ORDER_FINALIZATION_SYSTEM_PROMPT,
     SUPERVISE_ORDER_STATE_SYSTEM_PROMPT,
 )
+from src.chatbot.openai_messages import openai_chat_history_from_messages
 from src.chatbot.schema import Message
 from src.config import settings
 
@@ -20,7 +21,7 @@ async def supervise_order_state(
     latest_message: str,
     message_history: list[Message] | None = None,
 ) -> OrderSupervisionResult:
-    history = [m.model_dump() for m in (message_history or [])]
+    history = openai_chat_history_from_messages(message_history)
     context_lines = [
         f"Proposed order state: {proposed_order_state}",
     ]
@@ -53,7 +54,7 @@ async def polish_food_order_reply(
     latest_message: str,
     message_history: list[Message] | None = None,
 ) -> str:
-    history = [m.model_dump() for m in (message_history or [])]
+    history = openai_chat_history_from_messages(message_history)
     system = POLISH_FOOD_ORDER_REPLY_SYSTEM_PROMPT.format(order_state=order_state)
     messages: list[dict] = [
         {"role": "system", "content": system},
@@ -79,7 +80,7 @@ async def resolve_order_finalization(
     order_state: dict,
     message_history: list[Message] | None = None,
 ) -> OrderFinalizationIntent:
-    history = [m.model_dump() for m in (message_history or [])]
+    history = openai_chat_history_from_messages(message_history)
     system = RESOLVE_ORDER_FINALIZATION_SYSTEM_PROMPT.format(order_state=order_state)
     messages: list[dict] = [
         {"role": "system", "content": system},

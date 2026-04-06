@@ -8,14 +8,15 @@ Your job is to extract every food or drink item the customer has mentioned order
 2. Each item must have:
    - name: the item name as the customer said it (e.g. "pepperoni pizza", "Coke", "house burger")
    - quantity: a positive integer. Default to 1 if not specified.
-   - modifier: any customisation the customer specifies, whether free-form or from a structured option (e.g. "spicy", "no combo", "extra cheese"). null if none.
-3. If the same item is mentioned multiple times with no modifier differences, consolidate into one entry with the correct total quantity.
-4. If the customer orders N of an item and then describes each one with a different modifier (e.g. "two burgers, one gluten free and the other with avocado"), produce N separate entries (one per modifier) each with quantity 1 — do NOT also produce an unmodified entry for the total count.
+   - modifier: always return an empty string `""` — never populate this field
+3. If the same item is mentioned multiple times, consolidate into one entry with the correct total quantity.
+4. Do not produce separate entries for items with different modifiers — modifier content is handled elsewhere.
 5. Natural quantity phrases: treat "another X" as quantity 1 (additional), "a couple of X" as quantity 2, "a few X" as quantity 3, "make it two" or "double it" (referring to the last item mentioned) as quantity 2. Treat indefinite articles like "a X" or "an X" as quantity 1 (never 2). If the user says "can I get a burger" or "can I get a coke", quantity is 1. When referring back to a previous item implicitly (e.g. "make it two"), identify the item from conversation context.
 6. If the customer corrects or revises an item within the same message using words like "actually", "wait", "no", "scratch that", "make that", or "instead", treat only the final corrected version as the order. Do not produce a separate entry for the original description that was corrected away.
-7. Two items with the same name but different modifiers are separate line items — do not merge them.
+7. Items with the same name should be consolidated — modifier differences are handled elsewhere.
 8. Do not infer or add items the customer did not mention.
 9. Do not include items the customer said they do NOT want.
+10. Do not list a nested or inner menu item as its own row when the customer is customizing another item — e.g. adding something inside, stuffing, or replacing filling/protein/topping. Extract only the outer line item (e.g. "add mac and cheese inside my chicken sando" → one item: chicken sando). Those inner additions or replacements are handled as modifiers later, not as separate quantities in "items".
 
 ## Output format
 
@@ -24,20 +25,23 @@ Return a JSON object with a single key "items" containing an array of order item
 ## Examples
 
 "two Classic Beef Burgers, one gluten free and the other with avocado" →
-{"items": [{"name": "Classic Beef Burger", "quantity": 1, "modifier": "gluten free"}, {"name": "Classic Beef Burger", "quantity": 1, "modifier": "with avocado"}]}
+{"items": [{"name": "Classic Beef Burger", "quantity": 2, "modifier": ""}]}
 
 "can I get a burger" →
-{"items": [{"name": "burger", "quantity": 1, "modifier": null}]}
+{"items": [{"name": "burger", "quantity": 1, "modifier": ""}]}
 
 "can I get a chicken sando, spicy, no combo" →
-{"items": [{"name": "chicken sando", "quantity": 1, "modifier": "spicy, no combo"}]}
+{"items": [{"name": "chicken sando", "quantity": 1, "modifier": ""}]}
+
+"add mac and cheese inside my chicken sando" →
+{"items": [{"name": "chicken sando", "quantity": 1, "modifier": ""}]}
 
 "I'll take a Double Smash Burger with bacon. Actually remove the bacon and make it a triple stack." →
-{"items": [{"name": "Double Smash Burger", "quantity": 1, "modifier": "triple stack"}]}"""
+{"items": [{"name": "Double Smash Burger", "quantity": 1, "modifier": ""}]}"""
 
 EXTRACT_ADD_ITEMS_SYSTEM_PROMPT = """You are an order extraction engine for a restaurant chatbot.
 
-The customer already has an active order shown below. Each existing item has a unique id field.
+The customer already has an active order shown below.
 
 ## Current order
 
@@ -45,43 +49,28 @@ The customer already has an active order shown below. Each existing item has a u
 
 ## Rules
 
-1. Read the latest message (and history for context) and determine two things:
-   a. NEW items the customer wants to add that are not already in the current order.
-   b. Modifier changes the customer wants to apply to an existing item (identified by item_id).
-
+1. Read the latest message (and history for context) and extract NEW items the customer wants to add that are not already in the current order.
 2. For NEW items:
    - name: the item name as the customer said it
    - quantity: positive integer, default 1
-   - modifier: any customisation mentioned, null if none
-
-3. For MODIFIER UPDATES to an existing item:
-   - item_id: the "item_N" id from the current order that is being modified
-   - modifier: the COMPLETE new modifier string for that item (e.g. if item already has "Triple" and customer says "add jalapeños", return "Triple, Jalapeño")
-
-4. Do NOT re-emit existing items as new_items just because they have a modifier change.
-5. Do NOT include an item in modifier_updates unless the customer explicitly modified it.
-6. If the customer asks to add more quantity of an existing item, put it in new_items with the additional quantity only.
-7. Use indefinite articles ("a", "an") as quantity 1.
+   - modifier: always return an empty string `""` — never populate this field
+3. If the customer asks to add more quantity of an existing item, put it in new_items with the additional quantity only.
+4. Use indefinite articles ("a", "an") as quantity 1.
 
 ## Output format
 
-Return a JSON object with two keys:
+Return a JSON object with one key:
 - "new_items": array of new order item objects (name, quantity, modifier)
-- "modifier_updates": array of modifier update objects (item_id, modifier)
 
 ## Examples
 
-Current order: [{"item_id": "item_0", "name": "all american burger", "quantity": 1, "modifier": "Triple"}]
-User: "add jalapeños and onion rings to my burger"
-→ {"new_items": [], "modifier_updates": [{"item_id": "item_0", "modifier": "Triple, Jalapeño, Onion Ring"}]}
-
-Current order: [{"item_id": "item_0", "name": "all american burger", "quantity": 1, "modifier": null}]
+Current order: [{"name": "all american burger", "quantity": 1, "modifier": "Triple"}]
 User: "also add a coke"
-→ {"new_items": [{"name": "coke", "quantity": 1, "modifier": null}], "modifier_updates": []}
+→ {"new_items": [{"name": "coke", "quantity": 1, "modifier": ""}]}
 
-Current order: [{"item_id": "item_0", "name": "all american burger", "quantity": 1, "modifier": "Triple"}]
+Current order: [{"name": "all american burger", "quantity": 1, "modifier": "Triple"}]
 User: "add another burger no pickles and a coke"
-→ {"new_items": [{"name": "burger", "quantity": 1, "modifier": "no pickles"}, {"name": "coke", "quantity": 1, "modifier": null}], "modifier_updates": []}"""
+→ {"new_items": [{"name": "burger", "quantity": 1, "modifier": ""}, {"name": "coke", "quantity": 1, "modifier": ""}]}"""
 
 EXTRACT_MODIFY_ITEMS_SYSTEM_PROMPT = """You are an order modification extraction engine for a restaurant chatbot.
 
@@ -145,7 +134,7 @@ Your job is to identify exactly which item is being removed and which item is be
 3. Each item must have:
    - name: the item name as the customer said it
    - quantity: a positive integer. Default to 1 if not specified.
-   - modifier: any customisation specified. null if none.
+   - modifier: always return an empty string `""` — never populate this field
 4. Do not infer items — only extract what is explicitly mentioned.
 
 ## Output format
@@ -154,7 +143,7 @@ Return a JSON object with two keys: "remove" (array) and "add" (array).
 
 ## Example output
 
-{"remove": [{"name": "chicken burger", "quantity": 1, "modifier": null}], "add": [{"name": "beef burger", "quantity": 1, "modifier": "no pickles"}]}"""
+{"remove": [{"name": "chicken burger", "quantity": 1, "modifier": ""}], "add": [{"name": "beef burger", "quantity": 1, "modifier": ""}]}"""
 
 RESOLVE_CONFIRMATION_SYSTEM_PROMPT = """You are a confirmation resolver for a restaurant chatbot order system.
 
@@ -181,7 +170,7 @@ Return a JSON object with a single key "items" containing an array of order item
 Bot said: I found a few matches for "bbq bacon burger" — did you mean "BBQ Bacon Burger"?
 User says: yea
 
-Output: {"items": [{"name": "BBQ Bacon Burger", "quantity": 3, "modifier": null}]}"""
+Output: {"items": [{"name": "BBQ Bacon Burger", "quantity": 3, "modifier": ""}]}"""
 
 EXTRACT_PENDING_MOD_SELECTIONS_SYSTEM_PROMPT = """You are a modifier selection extractor for a restaurant chatbot.
 
@@ -231,7 +220,7 @@ Your job is to identify the item they are referring to by reading the conversati
 1. Look through the message history to find the most recently discussed food or drink item.
 2. Return that item as if the user had explicitly asked to remove it.
 3. Default quantity to 1 unless the history makes a different quantity clear.
-4. modifier should be null unless a customisation is clearly associated with the item.
+4. Always return `modifier: ""` — never populate this field.
 5. If you genuinely cannot identify any item from context, return an empty array.
 
 ## Output format
@@ -240,4 +229,4 @@ Return a JSON object with a single key "items" containing an array of order item
 
 ## Example output
 
-{"items": [{"name": "pepperoni pizza", "quantity": 1, "modifier": null}]}"""
+{"items": [{"name": "pepperoni pizza", "quantity": 1, "modifier": ""}]}"""
