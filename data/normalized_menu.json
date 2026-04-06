@@ -1,0 +1,1408 @@
+{
+    "menu": {
+        "items": {
+            "chicken sub": {
+                "original name": "chicken sub (throwback to 2008)",
+                "category": "Specialties",
+                "description": "Marinated Chicken + Lettuce + Tomato + Pickles + Mayo + Toasted French Bread",
+                "price": 14.99,
+                "requires": [
+                  "extra_chicken",
+                  "make_it_a_combo_with_fries"
+                ],
+                "optional": [],
+                "mods": {
+                  "extra_chicken": {
+                    "label": "Extra Chicken",
+                    "type": "radio",
+                    "options": [
+                      {
+                        "name": "Extra Chicken",
+                        "price": 6
+                      },
+                      {
+                        "name": "No Thank You",
+                        "price": 0
+                      }
+                    ]
+                  },
+                  "make_it_a_combo_with_fries": {
+                    "label": "Make It a Combo With Fries",
+                    "type": "radio",
+                    "options": [
+                      {
+                        "name": "Plain Fries",
+                        "price": 3.5
+                      },
+                      {
+                        "name": "Lemon Pepper Fries",
+                        "price": 3.5
+                      },
+                      {
+                        "name": "Cajun Fries",
+                        "price": 3.5
+                      },
+                      {
+                        "name": "Nashville Seasoning Fries",
+                        "price": 3.5
+                      },
+                      {
+                        "name": "No Thanks",
+                        "price": 0
+                      }
+                    ]
+                  }
+                }
+            },
+            "chicken sando": {
+                "category": "Lets Smash (Crispy Chicken Menu)",
+                "description": "Potato Roll, Crispy Hand Battered Chicken, Kaleslaw, Crinkle Cut pickles, Sweet Chili Aioli",
+                "price": 8.99,
+                "requires": [
+                "make_it_a_combo_with_fries",
+                "chicken_sando_seasoning"
+                ],
+                "optional": [],
+                "mods": {
+                "make_it_a_combo_with_fries": {
+                    "label": "Make It a Combo With Fries",
+                    "type": "radio",
+                    "options": [
+                    {
+                        "name": "Plain Fries",
+                        "price": 3.5
+                    },
+                    {
+                        "name": "Lemon Pepper Fries",
+                        "price": 3.5
+                    },
+                    {
+                        "name": "Cajun Fries",
+                        "price": 3.5
+                    },
+                    {
+                        "name": "Nashville Seasoning Fries",
+                        "price": 3.5
+                    },
+                    {
+                        "name": "No Thanks",
+                        "price": 0
+                    }
+                    ]
+                },
+                "chicken_sando_seasoning": {
+                    "label": "Chicken Sando Seasoning",
+                    "type": "radio",
+                    "options": [
+                    {
+                        "name": "Naked",
+                        "price": 0
+                    },
+                    {
+                        "name": "Mild",
+                        "price": 0
+                    },
+                    {
+                        "name": "Spicy",
+                        "price": 0
+                    },
+                    {
+                        "name": "Extra Spicy",
+                        "price": 0
+                    }
+                    ]
+                }
+                }
+            },
+            "chicken tender": {
+                "category": "Lets Smash (Crispy Chicken Menu)",
+                "description": "Hand Battered Crispy Chicken Tender",
+                "price": 4.49,
+                "requires": [
+                "make_it_a_combo_with_fries",
+                "tender_spice_level"
+                ],
+                "optional": [],
+                "mods": {
+                "make_it_a_combo_with_fries": {
+                    "label": "Make It a Combo With Fries",
+                    "type": "radio",
+                    "options": [
+                    {
+                        "name": "Plain Fries",
+                        "price": 3.5
+                    },
+                    {
+                        "name": "Lemon Pepper Fries",
+                        "price": 3.5
+                    },
+                    {
+                        "name": "Cajun Fries",
+                        "price": 3.5
+                    },
+                    {
+                        "name": "Nashville Seasoning Fries",
+                        "price": 3.5
+                    },
+                    {
+                        "name": "No Thanks",
+                        "price": 0
+                    }
+                    ]
+                },
+                "tender_spice_level": {
+                    "label": "Tender Spice Level",
+                    "type": "radio",
+                    "options": [
+                    {
+                        "name": "Naked",
+                        "price": 0
+                    },
+                    {
+                        "name": "Mild",
+                        "price": 0
+                    },
+                    {
+                        "name": "Spicy",
+                        "price": 0
+                    },
+                    {
+                        "name": "Extra Spicy",
+                        "price": 0
+                    }
+                    ]
+                }
+                }
+            },
+            "cookies 'n cream cookie": {
+                "original name": "Cookies 'N Cream",
+                "category": "Cookies",
+                "description": "Big Size Cookies 'N Cream Cookie",
+                "price": 2.99,
+                "requires": [],
+                "optional": [],
+                "mods": {}
+            },
+            "chocolate chip cookie": {
+                "original name": "Chocolate Chip",
+                "category": "Cookies",
+                "description": "Big Size Chocolate Chip Cookie",
+                "price": 2.99,
+                "requires": [],
+                "optional": [],
+                "mods": {}
+            },
+            "m&m chocolate chip cookie": {
+                "canonical_name": "M&M Chocolate Chip",
+                "category": "Cookies",
+                "description": "Big Size M&M Chocolate Chip Cookie",
+                "price": 2.99,
+                "requires": [],
+                "optional": [],
+                "mods": {}
+            },
+            "all american burger": {
+                "original name": "All American",
+                "category": "Smash Burgers",
+                "description": "Shredded lettuce, mayo, ketchup, mustard, sliced tomato, pickles, diced white onion, American cheese.",
+                "price": "8.99\u201316.99",
+                "requires": [
+                "patties",
+                "make_it_a_combo_with_fries",
+                "lettuce_bun"
+                ],
+                "optional": [
+                "add_ons",
+                "hold_all_american"
+                ],
+                "mods": {
+                "patties": {
+                    "label": "Patties",
+                    "type": "radio",
+                    "options": [
+                    {
+                        "name": "Single",
+                        "price": 8.99
+                    },
+                    {
+                        "name": "Double",
+                        "price": 11.99
+                    },
+                    {
+                        "name": "Triple",
+                        "price": 14.99
+                    },
+                    {
+                        "name": "Quadruple",
+                        "price": 16.99
+                    }
+                    ]
+                },
+                "make_it_a_combo_with_fries": {
+                    "label": "Make It a Combo With Fries",
+                    "type": "radio",
+                    "options": [
+                    {
+                        "name": "Plain Fries",
+                        "price": 3.5
+                    },
+                    {
+                        "name": "Lemon Pepper Fries",
+                        "price": 3.5
+                    },
+                    {
+                        "name": "Cajun Fries",
+                        "price": 3.5
+                    },
+                    {
+                        "name": "Nashville Seasoning Fries",
+                        "price": 3.5
+                    },
+                    {
+                        "name": "No Thanks",
+                        "price": 0
+                    }
+                    ]
+                },
+                "lettuce_bun": {
+                    "label": "Lettuce Bun",
+                    "type": "radio",
+                    "options": [
+                    {
+                        "name": "Lettuce Bun",
+                        "price": 1.5
+                    },
+                    {
+                        "name": "No Thanks",
+                        "price": 0
+                    }
+                    ]
+                },
+                "add_ons": {
+                    "label": "Add Ons",
+                    "type": "checkbox",
+                    "options": [
+                    {
+                        "name": "Raw Diced Onion",
+                        "price": 0.75
+                    },
+                    {
+                        "name": "Grilled Shaved Onion",
+                        "price": 0.75
+                    },
+                    {
+                        "name": "Jalepeno",
+                        "price": 0.75
+                    },
+                    {
+                        "name": "Onion Ring",
+                        "price": 1
+                    },
+                    {
+                        "name": "Beef Bacon",
+                        "price": 3
+                    }
+                    ]
+                },
+                "hold_all_american": {
+                    "label": "Hold All American",
+                    "type": "checkbox",
+                    "options": [
+                    {
+                        "name": "No Lettuce",
+                        "price": 0
+                    },
+                    {
+                        "name": "No Mayo",
+                        "price": 0
+                    },
+                    {
+                        "name": "No Ketchup",
+                        "price": 0
+                    },
+                    {
+                        "name": "No Mustard",
+                        "price": 0
+                    },
+                    {
+                        "name": "No Sliced Tomato",
+                        "price": 0
+                    },
+                    {
+                        "name": "No Pickles",
+                        "price": 0
+                    },
+                    {
+                        "name": "No Diced Onion",
+                        "price": 0
+                    },
+                    {
+                        "name": "No Cheese",
+                        "price": 0
+                    }
+                    ]
+                }
+                }
+            },
+            "hot honey burger": {
+                "original name": "Hot Honey Burger",
+                "category": "Smash Burgers",
+                "description": "Smash sauce, diced Spanish onion, American cheese, fresh shaved jalape\u00f1os, hot honey.",
+                "price": "8.99\u201316.99",
+                "requires": [
+                  "patties",
+                  "make_it_a_combo_with_fries",
+                  "lettuce_bun"
+                ],
+                "optional": [
+                  "add_ons",
+                  "hold_hot_honey"
+                ],
+                "mods": {
+                  "patties": {
+                    "label": "Patties",
+                    "type": "radio",
+                    "options": [
+                      {
+                        "name": "Single",
+                        "price": 8.99
+                      },
+                      {
+                        "name": "Double",
+                        "price": 11.99
+                      },
+                      {
+                        "name": "Triple",
+                        "price": 14.99
+                      },
+                      {
+                        "name": "Quadruple",
+                        "price": 16.99
+                      }
+                    ]
+                  },
+                  "make_it_a_combo_with_fries": {
+                    "label": "Make It a Combo With Fries",
+                    "type": "radio",
+                    "options": [
+                      {
+                        "name": "Plain Fries",
+                        "price": 3.5
+                      },
+                      {
+                        "name": "Lemon Pepper Fries",
+                        "price": 3.5
+                      },
+                      {
+                        "name": "Cajun Fries",
+                        "price": 3.5
+                      },
+                      {
+                        "name": "Nashville Seasoning Fries",
+                        "price": 3.5
+                      },
+                      {
+                        "name": "No Thanks",
+                        "price": 0
+                      }
+                    ]
+                  },
+                  "lettuce_bun": {
+                    "label": "Lettuce Bun",
+                    "type": "radio",
+                    "options": [
+                      {
+                        "name": "Lettuce Bun",
+                        "price": 1.5
+                      },
+                      {
+                        "name": "No Thanks",
+                        "price": 0
+                      }
+                    ]
+                  },
+                  "add_ons": {
+                    "label": "Add Ons",
+                    "type": "checkbox",
+                    "options": [
+                      {
+                        "name": "Raw Diced Onion",
+                        "price": 0.75
+                      },
+                      {
+                        "name": "Grilled Shaved Onion",
+                        "price": 0.75
+                      },
+                      {
+                        "name": "Jalepeno",
+                        "price": 0.75
+                      },
+                      {
+                        "name": "Onion Ring",
+                        "price": 1
+                      },
+                      {
+                        "name": "Beef Bacon",
+                        "price": 3
+                      }
+                    ]
+                  },
+                  "hold_hot_honey": {
+                    "label": "Hold Hot Honey",
+                    "type": "checkbox",
+                    "options": [
+                      {
+                        "name": "No Smash Sauce",
+                        "price": 0
+                      },
+                      {
+                        "name": "No Diced Onion",
+                        "price": 0
+                      },
+                      {
+                        "name": "No Cheese",
+                        "price": 0
+                      },
+                      {
+                        "name": "No Jalepeno",
+                        "price": 0
+                      },
+                      {
+                        "name": "No Hot Honey",
+                        "price": 0
+                      }
+                    ]
+                  }
+                }
+            },
+            "classic burger": {
+                "original name": "Classic",
+                "category": "Smash Burgers",
+                "description": "Shaved grilled onions, pickles, American cheese, smash sauce.",
+                "price": "8.99\u201316.99",
+                "requires": [
+                "patties",
+                "make_it_a_combo_with_fries",
+                "lettuce_bun"
+                ],
+                "optional": [
+                "add_ons",
+                "hold_classic"
+                ],
+                "mods": {
+                "patties": {
+                    "label": "Patties",
+                    "type": "radio",
+                    "options": [
+                    {
+                        "name": "Single",
+                        "price": 8.99
+                    },
+                    {
+                        "name": "Double",
+                        "price": 11.99
+                    },
+                    {
+                        "name": "Triple",
+                        "price": 14.99
+                    },
+                    {
+                        "name": "Quadruple",
+                        "price": 16.99
+                    }
+                    ]
+                },
+                "make_it_a_combo_with_fries": {
+                    "label": "Make It a Combo With Fries",
+                    "type": "radio",
+                    "options": [
+                    {
+                        "name": "Plain Fries",
+                        "price": 3.5
+                    },
+                    {
+                        "name": "Lemon Pepper Fries",
+                        "price": 3.5
+                    },
+                    {
+                        "name": "Cajun Fries",
+                        "price": 3.5
+                    },
+                    {
+                        "name": "Nashville Seasoning Fries",
+                        "price": 3.5
+                    },
+                    {
+                        "name": "No Thanks",
+                        "price": 0
+                    }
+                    ]
+                },
+                "lettuce_bun": {
+                    "label": "Lettuce Bun",
+                    "type": "radio",
+                    "options": [
+                    {
+                        "name": "Lettuce Bun",
+                        "price": 1.5
+                    },
+                    {
+                        "name": "No Thanks",
+                        "price": 0
+                    }
+                    ]
+                },
+                "add_ons": {
+                    "label": "Add Ons",
+                    "type": "checkbox",
+                    "options": [
+                    {
+                        "name": "Raw Diced Onion",
+                        "price": 0.75
+                    },
+                    {
+                        "name": "Grilled Shaved Onion",
+                        "price": 0.75
+                    },
+                    {
+                        "name": "Jalepeno",
+                        "price": 0.75
+                    },
+                    {
+                        "name": "Onion Ring",
+                        "price": 1
+                    },
+                    {
+                        "name": "Beef Bacon",
+                        "price": 3
+                    }
+                    ]
+                },
+                "hold_classic": {
+                    "label": "Hold Classic",
+                    "type": "checkbox",
+                    "options": [
+                    {
+                        "name": "No Shaved Grilled Onion",
+                        "price": 0
+                    },
+                    {
+                        "name": "No Pickles",
+                        "price": 0
+                    },
+                    {
+                        "name": "No Cheese",
+                        "price": 0
+                    },
+                    {
+                        "name": "No Smash Sauce",
+                        "price": 0
+                    }
+                    ]
+                }
+                }
+            },
+            "chef's signature burger": {
+                "original name": "Chef's Signature",
+                "category": "Smash Burgers",
+                "description": "Umami BBQ, fresh jalape\u00f1os, shredded lettuce, crispy battered onion ring, American cheese.",
+                "price": "8.99\u201316.99",
+                "requires": [
+                "patties",
+                "make_it_a_combo_with_fries",
+                "lettuce_bun"
+                ],
+                "optional": [
+                "add_ons",
+                "hold_chefs_signature"
+                ],
+                "mods": {
+                "patties": {
+                    "label": "Patties",
+                    "type": "radio",
+                    "options": [
+                    {
+                        "name": "Single",
+                        "price": 8.99
+                    },
+                    {
+                        "name": "Double",
+                        "price": 11.99
+                    },
+                    {
+                        "name": "Triple",
+                        "price": 14.99
+                    },
+                    {
+                        "name": "Quadruple",
+                        "price": 16.99
+                    }
+                    ]
+                },
+                "make_it_a_combo_with_fries": {
+                    "label": "Make It a Combo With Fries",
+                    "type": "radio",
+                    "options": [
+                    {
+                        "name": "Plain Fries",
+                        "price": 3.5
+                    },
+                    {
+                        "name": "Lemon Pepper Fries",
+                        "price": 3.5
+                    },
+                    {
+                        "name": "Cajun Fries",
+                        "price": 3.5
+                    },
+                    {
+                        "name": "Nashville Seasoning Fries",
+                        "price": 3.5
+                    },
+                    {
+                        "name": "No Thanks",
+                        "price": 0
+                    }
+                    ]
+                },
+                "lettuce_bun": {
+                    "label": "Lettuce Bun",
+                    "type": "radio",
+                    "options": [
+                    {
+                        "name": "Lettuce Bun",
+                        "price": 1.5
+                    },
+                    {
+                        "name": "No Thanks",
+                        "price": 0
+                    }
+                    ]
+                },
+                "add_ons": {
+                    "label": "Add Ons",
+                    "type": "checkbox",
+                    "options": [
+                    {
+                        "name": "Raw Diced Onion",
+                        "price": 0.75
+                    },
+                    {
+                        "name": "Grilled Shaved Onion",
+                        "price": 0.75
+                    },
+                    {
+                        "name": "Jalepeno",
+                        "price": 0.75
+                    },
+                    {
+                        "name": "Onion Ring",
+                        "price": 1
+                    },
+                    {
+                        "name": "Beef Bacon",
+                        "price": 3
+                    }
+                    ]
+                },
+                "hold_chefs_signature": {
+                    "label": "Hold Chefs Signature",
+                    "type": "checkbox",
+                    "options": [
+                    {
+                        "name": "No Umami BBQ",
+                        "price": 0
+                    },
+                    {
+                        "name": "No Jalepeno",
+                        "price": 0
+                    },
+                    {
+                        "name": "No Lettuce",
+                        "price": 0
+                    },
+                    {
+                        "name": "No Onion Ring",
+                        "price": 0
+                    },
+                    {
+                        "name": "No Cheese",
+                        "price": 0
+                    }
+                    ]
+                }
+                }
+            },
+            "boneless wings": {
+                "original name": "Boneless",
+                "category": "Boneless Wings",
+                "requires": [
+                    "quantity",
+                    "flavor",
+                    "make_it_a_combo_with_fries"
+                ],
+                "optional": [],
+                "mods": {
+                    "quantity": {
+                        "label": "Quantity",
+                        "type": "number",
+                        "price": 7.99,
+                        "options": [6, 12, 18, 24, 30]
+                    },
+                    "flavor": {
+                        "label": "Flavor",
+                        "type": "multi_select",
+                        "max_per_unit": 6,
+                        "options": [
+                            { "name": "Naked", "price": 0 },
+                            { "name": "Lemon Pepper Seasoning", "price": 0 },
+                            { "name": "Nashville Seasoning", "price": 0 },
+                            { "name": "Honey Mustard", "price": 0 },
+                            { "name": "Garlic Parm", "price": 0 },
+                            { "name": "Spicy Garlic Parm", "price": 0 },
+                            { "name": "Hot Honey", "price": 0 },
+                            { "name": "Sweet n Spicy", "price": 0 },
+                            { "name": "BBQ", "price": 0 },
+                            { "name": "Buffalo", "price": 0 },
+                            { "name": "Chili Mango", "price": 0 }
+                        ]
+                    },
+                    "make_it_a_combo_with_fries": {
+                        "label": "Make It a Combo With Fries",
+                        "type": "radio",
+                        "options": [
+                        {
+                            "name": "Plain Fries",
+                            "price": 3.5
+                        },
+                        {
+                            "name": "Lemon Pepper Fries",
+                            "price": 3.5
+                        },
+                        {
+                            "name": "Cajun Fries",
+                            "price": 3.5
+                        },
+                        {
+                            "name": "Nashville Seasoning Fries",
+                            "price": 3.5
+                        },
+                        {
+                            "name": "No Thanks",
+                            "price": 0
+                        }
+                        ]
+                    }
+                }
+            },
+            "bone-in breaded wings": {
+                "original name": "Bone-In Breaded",
+                "category": "Bone-In Breaded Wings",
+                "requires": [
+                    "quantity",
+                    "flavor",
+                    "make_it_a_combo_with_fries",
+                    "flats,_drums,_or_mixed"
+                ],
+                "optional": [],
+                "mods": {
+                    "quantity": {
+                        "label": "Quantity",
+                        "type": "number",
+                        "price": 9.99,
+                        "options": [6, 12, 18, 24, 30]
+                    },
+                    "flavor": {
+                        "label": "Flavor",
+                        "type": "multi_select",
+                        "max_per_unit": 6,
+                        "options": [
+                            { "name": "Naked", "price": 0 },
+                            { "name": "Lemon Pepper Seasoning", "price": 0 },
+                            { "name": "Nashville Seasoning", "price": 0 },
+                            { "name": "Honey Mustard", "price": 0 },
+                            { "name": "Garlic Parm", "price": 0 },
+                            { "name": "Spicy Garlic Parm", "price": 0 },
+                            { "name": "Hot Honey", "price": 0 },
+                            { "name": "Sweet n Spicy", "price": 0 },
+                            { "name": "BBQ", "price": 0 },
+                            { "name": "Buffalo", "price": 0 },
+                            { "name": "Chili Mango", "price": 0 }
+                        ]
+                    },
+                    "make_it_a_combo_with_fries": {
+                        "label": "Make It a Combo With Fries",
+                        "type": "radio",
+                        "options": [
+                        {
+                            "name": "Plain Fries",
+                            "price": 3.5
+                        },
+                        {
+                            "name": "Lemon Pepper Fries",
+                            "price": 3.5
+                        },
+                        {
+                            "name": "Cajun Fries",
+                            "price": 3.5
+                        },
+                        {
+                            "name": "Nashville Seasoning Fries",
+                            "price": 3.5
+                        },
+                        {
+                            "name": "No Thanks",
+                            "price": 0
+                        }
+                        ]
+                    },
+                    "flats,_drums,_or_mixed": {
+                        "label": "Flats, Drums, or Mixed",
+                        "type": "radio",
+                        "options": [
+                        {
+                            "name": "Mixed as is",
+                            "price": 0
+                        },
+                        {
+                            "name": "All flats",
+                            "price": 3
+                        },
+                        {
+                            "name": "All drums",
+                            "price": 3
+                        }
+                        ]
+                    }
+                }
+            },
+            "fish": {
+                "original name": "Fish",
+                "category": "Specialties",
+                "description": "Wild caught Cod, Tartar Sauce, American Cheese.",
+                "price": 10.99,
+                "requires": [
+                "make_it_a_combo_with_fries"
+                ],
+                "optional": [
+                "hold_fish_sandwich"
+                ],
+                "mods": {
+                    "make_it_a_combo_with_fries": {
+                        "label": "Make It a Combo With Fries",
+                        "type": "radio",
+                        "options": [
+                        {
+                            "name": "Plain Fries",
+                            "price": 3.5
+                        },
+                        {
+                            "name": "Lemon Pepper Fries",
+                            "price": 3.5
+                        },
+                        {
+                            "name": "Cajun Fries",
+                            "price": 3.5
+                        },
+                        {
+                            "name": "Nashville Seasoning Fries",
+                            "price": 3.5
+                        },
+                        {
+                            "name": "No Thanks",
+                            "price": 0
+                        }
+                        ]
+                    },
+                    "hold_fish_sandwich": {
+                        "label": "Hold Fish Sandwich",
+                        "type": "checkbox",
+                        "options": [
+                        {
+                            "name": "No Tartar",
+                            "price": 0
+                        },
+                        {
+                            "name": "No Cheese",
+                            "price": 0
+                        }
+                        ]
+                    }
+                }
+            },
+            "hot dog": {
+                "original name": "Hot Dog",
+                "category": "Specialties",
+                "description": "Grilled Hot Dog, Toasted Potato Bun, Ketchup, Mustard, Diced Onion, Chopped Relish, Chips Seasoning.",
+                "price": 7.99,
+                "requires": [
+                "make_it_a_combo_with_fries"
+                ],
+                "optional": [
+                "hot_dog_hold"
+                ],
+                "mods": {
+                    "make_it_a_combo_with_fries": {
+                        "label": "Make It a Combo With Fries",
+                        "type": "radio",
+                        "options": [
+                        {
+                            "name": "Plain Fries",
+                            "price": 3.5
+                        },
+                        {
+                            "name": "Lemon Pepper Fries",
+                            "price": 3.5
+                        },
+                        {
+                            "name": "Cajun Fries",
+                            "price": 3.5
+                        },
+                        {
+                            "name": "Nashville Seasoning Fries",
+                            "price": 3.5
+                        },
+                        {
+                            "name": "No Thanks",
+                            "price": 0
+                        }
+                        ]
+                    },
+                    "hot_dog_hold": {
+                        "label": "Hot Dog Hold",
+                        "type": "checkbox",
+                        "options": [
+                        {
+                            "name": "No Ketchup",
+                            "price": 0
+                        },
+                        {
+                            "name": "No Mustard",
+                            "price": 0
+                        },
+                        {
+                            "name": "No Diced Onion",
+                            "price": 0
+                        },
+                        {
+                            "name": "No Chopped Relish",
+                            "price": 0
+                        }
+                        ]
+                    }
+                }
+            },
+            "chicken shawarma smash way" : {
+                "original name": "chicken shawarma - smash way",
+                "category": "Specialties",
+                "description": "Marinated Chicken, Garlic Sauce, Pickles, Fries, Zaatar, With Toasted Marinated Bread",
+                "price": 14.99,
+                "requires": [
+                "make_it_a_combo_with_fries",
+                "extra_chicken"
+                ],
+                "optional": [
+                "shawarma_hold"
+                ],
+                "mods": {
+                "make_it_a_combo_with_fries": {
+                    "label": "Make It a Combo With Fries",
+                    "type": "radio",
+                    "options": [
+                    {
+                        "name": "Plain Fries",
+                        "price": 3.5
+                    },
+                    {
+                        "name": "Lemon Pepper Fries",
+                        "price": 3.5
+                    },
+                    {
+                        "name": "Cajun Fries",
+                        "price": 3.5
+                    },
+                    {
+                        "name": "Nashville Seasoning Fries",
+                        "price": 3.5
+                    },
+                    {
+                        "name": "No Thanks",
+                        "price": 0
+                    }
+                    ]
+                },
+                "extra_chicken": {
+                    "label": "Extra Chicken",
+                    "type": "radio",
+                    "options": [
+                    {
+                        "name": "Extra Chicken",
+                        "price": 6
+                    },
+                    {
+                        "name": "No Thank You",
+                        "price": 0
+                    }
+                    ]
+                },
+                "shawarma_hold": {
+                    "label": "Shawarma Hold",
+                    "type": "checkbox",
+                    "options": [
+                    {
+                        "name": "No Garlic",
+                        "price": 0
+                    },
+                    {
+                        "name": "No Fries",
+                        "price": 0
+                    },
+                    {
+                        "name": "No Pickles",
+                        "price": 0
+                    }
+                    ]
+                }
+                }
+            },
+            "chicken shawarma": {
+                "original name": "Chicken Shawarma",
+                "category": "Specialties",
+                "description": "Marinated chicken, garlic sauce, pickles, fries, toasted french bread.",
+                "price": 12.99,
+                "requires": [
+                "make_it_a_combo_with_fries",
+                "extra_chicken"
+                ],
+                "optional": [
+                "shawarma_hold"
+                ],
+                "mods": {
+                "make_it_a_combo_with_fries": {
+                    "label": "Make It a Combo With Fries",
+                    "type": "radio",
+                    "options": [
+                    {
+                        "name": "Plain Fries",
+                        "price": 3.5
+                    },
+                    {
+                        "name": "Lemon Pepper Fries",
+                        "price": 3.5
+                    },
+                    {
+                        "name": "Cajun Fries",
+                        "price": 3.5
+                    },
+                    {
+                        "name": "Nashville Seasoning Fries",
+                        "price": 3.5
+                    },
+                    {
+                        "name": "No Thanks",
+                        "price": 0
+                    }
+                    ]
+                },
+                "extra_chicken": {
+                    "label": "Extra Chicken",
+                    "type": "radio",
+                    "options": [
+                    {
+                        "name": "Extra Chicken",
+                        "price": 6
+                    },
+                    {
+                        "name": "No Thank You",
+                        "price": 0
+                    }
+                    ]
+                },
+                "shawarma_hold": {
+                    "label": "Shawarma Hold",
+                    "type": "checkbox",
+                    "options": [
+                    {
+                        "name": "No Garlic",
+                        "price": 0
+                    },
+                    {
+                        "name": "No Fries",
+                        "price": 0
+                    },
+                    {
+                        "name": "No Pickles",
+                        "price": 0
+                    }
+                    ]
+                }
+                }
+            },
+            "mozzarella sticks": {
+                "original name": "Mozzarella Sticks",
+                "category": "Sides",
+                "description": "Topped with Italian Parmesan herb. Served with our creamy red sauce.",
+                "price": 8.99,
+                "requires": [],
+                "optional": [],
+                "mods": {}
+            },
+            "jalapeno poppers": {
+                "original name": "Jalapeno Poppers",
+                "category": "Sides",
+                "description": "Topped with hot honey and crushed red pepper.",
+                "price": 10.99,
+                "requires": [],
+                "optional": [],
+                "mods": {}
+            },
+            "battered onion rings": {
+                "original name": "Battered Onion Rings",
+                "category": "Sides",
+                "description": "Served with umami sauce.",
+                "price": 8.99,
+                "requires": [],
+                "optional": [],
+                "mods": {}
+            },
+            "sliced chicken breast": {
+                "original name": "Sliced Chicken Breast",
+                "category": "Sides",
+                "description": "6oz of Chicken Breast Sliced",
+                "price": 6,
+                "requires": [],
+                "optional": [],
+                "mods": {}
+            },
+            "animal fries": {
+                "original name": "Animal Fries",
+                "category": "Sides",
+                "description": "Beef Patty, in-house smash sauce, American cheese, grilled onions, fresh shaved jalape\u00f1os.",
+                "price": 10.99,
+                "requires": [
+                "extra_patty"
+                ],
+                "optional": [
+                "hold_animal_fries"
+                ],
+                "mods": {
+                "extra_patty": {
+                    "label": "Extra Patty",
+                    "type": "radio",
+                    "options": [
+                    {
+                        "name": "Extra Smash Patty",
+                        "price": 3
+                    },
+                    {
+                        "name": "No Thank You",
+                        "price": 0
+                    }
+                    ]
+                },
+                "hold_animal_fries": {
+                    "label": "Hold Animal Fries",
+                    "type": "checkbox",
+                    "options": [
+                    {
+                        "name": "No Patty",
+                        "price": 0
+                    },
+                    {
+                        "name": "No Smash Sauce",
+                        "price": 0
+                    },
+                    {
+                        "name": "No Grilled Onion",
+                        "price": 0
+                    },
+                    {
+                        "name": "No Jalapeno",
+                        "price": 0
+                    }
+                    ]
+                }
+                }
+            },
+            "regular fries": {
+                "original name": "Regular Fries",
+                "category": "Sides",
+                "description": "Your choice of seasoning: salt & pepper, cajun, lemon pepper, or paprika.",
+                "price": 5.5,
+                "requires": [
+                "fries_seasoning"
+                ],
+                "optional": [],
+                "mods": {
+                "fries_seasoning": {
+                    "label": "Fries Seasoning",
+                    "type": "radio",
+                    "options": [
+                    {
+                        "name": "Cajun",
+                        "price": 0
+                    },
+                    {
+                        "name": "Nashville",
+                        "price": 0
+                    },
+                    {
+                        "name": "Lemon Pepper",
+                        "price": 0
+                    },
+                    {
+                        "name": "Salt and Pepper",
+                        "price": 0
+                    },
+                    {
+                        "name": "Plain",
+                        "price": 0
+                    },
+                    {
+                        "name": "Salt",
+                        "price": 0
+                    }
+                    ]
+                }
+                }
+            },
+            "bbq": {
+                "original name": "BBQ",
+                "category": "Sauces",
+                "description": "",
+                "price": 1,
+                "requires": [],
+                "optional": [],
+                "mods": {}
+            },
+            "chili mango": {
+                "original name": "Chili Mango",
+                "category": "Sauces",
+                "description": "",
+                "price": 1,
+                "requires": [],
+                "optional": [],
+                "mods": {}
+            },
+            "buffalo": {
+                "original name": "Buffalo",
+                "category": "Sauces",
+                "description": "",
+                "price": 1,
+                "requires": [],
+                "optional": [],
+                "mods": {}
+            },
+            "sweet n spicy": {
+                "original name": "Sweet n Spicy",
+                "category": "Sauces",
+                "description": "",
+                "price": 1,
+                "requires": [],
+                "optional": [],
+                "mods": {}
+            },
+            "ranch": {
+                "original name": "Ranch",
+                "category": "Sauces",
+                "description": "",
+                "price": 1,
+                "requires": [],
+                "optional": [],
+                "mods": {}
+            },
+            "hot honey": {
+                "original name": "Hot Honey",
+                "category": "Sauces",
+                "description": "",
+                "price": 1.5,
+                "requires": [],
+                "optional": [],
+                "mods": {}
+            },
+            "glass coke": {
+                "original name": "Glass Coke",
+                "category": "Drinks",
+                "description": "The cold, refreshing, sparkling classic that America loves.",
+                "price": 3,
+                "requires": [],
+                "optional": [],
+                "mods": {}
+            },
+            "can sprite": {
+                "original name": "Can Sprite",
+                "category": "Drinks",
+                "description": "The cold, refreshing flavors of lemon and lime, perfectly blended.",
+                "price": 2,
+                "requires": [],
+                "optional": [],
+                "mods": {}
+            },
+            "glass sprite": {
+                "original name": "Glass Sprite",
+                "category": "Drinks",
+                "description": "The cold, refreshing flavors of lemon and lime, perfectly blended.",
+                "price": 3,
+                "requires": [],
+                "optional": [],
+                "mods": {}
+            },
+            "can diet coke": {
+                "original name": "Can Diet Coke",
+                "category": "Drinks",
+                "description": "A crisp, refreshing taste you know and love with zero calories.",
+                "price": 2,
+                "requires": [],
+                "optional": [],
+                "mods": {}
+            },
+            "can sprite zero": {
+                "original name": "Can Sprite Zero",
+                "category": "Drinks",
+                "description": "",
+                "price": 2,
+                "requires": [],
+                "optional": [],
+                "mods": {}
+            },
+            "can coke": {
+                "original name": "Can Coke",
+                "category": "Drinks",
+                "description": "The cold, refreshing, sparkling classic that America loves.",
+                "price": 2,
+                "requires": [],
+                "optional": [],
+                "mods": {}
+            },
+            "can coke zero": {
+                "original name": "Can Coke Zero",
+                "category": "Drinks",
+                "description": "The same great taste but with zero calories.",
+                "price": 2,
+                "requires": [],
+                "optional": [],
+                "mods": {}
+            }
+        },
+        "combos": {
+            "2 chicken sandos, 1 regular fries": {
+                "original name": "2 chicken sandos & fries",
+                "category": "Lets Smash (Crispy Chicken Menu)",
+                "description": "2 Potato Roll, Crispy Hand Battered Chicken, Kaleslaw, Crinkle Cut pickles, Sweet Chili Aioli",
+                "price": 16.49
+            },
+            "1 chicken sando, 1 chicken tender, 1 regular fries": {
+                "original name": "1 chicken sando, 1 chicken tender and fries",
+                "category": "Lets Smash (Crispy Chicken Menu)",
+                "description": "1-Potato Roll, Crispy Hand Battered Chicken, Kaleslaw, Crinkle Cut pickles, Sweet Chili Aioli, 1-Crispy Hand Battered Chicken",
+                "price": 14.49
+            },
+            "2 chicken tenders, 1 regular fries": {
+                "original name": "2 chicken tenders & fries",
+                "category": "Lets Smash (Crispy Chicken Menu)",
+                "description": "2 Hand Battered Crispy Chicken Strips, Served With Fries.",
+                "price": 12.49
+            }
+        }
+    }
+}

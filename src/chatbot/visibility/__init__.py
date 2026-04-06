@@ -1,4 +1,3 @@
-# Re-export shim — will be removed after all callers updated
 from src.chatbot.visibility.handlers import StateHandlerFactory
 
 __all__ = ["StateHandlerFactory"]

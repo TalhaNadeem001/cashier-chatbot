@@ -235,6 +235,19 @@
       line-height: 1.5;
     }
 
+    #expected-divider {
+      margin: 20px 0 0;
+      border-top: 1.5px dashed #e8eaf0;
+    }
+    #expected-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: #aaa;
+      margin: 12px 0 10px;
+    }
+
     /* ── Pickup ping modal ──────────────────────────────────────── */
     #pickup-overlay {
       display: none;
@@ -383,6 +396,23 @@
       0%, 80%, 100% { transform: translateY(0); }
       40%           { transform: translateY(-6px); }
     }
+
+    /* ── Test runner button ─────────────────────────────────────── */
+    #run-tests-btn {
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 8px;
+      padding: 7px 18px;
+      font-size: 13px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background 0.15s;
+      margin-right: 8px;
+    }
+    #run-tests-btn:hover:not(:disabled) { background: #27ae60; border-color: #27ae60; }
+    #run-tests-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
   </style>
 </head>
 <body>
@@ -391,7 +421,10 @@
 <div id="chat-panel">
   <div id="chat-header">
     <h1>🍽 Cashier Chatbot</h1>
-    <button id="clear-btn">Clear</button>
+    <div>
+      <button id="run-tests-btn">🧪 Run Tests</button>
+      <button id="clear-btn">Clear</button>
+    </div>
   </div>
   <div id="messages"></div>
   <div id="input-area">
@@ -434,6 +467,15 @@
       <summary>Raw order_state JSON</summary>
       <pre id="raw-json"></pre>
     </details>
+    <div id="expected-section" style="display:none">
+      <div id="expected-divider"></div>
+      <div id="expected-label">Expected Final Order</div>
+      <div id="expected-items">
+        <div class="order-item"><div class="order-item-name">1× 2 Chicken Sandos &amp; Fries</div><div class="order-item-meta">spicy</div></div>
+        <div class="order-item"><div class="order-item-name">2× Chocolate Chip</div></div>
+        <div class="order-item"><div class="order-item-name">1× Jalapeño Poppers</div></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -657,6 +699,7 @@
     awaitingOrderConfirmation = false;
     messagesEl.innerHTML = "";
     renderOrderState(null);
+    document.getElementById("expected-section").style.display = "none";
   });
 
   // ── Events ─────────────────────────────────────────────────────
@@ -671,6 +714,108 @@
 
   // Initial focus
   inputEl.focus();
+
+  // ── Test runner ────────────────────────────────────────────────
+
+  const runTestsBtn = document.getElementById("run-tests-btn");
+
+  const TEST_SCRIPT = [
+    "I'd like a Chicken Sub and a 2 Chicken Sandos & Fries",
+    "also throw in some Animal Fries and Mozzarella Sticks",
+    "actually remove the Chicken Sub",
+    "make the sandos spicy",
+    "add 2 Chocolate Chip cookies",
+    "remove the Animal Fries",
+    "swap the Mozzarella Sticks for Jalapeño Poppers",
+    "how many items do I have now?",
+  ];
+
+  async function sendMessageWithText(text) {
+    inputEl.value = text;
+    sendBtn.disabled = true;
+
+    appendMessage("user", text);
+
+    const body = {
+      user_id: USER_ID,
+      latest_message: text,
+      message_history: messageHistory.length ? messageHistory : null,
+      order_state: orderState,
+      previous_state: previousState,
+      previous_food_order_state: previousFoodOrderState,
+      awaiting_order_confirmation: awaitingOrderConfirmation,
+    };
+
+    showTyping();
+
+    try {
+      const res = await fetch("/api/bot/message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      hideTyping();
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: "Unknown error" }));
+        appendMessage("bot", `Error: ${err.detail || res.statusText}`);
+        return;
+      }
+
+      const data = await res.json();
+
+      appendMessage("bot", data.chatbot_message, data.pickup_ping);
+
+      if (data.order_state !== undefined && data.order_state !== null) {
+        orderState = data.order_state;
+      }
+      if (data.previous_state !== undefined && data.previous_state !== null) {
+        previousState = data.previous_state;
+      }
+      if (data.previous_food_order_state !== undefined && data.previous_food_order_state !== null) {
+        previousFoodOrderState = data.previous_food_order_state;
+      }
+      awaitingOrderConfirmation = data.awaiting_order_confirmation ?? false;
+      renderOrderState(orderState);
+
+      if (data.pickup_ping) showPickupModal(orderState);
+      if (data.ping_for_human) humanOverlay.classList.add("active");
+
+      messageHistory.push({ role: "user", content: text });
+      messageHistory.push({ role: "assistant", content: data.chatbot_message });
+
+    } catch (e) {
+      hideTyping();
+      appendMessage("bot", "Network error — is the server running?");
+    } finally {
+      inputEl.value = "";
+      sendBtn.disabled = false;
+    }
+  }
+
+  async function runTestScript() {
+    runTestsBtn.disabled = true;
+
+    // Clear chat state
+    messageHistory = [];
+    orderState = null;
+    previousState = null;
+    previousFoodOrderState = null;
+    awaitingOrderConfirmation = false;
+    messagesEl.innerHTML = "";
+    renderOrderState(null);
+    document.getElementById("expected-section").style.display = "block";
+
+    for (const message of TEST_SCRIPT) {
+      await sendMessageWithText(message);
+      await new Promise(r => setTimeout(r, 800));
+    }
+
+    runTestsBtn.disabled = false;
+  }
+
+  runTestsBtn.addEventListener("click", runTestScript);
 </script>
 </body>
 </html>

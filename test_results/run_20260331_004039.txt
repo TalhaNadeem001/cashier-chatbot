@@ -1,0 +1,187 @@
+Chatbot Test Run — 2026-03-31 04:39:18
+========================================
+
+Conversation 1: Basic Greeting
+  Turn 1
+    User:     "Hey!"
+    Expected: greeting/welcome response
+    Actual:   "Welcome to No restaurant name or location is available at this time.! What's your name and what can I get for you today?"
+    Result:   PASS
+
+Conversation 2: Menu Overview
+  Turn 1
+    User:     "What's on your menu?"
+    Expected: mentions menu categories or items
+    Actual:   "Here's our menu:
+
+NEW CHICKEN SUB (WILL TAKE YOU BACK IN TIME)
+- Chicken Sub (throwback to 2008)  $14.99
+
+LETS SMASH (CRISPY CHICKEN MENU)
+- 2 Chicken Sandos & Fries  $16.49
+- 1 Chicken Sando, 1 Chicken Tender and Fries  $14.49
+- 2 Chicken Tenders & Fries  $12.49
+- 1 Chicken Sando  $8.99
+- 1 Chicken Tender  $4.49
+
+COOKIES
+- Cookies 'N Cream  $2.99
+- Chocolate Chip  $2.99
+- M&M Chocolate Chip  $2.99
+
+SMASH BURGERS
+- All American  (price varies)
+- Hot Honey Burger  (price varies)
+- Classic  (price varies)
+- Chef's Signature  (price varies)
+
+BONELESS WINGS
+- 6Pc Boneless  $7.99
+- 12pc Boneless  $13.99
+- 18pc Boneless  $19.99
+- 24pc Boneless  $26.99
+- 30pc Boneless  $30.99
+
+BONE-IN BREADED WINGS
+- 6 pc Bone-In Breaded  $9.99
+- 12 pc Bone-In Breaded  $14.99
+- 18pc Bone-In Breaded  $21.99
+- 24pc Bone-In Breaded  $28.99
+- 30 pc Bone-In Breaded  $36.99
+
+SPECIALTIES
+- Chicken Sub (throwback to 2008)  $14.99
+- Fish  $10.99
+- Hot Dog  $7.99
+- Chicken Shawarma - Smash Way  $14.99
+- Chicken Shawarma  $12.99
+
+SIDES
+- Mozzarella Sticks  $8.99
+- Jalapeño Poppers  $10.99
+- Battered Onion Rings  $8.99
+- Sliced Chicken Breast  $6.00
+- Animal Fries  $10.99
+- Regular Fries  $5.50
+
+SAUCES
+- BBQ  $1.00
+- Chili Mango  $1.00
+- Buffalo  $1.00
+- Sweet n Spicy  $1.00
+- Ranch  $1.00
+- Hot Honey  $1.50
+
+DRINKS
+- Glass Coke  $3.00
+- Can Sprite  $2.00
+- Glass Sprite  $3.00
+- Can Diet Coke  $2.00
+- Can Sprite Zero  $2.00
+- Can Coke  $2.00
+- Can Coke Zero  $2.00
+
+Let me know if anything catches your eye"
+    Result:   PASS
+
+Conversation 3: Order by Exact Name
+  Turn 1
+    User:     "I want a Chicken Sub"
+    Expected: item added to order_state
+    Actual:   "I found a few matches for "Chicken Sub" — did you mean "Chicken Sub (throwback to 2008)", "Chicken Sub (throwback to 2008)"?"
+    Result:   FAIL ← MISMATCH
+
+Conversation 4: Order with Typo (Fuzzy)
+  Turn 1
+    User:     "gimme 2 chiken sandos n fries"
+    Expected: order_state has fuzzy-matched items
+    Actual:   "I found a few matches for "chicken sando" — did you mean "1 Chicken Sando, 1 Chicken Tender and Fries", "1 Chicken Sando"? I found a few matches for "fries" — did you mean "2 Chicken Sandos & Fries", "1 Chicken Sando, 1 Chicken Tender and Fries", "2 Chicken Tenders & Fries", "Animal Fries", "Regular Fries"?"
+    Result:   FAIL ← MISMATCH
+
+Conversation 5: Item Not on Menu
+  Turn 1
+    User:     "I'll have a pepperoni pizza please"
+    Expected: bot says item not available
+    Actual:   "Sorry, I couldn't find "pepperoni pizza" on our menu. Could you double-check the name?"
+    Result:   FAIL ← MISMATCH
+
+Conversation 6: Human Escalation
+  Turn 1
+    User:     "I want to speak to a manager NOW"
+    Expected: ping_for_human=true
+    Actual:   "Of course! I'm calling a staff member over to help you now."
+    Result:   PASS
+
+Conversation 7: Pickup Status
+  Turn 1
+    User:     "Is my food ready?"
+    Expected: pickup_ping=true
+    Actual:   "pickup_ping"
+    Result:   PASS
+
+Conversation 8: Nonsense Input
+  Turn 1
+    User:     "asdfgh purple elephant jk"
+    Expected: graceful/vague response, no crash or hallucinated order
+    Actual:   "Could you let me know what you need help with today?"
+    Result:   PASS
+
+Conversation 9: Cancel After Ordering
+  Turn 1
+    User:     "I want a Chicken Sub"
+    Expected: item added to order
+    Actual:   "I found a few matches for "Chicken Sub" — did you mean "Chicken Sub (throwback to 2008)", "Chicken Sub (throwback to 2008)"?"
+    Result:   FAIL ← MISMATCH
+  Turn 2
+    User:     "cancel my order"
+    Expected: order_state cleared or cancel confirmation
+    Actual:   "Your order has been cancelled. Would you like to start a new order?"
+    Result:   PASS
+
+Conversation 10: Full Confirm Flow
+  Turn 1
+    User:     "I'd like the 2 Chicken Sandos & Fries"
+    Expected: items added to order
+    Actual:   "I found a few matches for "Chicken Sando" — did you mean "1 Chicken Sando, 1 Chicken Tender and Fries", "1 Chicken Sando"? I found a few matches for "Fries" — did you mean "2 Chicken Sandos & Fries", "1 Chicken Sando, 1 Chicken Tender and Fries", "2 Chicken Tenders & Fries", "Animal Fries", "Regular Fries"?"
+    Result:   FAIL ← MISMATCH
+  Turn 2
+    User:     "yes confirm"
+    Expected: awaiting_order_confirmation or pickup_ping becomes true
+    Actual:   "Got it! Your order is: 2 Chicken Sandos & Fries. Is that all?"
+    Result:   PASS
+
+Conversation 11: Complex Multi-Op
+  Turn 1
+    User:     "I want a Chicken Sub and 2 Chicken Sandos & Fries"
+    Expected: order has >= 2 items
+    Actual:   "I found a few matches for "Chicken Sub" — did you mean "Chicken Sub (throwback to 2008)", "Chicken Sub (throwback to 2008)"? I found a few matches for "Chicken Sando" — did you mean "1 Chicken Sando, 1 Chicken Tender and Fries", "1 Chicken Sando"? I found a few matches for "Fries" — did you mean "2 Chicken Sandos & Fries", "1 Chicken Sando, 1 Chicken Tender and Fries", "2 Chicken Tenders & Fries", "Animal Fries", "Regular Fries"?"
+    Result:   FAIL ← MISMATCH
+  Turn 2
+    User:     "actually remove the chicken sub"
+    Expected: no Chicken Sub in order
+    Actual:   "Got it! Your order now includes: 2 Chicken Sandos with Fries and 1 Chicken Sando. Is that all?"
+    Result:   PASS
+  Turn 3
+    User:     "change the sandos to spicy"
+    Expected: sando item has spicy modifier
+    Actual:   "Perfect, here's what I have: 2 Spicy Chicken Sandos with Fries and 1 Spicy Chicken Sando. Is that all?"
+    Result:   PASS
+  Turn 4
+    User:     "add an animal fries and a mozzarella sticks"
+    Expected: order has >= 3 items
+    Actual:   "Updated — you've now got: 2 Spicy Chicken Sandos with Fries, 1 Spicy Chicken Sando, 1 Animal Fries, and 1 Mozzarella Sticks. Is that all?"
+    Result:   PASS
+  Turn 5
+    User:     "remove all the fries"
+    Expected: no fries in order
+    Actual:   "I found a few matches for "Fries" — did you mean "2 Chicken Sandos & Fries", "1 Chicken Sando, 1 Chicken Tender and Fries", "2 Chicken Tenders & Fries", "Animal Fries", "Regular Fries"?"
+    Result:   FAIL ← MISMATCH
+  Turn 6
+    User:     "swap the sandos for a chicken sub instead"
+    Expected: has Chicken Sub, no sando
+    Actual:   "Removed 1 Chicken Sando (removed entirely). I found a few matches for "2 Spicy Chicken Sandos" — did you mean "1 Chicken Sando, 1 Chicken Tender and Fries", "Sweet n Spicy", "2 Chicken Sandos & Fries"? I found a few matches for "Chicken Sub" — did you mean "Chicken Sub (throwback to 2008)", "Chicken Sub (throwback to 2008)"?"
+    Result:   FAIL ← MISMATCH
+
+========================================
+Summary: 5/11 conversations passed
+Failures: Conversation 3, Conversation 4, Conversation 5, Conversation 9, Conversation 10, Conversation 11

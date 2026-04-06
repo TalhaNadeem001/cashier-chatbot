@@ -1,0 +1,4072 @@
+ {
+  "menu": [
+    {
+      "category": "New Chicken Sub (Will Take You Back In Time)",
+      "items": [
+        {
+          "name": "Chicken Sub (throwback to 2008)",
+          "description": "Marinated Chicken + Lettuce + Tomato + Pickles + Mayo + Toasted French Bread",
+          "base_price": 14.99,
+          "modifications": {
+            "Extra Chicken": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Extra Chicken",
+                  "price": 6
+                },
+                {
+                  "name": "No Thank You",
+                  "price": 0
+                }
+              ]
+            },
+            "Make It a Combo With Fries": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Plain Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Lemon Pepper Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Cajun Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Nashville Seasoning Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "No Thanks",
+                  "price": 0
+                }
+              ]
+            },
+            "Recommended Sides And Apps": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Animal Fries",
+                  "price": 10.99
+                },
+                {
+                  "name": "Mozzarella Sticks",
+                  "price": 8.99
+                },
+                {
+                  "name": "Regular Fries",
+                  "price": 5.5
+                },
+                {
+                  "name": "Battered Onion Rings",
+                  "price": 8.99
+                },
+                {
+                  "name": "Jalapeño Poppers",
+                  "price": 10.99
+                }
+              ]
+            },
+            "Recommended Beverages": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Can Coke",
+                  "price": 2
+                },
+                {
+                  "name": "Can Sprite",
+                  "price": 2
+                },
+                {
+                  "name": "Can Coke Zero",
+                  "price": 2
+                },
+                {
+                  "name": "Glass Coke",
+                  "price": 3
+                },
+                {
+                  "name": "Can Diet Coke",
+                  "price": 2
+                }
+              ]
+            },
+            "Recommended Desserts": {
+              "required": false,
+              "max_select": 3,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Cookies 'N Cream",
+                  "price": 2.99
+                },
+                {
+                  "name": "Chocolate Chip",
+                  "price": 2.99
+                },
+                {
+                  "name": "M&M Chocolate Chip",
+                  "price": 2.99
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "category": "Lets Smash (Crispy Chicken Menu)",
+      "description": "Our Unique Hand Battered Crispy Chicken",
+      "items": [
+        {
+          "name": "2 Chicken Sandos & Fries",
+          "description": "2 Potato Roll, Crispy Hand Battered Chicken, Kaleslaw, Crinkle Cut pickles, Sweet Chili Aioli",
+          "base_price": 16.49,
+          "modifications": {
+            "Seasoning On Fries": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "No Seasoning",
+                  "price": 0
+                },
+                {
+                  "name": "Lemon Pepper",
+                  "price": 0
+                },
+                {
+                  "name": "Cajun",
+                  "price": 0
+                },
+                {
+                  "name": "Nashville Seasoning",
+                  "price": 0
+                }
+              ]
+            },
+            "Chicken Sando Seasoning": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Naked",
+                  "price": 0
+                },
+                {
+                  "name": "Mild",
+                  "price": 0
+                },
+                {
+                  "name": "Spicy",
+                  "price": 0
+                },
+                {
+                  "name": "Extra Spicy",
+                  "price": 0
+                }
+              ]
+            },
+            "Recommended Sides And Apps": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Animal Fries",
+                  "price": 10.99
+                },
+                {
+                  "name": "Mozzarella Sticks",
+                  "price": 8.99
+                },
+                {
+                  "name": "Regular Fries",
+                  "price": 5.5
+                },
+                {
+                  "name": "Battered Onion Rings",
+                  "price": 8.99
+                },
+                {
+                  "name": "Jalapeño Poppers",
+                  "price": 10.99
+                }
+              ]
+            },
+            "Recommended Beverages": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Can Coke",
+                  "price": 2
+                },
+                {
+                  "name": "Can Sprite",
+                  "price": 2
+                },
+                {
+                  "name": "Can Coke Zero",
+                  "price": 2
+                },
+                {
+                  "name": "Glass Coke",
+                  "price": 3
+                },
+                {
+                  "name": "Can Diet Coke",
+                  "price": 2
+                }
+              ]
+            },
+            "Recommended Desserts": {
+              "required": false,
+              "max_select": 3,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Cookies 'N Cream",
+                  "price": 2.99
+                },
+                {
+                  "name": "Chocolate Chip",
+                  "price": 2.99
+                },
+                {
+                  "name": "M&M Chocolate Chip",
+                  "price": 2.99
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "1 Chicken Sando, 1 Chicken Tender and Fries",
+          "description": "1-Potato Roll, Crispy Hand Battered Chicken, Kaleslaw, Crinkle Cut pickles, Sweet Chili Aioli, 1-Crispy Hand Battered Chicken",
+          "base_price": 14.49,
+          "modifications": {
+            "Seasoning On Fries": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "No Seasoning",
+                  "price": 0
+                },
+                {
+                  "name": "Lemon Pepper",
+                  "price": 0
+                },
+                {
+                  "name": "Cajun",
+                  "price": 0
+                },
+                {
+                  "name": "Nashville Seasoning",
+                  "price": 0
+                }
+              ]
+            },
+            "Tender Spice Level": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Naked",
+                  "price": 0
+                },
+                {
+                  "name": "Mild",
+                  "price": 0
+                },
+                {
+                  "name": "Spicy",
+                  "price": 0
+                },
+                {
+                  "name": "Extra Spicy",
+                  "price": 0
+                }
+              ]
+            },
+            "Chicken Sando Seasoning": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Naked",
+                  "price": 0
+                },
+                {
+                  "name": "Mild",
+                  "price": 0
+                },
+                {
+                  "name": "Spicy",
+                  "price": 0
+                },
+                {
+                  "name": "Extra Spicy",
+                  "price": 0
+                }
+              ]
+            },
+            "Recommended Sides And Apps": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Animal Fries",
+                  "price": 10.99
+                },
+                {
+                  "name": "Mozzarella Sticks",
+                  "price": 8.99
+                },
+                {
+                  "name": "Regular Fries",
+                  "price": 5.5
+                },
+                {
+                  "name": "Battered Onion Rings",
+                  "price": 8.99
+                },
+                {
+                  "name": "Jalapeño Poppers",
+                  "price": 10.99
+                }
+              ]
+            },
+            "Recommended Beverages": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Can Coke",
+                  "price": 2
+                },
+                {
+                  "name": "Can Sprite",
+                  "price": 2
+                },
+                {
+                  "name": "Can Coke Zero",
+                  "price": 2
+                },
+                {
+                  "name": "Glass Coke",
+                  "price": 3
+                },
+                {
+                  "name": "Can Diet Coke",
+                  "price": 2
+                }
+              ]
+            },
+            "Recommended Desserts": {
+              "required": false,
+              "max_select": 3,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Cookies 'N Cream",
+                  "price": 2.99
+                },
+                {
+                  "name": "Chocolate Chip",
+                  "price": 2.99
+                },
+                {
+                  "name": "M&M Chocolate Chip",
+                  "price": 2.99
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "2 Chicken Tenders & Fries",
+          "description": "2 Hand Battered Crispy Chicken Strips, Served With Fries.",
+          "base_price": 12.49,
+          "modifications": {
+            "Seasoning On Fries": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "No Seasoning",
+                  "price": 0
+                },
+                {
+                  "name": "Lemon Pepper",
+                  "price": 0
+                },
+                {
+                  "name": "Cajun",
+                  "price": 0
+                },
+                {
+                  "name": "Nashville Seasoning",
+                  "price": 0
+                }
+              ]
+            },
+            "Tender Spice Level": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Naked",
+                  "price": 0
+                },
+                {
+                  "name": "Mild",
+                  "price": 0
+                },
+                {
+                  "name": "Spicy",
+                  "price": 0
+                },
+                {
+                  "name": "Extra Spicy",
+                  "price": 0
+                }
+              ]
+            },
+            "Recommended Sides And Apps": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Animal Fries",
+                  "price": 10.99
+                },
+                {
+                  "name": "Mozzarella Sticks",
+                  "price": 8.99
+                },
+                {
+                  "name": "Regular Fries",
+                  "price": 5.5
+                },
+                {
+                  "name": "Battered Onion Rings",
+                  "price": 8.99
+                },
+                {
+                  "name": "Jalapeño Poppers",
+                  "price": 10.99
+                }
+              ]
+            },
+            "Recommended Beverages": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Can Coke",
+                  "price": 2
+                },
+                {
+                  "name": "Can Sprite",
+                  "price": 2
+                },
+                {
+                  "name": "Can Coke Zero",
+                  "price": 2
+                },
+                {
+                  "name": "Glass Coke",
+                  "price": 3
+                },
+                {
+                  "name": "Can Diet Coke",
+                  "price": 2
+                }
+              ]
+            },
+            "Recommended Desserts": {
+              "required": false,
+              "max_select": 3,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Cookies 'N Cream",
+                  "price": 2.99
+                },
+                {
+                  "name": "Chocolate Chip",
+                  "price": 2.99
+                },
+                {
+                  "name": "M&M Chocolate Chip",
+                  "price": 2.99
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "1 Chicken Sando",
+          "description": "Potato Roll, Crispy Hand Battered Chicken, Kaleslaw, Crinkle Cut pickles, Sweet Chili Aioli",
+          "base_price": 8.99,
+          "modifications": {
+            "Make It a Combo With Fries": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Plain Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Lemon Pepper Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Cajun Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Nashville Seasoning Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "No Thanks",
+                  "price": 0
+                }
+              ]
+            },
+            "Chicken Sando Seasoning": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Naked",
+                  "price": 0
+                },
+                {
+                  "name": "Mild",
+                  "price": 0
+                },
+                {
+                  "name": "Spicy",
+                  "price": 0
+                },
+                {
+                  "name": "Extra Spicy",
+                  "price": 0
+                }
+              ]
+            },
+            "Recommended Sides And Apps": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Animal Fries",
+                  "price": 10.99
+                },
+                {
+                  "name": "Mozzarella Sticks",
+                  "price": 8.99
+                },
+                {
+                  "name": "Regular Fries",
+                  "price": 5.5
+                },
+                {
+                  "name": "Battered Onion Rings",
+                  "price": 8.99
+                },
+                {
+                  "name": "Jalapeño Poppers",
+                  "price": 10.99
+                }
+              ]
+            },
+            "Recommended Beverages": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Can Coke",
+                  "price": 2
+                },
+                {
+                  "name": "Can Sprite",
+                  "price": 2
+                },
+                {
+                  "name": "Can Coke Zero",
+                  "price": 2
+                },
+                {
+                  "name": "Glass Coke",
+                  "price": 3
+                },
+                {
+                  "name": "Can Diet Coke",
+                  "price": 2
+                }
+              ]
+            },
+            "Recommended Desserts": {
+              "required": false,
+              "max_select": 3,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Cookies 'N Cream",
+                  "price": 2.99
+                },
+                {
+                  "name": "Chocolate Chip",
+                  "price": 2.99
+                },
+                {
+                  "name": "M&M Chocolate Chip",
+                  "price": 2.99
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "1 Chicken Tender",
+          "description": "Hand Battered Crispy Chicken Tender",
+          "base_price": 4.49,
+          "modifications": {
+            "Make It a Combo With Fries": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Plain Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Lemon Pepper Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Cajun Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Nashville Seasoning Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "No Thanks",
+                  "price": 0
+                }
+              ]
+            },
+            "Tender Spice Level": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Naked",
+                  "price": 0
+                },
+                {
+                  "name": "Mild",
+                  "price": 0
+                },
+                {
+                  "name": "Spicy",
+                  "price": 0
+                },
+                {
+                  "name": "Extra Spicy",
+                  "price": 0
+                }
+              ]
+            },
+            "Recommended Sides And Apps": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Animal Fries",
+                  "price": 10.99
+                },
+                {
+                  "name": "Mozzarella Sticks",
+                  "price": 8.99
+                },
+                {
+                  "name": "Regular Fries",
+                  "price": 5.5
+                },
+                {
+                  "name": "Battered Onion Rings",
+                  "price": 8.99
+                },
+                {
+                  "name": "Jalapeño Poppers",
+                  "price": 10.99
+                }
+              ]
+            },
+            "Recommended Beverages": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Can Coke",
+                  "price": 2
+                },
+                {
+                  "name": "Can Sprite",
+                  "price": 2
+                },
+                {
+                  "name": "Can Coke Zero",
+                  "price": 2
+                },
+                {
+                  "name": "Glass Coke",
+                  "price": 3
+                },
+                {
+                  "name": "Can Diet Coke",
+                  "price": 2
+                }
+              ]
+            },
+            "Recommended Desserts": {
+              "required": false,
+              "max_select": 3,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Cookies 'N Cream",
+                  "price": 2.99
+                },
+                {
+                  "name": "Chocolate Chip",
+                  "price": 2.99
+                },
+                {
+                  "name": "M&M Chocolate Chip",
+                  "price": 2.99
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "category": "Cookies",
+      "items": [
+        {
+          "name": "Cookies 'N Cream",
+          "description": "Big Size Cookies 'N Cream Cookie",
+          "base_price": 2.99,
+          "modifications": {}
+        },
+        {
+          "name": "Chocolate Chip",
+          "description": "Big Size Chocolate Chip Cookie",
+          "base_price": 2.99,
+          "modifications": {}
+        },
+        {
+          "name": "M&M Chocolate Chip",
+          "description": "Big Size M&M Chocolate Chip Cookie",
+          "base_price": 2.99,
+          "modifications": {}
+        }
+      ]
+    },
+    {
+      "category": "Smash Burgers",
+      "description": "Our menu is 100% halal. Our food may contain or come into contact with common allergens, including nuts, dairy, eggs, soy, wheat, and shellfish. Please inform us of any allergies before ordering.",
+      "items": [
+        {
+          "name": "All American",
+          "description": "Shredded lettuce, mayo, ketchup, mustard, sliced tomato, pickles, diced white onion, American cheese.",
+          "base_price": null,
+          "price_note": "Price determined by patty selection",
+          "modifications": {
+            "Patties": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Single",
+                  "price": 8.99
+                },
+                {
+                  "name": "Double",
+                  "price": 11.99
+                },
+                {
+                  "name": "Triple",
+                  "price": 14.99
+                },
+                {
+                  "name": "Quadruple",
+                  "price": 16.99
+                }
+              ]
+            },
+            "Make It a Combo With Fries": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Plain Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Lemon Pepper Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Cajun Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Nashville Seasoning Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "No Thanks",
+                  "price": 0
+                }
+              ]
+            },
+            "Lettuce Bun": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Lettuce Bun",
+                  "price": 1.5
+                },
+                {
+                  "name": "No Thanks",
+                  "price": 0
+                }
+              ]
+            },
+            "Add Ons": {
+              "required": false,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Raw Diced Onion",
+                  "price": 0.75
+                },
+                {
+                  "name": "Grilled Shaved Onion",
+                  "price": 0.75
+                },
+                {
+                  "name": "Jalepeno",
+                  "price": 0.75
+                },
+                {
+                  "name": "Onion Ring",
+                  "price": 1
+                },
+                {
+                  "name": "Beef Bacon",
+                  "price": 3
+                }
+              ]
+            },
+            "Hold All American": {
+              "required": false,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "No Lettuce",
+                  "price": 0
+                },
+                {
+                  "name": "No Mayo",
+                  "price": 0
+                },
+                {
+                  "name": "No Ketchup",
+                  "price": 0
+                },
+                {
+                  "name": "No Mustard",
+                  "price": 0
+                },
+                {
+                  "name": "No Sliced Tomato",
+                  "price": 0
+                },
+                {
+                  "name": "No Pickles",
+                  "price": 0
+                },
+                {
+                  "name": "No Diced Onion",
+                  "price": 0
+                },
+                {
+                  "name": "No Cheese",
+                  "price": 0
+                }
+              ]
+            },
+            "Recommended Sides And Apps": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Animal Fries",
+                  "price": 10.99
+                },
+                {
+                  "name": "Mozzarella Sticks",
+                  "price": 8.99
+                },
+                {
+                  "name": "Regular Fries",
+                  "price": 5.5
+                },
+                {
+                  "name": "Battered Onion Rings",
+                  "price": 8.99
+                },
+                {
+                  "name": "Jalapeño Poppers",
+                  "price": 10.99
+                }
+              ]
+            },
+            "Recommended Beverages": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Can Coke",
+                  "price": 2
+                },
+                {
+                  "name": "Can Sprite",
+                  "price": 2
+                },
+                {
+                  "name": "Can Coke Zero",
+                  "price": 2
+                },
+                {
+                  "name": "Glass Coke",
+                  "price": 3
+                },
+                {
+                  "name": "Can Diet Coke",
+                  "price": 2
+                }
+              ]
+            },
+            "Recommended Desserts": {
+              "required": false,
+              "max_select": 3,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Cookies 'N Cream",
+                  "price": 2.99
+                },
+                {
+                  "name": "Chocolate Chip",
+                  "price": 2.99
+                },
+                {
+                  "name": "M&M Chocolate Chip",
+                  "price": 2.99
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Hot Honey Burger",
+          "description": "Smash sauce, diced Spanish onion, American cheese, fresh shaved jalapeños, hot honey.",
+          "base_price": null,
+          "price_note": "Price determined by patty selection",
+          "modifications": {
+            "Patties": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Single",
+                  "price": 8.99
+                },
+                {
+                  "name": "Double",
+                  "price": 11.99
+                },
+                {
+                  "name": "Triple",
+                  "price": 14.99
+                },
+                {
+                  "name": "Quadruple",
+                  "price": 16.99
+                }
+              ]
+            },
+            "Make It a Combo With Fries": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Plain Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Lemon Pepper Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Cajun Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Nashville Seasoning Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "No Thanks",
+                  "price": 0
+                }
+              ]
+            },
+            "Lettuce Bun": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Lettuce Bun",
+                  "price": 1.5
+                },
+                {
+                  "name": "No Thanks",
+                  "price": 0
+                }
+              ]
+            },
+            "Add Ons": {
+              "required": false,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Raw Diced Onion",
+                  "price": 0.75
+                },
+                {
+                  "name": "Grilled Shaved Onion",
+                  "price": 0.75
+                },
+                {
+                  "name": "Jalepeno",
+                  "price": 0.75
+                },
+                {
+                  "name": "Onion Ring",
+                  "price": 1
+                },
+                {
+                  "name": "Beef Bacon",
+                  "price": 3
+                }
+              ]
+            },
+            "Hold Hot Honey": {
+              "required": false,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "No Smash Sauce",
+                  "price": 0
+                },
+                {
+                  "name": "No Diced Onion",
+                  "price": 0
+                },
+                {
+                  "name": "No Cheese",
+                  "price": 0
+                },
+                {
+                  "name": "No Jalepeno",
+                  "price": 0
+                },
+                {
+                  "name": "No Hot Honey",
+                  "price": 0
+                }
+              ]
+            },
+            "Recommended Sides And Apps": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Animal Fries",
+                  "price": 10.99
+                },
+                {
+                  "name": "Mozzarella Sticks",
+                  "price": 8.99
+                },
+                {
+                  "name": "Regular Fries",
+                  "price": 5.5
+                },
+                {
+                  "name": "Battered Onion Rings",
+                  "price": 8.99
+                },
+                {
+                  "name": "Jalapeño Poppers",
+                  "price": 10.99
+                }
+              ]
+            },
+            "Recommended Beverages": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Can Coke",
+                  "price": 2
+                },
+                {
+                  "name": "Can Sprite",
+                  "price": 2
+                },
+                {
+                  "name": "Can Coke Zero",
+                  "price": 2
+                },
+                {
+                  "name": "Glass Coke",
+                  "price": 3
+                },
+                {
+                  "name": "Can Diet Coke",
+                  "price": 2
+                }
+              ]
+            },
+            "Recommended Desserts": {
+              "required": false,
+              "max_select": 3,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Cookies 'N Cream",
+                  "price": 2.99
+                },
+                {
+                  "name": "Chocolate Chip",
+                  "price": 2.99
+                },
+                {
+                  "name": "M&M Chocolate Chip",
+                  "price": 2.99
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Classic",
+          "description": "Shaved grilled onions, pickles, American cheese, smash sauce.",
+          "base_price": null,
+          "price_note": "Price determined by patty selection",
+          "modifications": {
+            "Patties": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Single",
+                  "price": 8.99
+                },
+                {
+                  "name": "Double",
+                  "price": 11.99
+                },
+                {
+                  "name": "Triple",
+                  "price": 14.99
+                },
+                {
+                  "name": "Quadruple",
+                  "price": 16.99
+                }
+              ]
+            },
+            "Make It a Combo With Fries": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Plain Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Lemon Pepper Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Cajun Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Nashville Seasoning Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "No Thanks",
+                  "price": 0
+                }
+              ]
+            },
+            "Lettuce Bun": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Lettuce Bun",
+                  "price": 1.5
+                },
+                {
+                  "name": "No Thanks",
+                  "price": 0
+                }
+              ]
+            },
+            "Add Ons": {
+              "required": false,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Raw Diced Onion",
+                  "price": 0.75
+                },
+                {
+                  "name": "Grilled Shaved Onion",
+                  "price": 0.75
+                },
+                {
+                  "name": "Jalepeno",
+                  "price": 0.75
+                },
+                {
+                  "name": "Onion Ring",
+                  "price": 1
+                },
+                {
+                  "name": "Beef Bacon",
+                  "price": 3
+                }
+              ]
+            },
+            "Hold Classic": {
+              "required": false,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "No Shaved Grilled Onion",
+                  "price": 0
+                },
+                {
+                  "name": "No Pickles",
+                  "price": 0
+                },
+                {
+                  "name": "No Cheese",
+                  "price": 0
+                },
+                {
+                  "name": "No Smash Sauce",
+                  "price": 0
+                }
+              ]
+            },
+            "Recommended Sides And Apps": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Animal Fries",
+                  "price": 10.99
+                },
+                {
+                  "name": "Mozzarella Sticks",
+                  "price": 8.99
+                },
+                {
+                  "name": "Regular Fries",
+                  "price": 5.5
+                },
+                {
+                  "name": "Battered Onion Rings",
+                  "price": 8.99
+                },
+                {
+                  "name": "Jalapeño Poppers",
+                  "price": 10.99
+                }
+              ]
+            },
+            "Recommended Beverages": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Can Coke",
+                  "price": 2
+                },
+                {
+                  "name": "Can Sprite",
+                  "price": 2
+                },
+                {
+                  "name": "Can Coke Zero",
+                  "price": 2
+                },
+                {
+                  "name": "Glass Coke",
+                  "price": 3
+                },
+                {
+                  "name": "Can Diet Coke",
+                  "price": 2
+                }
+              ]
+            },
+            "Recommended Desserts": {
+              "required": false,
+              "max_select": 3,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Cookies 'N Cream",
+                  "price": 2.99
+                },
+                {
+                  "name": "Chocolate Chip",
+                  "price": 2.99
+                },
+                {
+                  "name": "M&M Chocolate Chip",
+                  "price": 2.99
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Chef's Signature",
+          "description": "Umami BBQ, fresh jalapeños, shredded lettuce, crispy battered onion ring, American cheese.",
+          "base_price": null,
+          "price_note": "Price determined by patty selection",
+          "modifications": {
+            "Patties": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Single",
+                  "price": 8.99
+                },
+                {
+                  "name": "Double",
+                  "price": 11.99
+                },
+                {
+                  "name": "Triple",
+                  "price": 14.99
+                },
+                {
+                  "name": "Quadruple",
+                  "price": 16.99
+                }
+              ]
+            },
+            "Make It a Combo With Fries": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Plain Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Lemon Pepper Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Cajun Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Nashville Seasoning Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "No Thanks",
+                  "price": 0
+                }
+              ]
+            },
+            "Lettuce Bun": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Lettuce Bun",
+                  "price": 1.5
+                },
+                {
+                  "name": "No Thanks",
+                  "price": 0
+                }
+              ]
+            },
+            "Add Ons": {
+              "required": false,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Raw Diced Onion",
+                  "price": 0.75
+                },
+                {
+                  "name": "Grilled Shaved Onion",
+                  "price": 0.75
+                },
+                {
+                  "name": "Jalepeno",
+                  "price": 0.75
+                },
+                {
+                  "name": "Onion Ring",
+                  "price": 1
+                },
+                {
+                  "name": "Beef Bacon",
+                  "price": 3
+                }
+              ]
+            },
+            "Hold Chefs Signature": {
+              "required": false,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "No Umami BBQ",
+                  "price": 0
+                },
+                {
+                  "name": "No Jalepeno",
+                  "price": 0
+                },
+                {
+                  "name": "No Lettuce",
+                  "price": 0
+                },
+                {
+                  "name": "No Onion Ring",
+                  "price": 0
+                },
+                {
+                  "name": "No Cheese",
+                  "price": 0
+                }
+              ]
+            },
+            "Recommended Sides And Apps": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Animal Fries",
+                  "price": 10.99
+                },
+                {
+                  "name": "Mozzarella Sticks",
+                  "price": 8.99
+                },
+                {
+                  "name": "Regular Fries",
+                  "price": 5.5
+                },
+                {
+                  "name": "Battered Onion Rings",
+                  "price": 8.99
+                },
+                {
+                  "name": "Jalapeño Poppers",
+                  "price": 10.99
+                }
+              ]
+            },
+            "Recommended Beverages": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Can Coke",
+                  "price": 2
+                },
+                {
+                  "name": "Can Sprite",
+                  "price": 2
+                },
+                {
+                  "name": "Can Coke Zero",
+                  "price": 2
+                },
+                {
+                  "name": "Glass Coke",
+                  "price": 3
+                },
+                {
+                  "name": "Can Diet Coke",
+                  "price": 2
+                }
+              ]
+            },
+            "Recommended Desserts": {
+              "required": false,
+              "max_select": 3,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Cookies 'N Cream",
+                  "price": 2.99
+                },
+                {
+                  "name": "Chocolate Chip",
+                  "price": 2.99
+                },
+                {
+                  "name": "M&M Chocolate Chip",
+                  "price": 2.99
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "category": "Boneless Wings",
+      "description": "All natural. Non GMO, no steroids, no hormones. Our menu is 100% halal.",
+      "items": [
+        {
+          "name": "6Pc Boneless",
+          "description": "Choose One Flavor Below",
+          "base_price": 7.99,
+          "modifications": {
+            "6pc Flavor": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Naked",
+                  "price": 0
+                },
+                {
+                  "name": "Lemon Pepper Seasoning",
+                  "price": 0
+                },
+                {
+                  "name": "Nashville Seasoning",
+                  "price": 0
+                },
+                {
+                  "name": "Honey Mustard",
+                  "price": 0
+                },
+                {
+                  "name": "Garlic Parm",
+                  "price": 0
+                },
+                {
+                  "name": "Spicy Garlic Parm",
+                  "price": 0
+                },
+                {
+                  "name": "Hot Honey",
+                  "price": 0
+                },
+                {
+                  "name": "Sweet n Spicy",
+                  "price": 0
+                },
+                {
+                  "name": "BBQ",
+                  "price": 0
+                },
+                {
+                  "name": "Buffalo",
+                  "price": 0
+                },
+                {
+                  "name": "Chili Mango",
+                  "price": 0
+                }
+              ]
+            },
+            "Make It a Combo With Fries": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Plain Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Lemon Pepper Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Cajun Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Nashville Seasoning Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "No Thanks",
+                  "price": 0
+                }
+              ]
+            },
+            "Recommended Sides And Apps": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Animal Fries",
+                  "price": 10.99
+                },
+                {
+                  "name": "Mozzarella Sticks",
+                  "price": 8.99
+                },
+                {
+                  "name": "Regular Fries",
+                  "price": 5.5
+                },
+                {
+                  "name": "Battered Onion Rings",
+                  "price": 8.99
+                },
+                {
+                  "name": "Jalapeño Poppers",
+                  "price": 10.99
+                }
+              ]
+            },
+            "Recommended Beverages": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Can Coke",
+                  "price": 2
+                },
+                {
+                  "name": "Can Sprite",
+                  "price": 2
+                },
+                {
+                  "name": "Can Coke Zero",
+                  "price": 2
+                },
+                {
+                  "name": "Glass Coke",
+                  "price": 3
+                },
+                {
+                  "name": "Can Diet Coke",
+                  "price": 2
+                }
+              ]
+            },
+            "Recommended Desserts": {
+              "required": false,
+              "max_select": 3,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Cookies 'N Cream",
+                  "price": 2.99
+                },
+                {
+                  "name": "Chocolate Chip",
+                  "price": 2.99
+                },
+                {
+                  "name": "M&M Chocolate Chip",
+                  "price": 2.99
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "12pc Boneless",
+          "description": "Choose up to 2 flavors below",
+          "base_price": 13.99,
+          "modifications": {
+            "12pc Flavors": {
+              "required": true,
+              "min_select": 1,
+              "max_select": 2,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Naked",
+                  "price": 0
+                },
+                {
+                  "name": "Lemon Pepper Seasoning",
+                  "price": 0
+                },
+                {
+                  "name": "Nashville Seasoning",
+                  "price": 0
+                },
+                {
+                  "name": "Honey Mustard",
+                  "price": 0
+                },
+                {
+                  "name": "Garlic Parm",
+                  "price": 0
+                },
+                {
+                  "name": "Spicy Garlic Parm",
+                  "price": 0
+                },
+                {
+                  "name": "Hot Honey",
+                  "price": 0
+                },
+                {
+                  "name": "Sweet n Spicy",
+                  "price": 0
+                },
+                {
+                  "name": "BBQ",
+                  "price": 0
+                },
+                {
+                  "name": "Buffalo",
+                  "price": 0
+                },
+                {
+                  "name": "Chili Mango",
+                  "price": 0
+                }
+              ]
+            },
+            "Recommended Sides And Apps": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Animal Fries",
+                  "price": 10.99
+                },
+                {
+                  "name": "Mozzarella Sticks",
+                  "price": 8.99
+                },
+                {
+                  "name": "Regular Fries",
+                  "price": 5.5
+                },
+                {
+                  "name": "Battered Onion Rings",
+                  "price": 8.99
+                },
+                {
+                  "name": "Jalapeño Poppers",
+                  "price": 10.99
+                }
+              ]
+            },
+            "Recommended Beverages": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Can Coke",
+                  "price": 2
+                },
+                {
+                  "name": "Can Sprite",
+                  "price": 2
+                },
+                {
+                  "name": "Can Coke Zero",
+                  "price": 2
+                },
+                {
+                  "name": "Glass Coke",
+                  "price": 3
+                },
+                {
+                  "name": "Can Diet Coke",
+                  "price": 2
+                }
+              ]
+            },
+            "Recommended Desserts": {
+              "required": false,
+              "max_select": 3,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Cookies 'N Cream",
+                  "price": 2.99
+                },
+                {
+                  "name": "Chocolate Chip",
+                  "price": 2.99
+                },
+                {
+                  "name": "M&M Chocolate Chip",
+                  "price": 2.99
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "18pc Boneless",
+          "description": "Choose up to 3 Flavors Below",
+          "base_price": 19.99,
+          "modifications": {
+            "18pc Flavors": {
+              "required": true,
+              "min_select": 1,
+              "max_select": 3,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Naked",
+                  "price": 0
+                },
+                {
+                  "name": "Lemon Pepper Seasoning",
+                  "price": 0
+                },
+                {
+                  "name": "Nashville Seasoning",
+                  "price": 0
+                },
+                {
+                  "name": "Honey Mustard",
+                  "price": 0
+                },
+                {
+                  "name": "Garlic Parm",
+                  "price": 0
+                },
+                {
+                  "name": "Spicy Garlic Parm",
+                  "price": 0
+                },
+                {
+                  "name": "Hot Honey",
+                  "price": 0
+                },
+                {
+                  "name": "Sweet n Spicy",
+                  "price": 0
+                },
+                {
+                  "name": "BBQ",
+                  "price": 0
+                },
+                {
+                  "name": "Buffalo",
+                  "price": 0
+                },
+                {
+                  "name": "Chili Mango",
+                  "price": 0
+                }
+              ]
+            },
+            "Recommended Sides And Apps": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Animal Fries",
+                  "price": 10.99
+                },
+                {
+                  "name": "Mozzarella Sticks",
+                  "price": 8.99
+                },
+                {
+                  "name": "Regular Fries",
+                  "price": 5.5
+                },
+                {
+                  "name": "Battered Onion Rings",
+                  "price": 8.99
+                },
+                {
+                  "name": "Jalapeño Poppers",
+                  "price": 10.99
+                }
+              ]
+            },
+            "Recommended Beverages": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Can Coke",
+                  "price": 2
+                },
+                {
+                  "name": "Can Sprite",
+                  "price": 2
+                },
+                {
+                  "name": "Can Coke Zero",
+                  "price": 2
+                },
+                {
+                  "name": "Glass Coke",
+                  "price": 3
+                },
+                {
+                  "name": "Can Diet Coke",
+                  "price": 2
+                }
+              ]
+            },
+            "Recommended Desserts": {
+              "required": false,
+              "max_select": 3,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Cookies 'N Cream",
+                  "price": 2.99
+                },
+                {
+                  "name": "Chocolate Chip",
+                  "price": 2.99
+                },
+                {
+                  "name": "M&M Chocolate Chip",
+                  "price": 2.99
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "24pc Boneless",
+          "description": "Choose up to 4 flavors Below",
+          "base_price": 26.99,
+          "modifications": {
+            "24pc Flavors": {
+              "required": true,
+              "min_select": 1,
+              "max_select": 4,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Naked",
+                  "price": 0
+                },
+                {
+                  "name": "Lemon Pepper Seasoning",
+                  "price": 0
+                },
+                {
+                  "name": "Nashville Seasoning",
+                  "price": 0
+                },
+                {
+                  "name": "Honey Mustard",
+                  "price": 0
+                },
+                {
+                  "name": "Garlic Parm",
+                  "price": 0
+                },
+                {
+                  "name": "Spicy Garlic Parm",
+                  "price": 0
+                },
+                {
+                  "name": "Hot Honey",
+                  "price": 0
+                },
+                {
+                  "name": "Sweet n Spicy",
+                  "price": 0
+                },
+                {
+                  "name": "BBQ",
+                  "price": 0
+                },
+                {
+                  "name": "Buffalo",
+                  "price": 0
+                },
+                {
+                  "name": "Chili Mango",
+                  "price": 0
+                }
+              ]
+            },
+            "Recommended Sides And Apps": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Animal Fries",
+                  "price": 10.99
+                },
+                {
+                  "name": "Mozzarella Sticks",
+                  "price": 8.99
+                },
+                {
+                  "name": "Regular Fries",
+                  "price": 5.5
+                },
+                {
+                  "name": "Battered Onion Rings",
+                  "price": 8.99
+                },
+                {
+                  "name": "Jalapeño Poppers",
+                  "price": 10.99
+                }
+              ]
+            },
+            "Recommended Beverages": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Can Coke",
+                  "price": 2
+                },
+                {
+                  "name": "Can Sprite",
+                  "price": 2
+                },
+                {
+                  "name": "Can Coke Zero",
+                  "price": 2
+                },
+                {
+                  "name": "Glass Coke",
+                  "price": 3
+                },
+                {
+                  "name": "Can Diet Coke",
+                  "price": 2
+                }
+              ]
+            },
+            "Recommended Desserts": {
+              "required": false,
+              "max_select": 3,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Cookies 'N Cream",
+                  "price": 2.99
+                },
+                {
+                  "name": "Chocolate Chip",
+                  "price": 2.99
+                },
+                {
+                  "name": "M&M Chocolate Chip",
+                  "price": 2.99
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "30pc Boneless",
+          "description": "Choose up to 5 flavors below",
+          "base_price": 30.99,
+          "modifications": {
+            "30pc Flavors": {
+              "required": true,
+              "min_select": 1,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Naked",
+                  "price": 0
+                },
+                {
+                  "name": "Lemon Pepper Seasoning",
+                  "price": 0
+                },
+                {
+                  "name": "Nashville Seasoning",
+                  "price": 0
+                },
+                {
+                  "name": "Honey Mustard",
+                  "price": 0
+                },
+                {
+                  "name": "Garlic Parm",
+                  "price": 0
+                },
+                {
+                  "name": "Spicy Garlic Parm",
+                  "price": 0
+                },
+                {
+                  "name": "Hot Honey",
+                  "price": 0
+                },
+                {
+                  "name": "Sweet n Spicy",
+                  "price": 0
+                },
+                {
+                  "name": "BBQ",
+                  "price": 0
+                },
+                {
+                  "name": "Buffalo",
+                  "price": 0
+                },
+                {
+                  "name": "Chili Mango",
+                  "price": 0
+                }
+              ]
+            },
+            "Recommended Sides And Apps": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Animal Fries",
+                  "price": 10.99
+                },
+                {
+                  "name": "Mozzarella Sticks",
+                  "price": 8.99
+                },
+                {
+                  "name": "Regular Fries",
+                  "price": 5.5
+                },
+                {
+                  "name": "Battered Onion Rings",
+                  "price": 8.99
+                },
+                {
+                  "name": "Jalapeño Poppers",
+                  "price": 10.99
+                }
+              ]
+            },
+            "Recommended Beverages": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Can Coke",
+                  "price": 2
+                },
+                {
+                  "name": "Can Sprite",
+                  "price": 2
+                },
+                {
+                  "name": "Can Coke Zero",
+                  "price": 2
+                },
+                {
+                  "name": "Glass Coke",
+                  "price": 3
+                },
+                {
+                  "name": "Can Diet Coke",
+                  "price": 2
+                }
+              ]
+            },
+            "Recommended Desserts": {
+              "required": false,
+              "max_select": 3,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Cookies 'N Cream",
+                  "price": 2.99
+                },
+                {
+                  "name": "Chocolate Chip",
+                  "price": 2.99
+                },
+                {
+                  "name": "M&M Chocolate Chip",
+                  "price": 2.99
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "category": "Bone-In Breaded Wings",
+      "description": "All natural. Non GMO, no steroids, no hormones. Our menu is 100% halal.",
+      "items": [
+        {
+          "name": "6 pc Bone-In Breaded",
+          "description": "Choose 1 Flavor Below",
+          "base_price": 9.99,
+          "modifications": {
+            "Make It a Combo With Fries": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Plain Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Lemon Pepper Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Cajun Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Nashville Seasoning Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "No Thanks",
+                  "price": 0
+                }
+              ]
+            },
+            "6pc Flavor": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Naked",
+                  "price": 0
+                },
+                {
+                  "name": "Lemon Pepper Seasoning",
+                  "price": 0
+                },
+                {
+                  "name": "Nashville Seasoning",
+                  "price": 0
+                },
+                {
+                  "name": "Honey Mustard",
+                  "price": 0
+                },
+                {
+                  "name": "Garlic Parm",
+                  "price": 0
+                },
+                {
+                  "name": "Spicy Garlic Parm",
+                  "price": 0
+                },
+                {
+                  "name": "Hot Honey",
+                  "price": 0
+                },
+                {
+                  "name": "Sweet n Spicy",
+                  "price": 0
+                },
+                {
+                  "name": "BBQ",
+                  "price": 0
+                },
+                {
+                  "name": "Buffalo",
+                  "price": 0
+                },
+                {
+                  "name": "Chili Mango",
+                  "price": 0
+                }
+              ]
+            },
+            "Flats, Drums, or Mixed": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Mixed as is",
+                  "price": 0
+                },
+                {
+                  "name": "All flats",
+                  "price": 3
+                },
+                {
+                  "name": "All drums",
+                  "price": 3
+                }
+              ]
+            },
+            "Recommended Sides And Apps": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Animal Fries",
+                  "price": 10.99
+                },
+                {
+                  "name": "Mozzarella Sticks",
+                  "price": 8.99
+                },
+                {
+                  "name": "Regular Fries",
+                  "price": 5.5
+                },
+                {
+                  "name": "Battered Onion Rings",
+                  "price": 8.99
+                },
+                {
+                  "name": "Jalapeño Poppers",
+                  "price": 10.99
+                }
+              ]
+            },
+            "Recommended Beverages": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Can Coke",
+                  "price": 2
+                },
+                {
+                  "name": "Can Sprite",
+                  "price": 2
+                },
+                {
+                  "name": "Can Coke Zero",
+                  "price": 2
+                },
+                {
+                  "name": "Glass Coke",
+                  "price": 3
+                },
+                {
+                  "name": "Can Diet Coke",
+                  "price": 2
+                }
+              ]
+            },
+            "Recommended Desserts": {
+              "required": false,
+              "max_select": 3,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Cookies 'N Cream",
+                  "price": 2.99
+                },
+                {
+                  "name": "Chocolate Chip",
+                  "price": 2.99
+                },
+                {
+                  "name": "M&M Chocolate Chip",
+                  "price": 2.99
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "12 pc Bone-In Breaded",
+          "description": "Choose up to 2 Flavors Below",
+          "base_price": 14.99,
+          "modifications": {
+            "Make It a Combo With Fries": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Plain Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Lemon Pepper Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Cajun Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Nashville Seasoning Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "No Thanks",
+                  "price": 0
+                }
+              ]
+            },
+            "12pc Flavors": {
+              "required": true,
+              "min_select": 1,
+              "max_select": 2,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Naked",
+                  "price": 0
+                },
+                {
+                  "name": "Lemon Pepper Seasoning",
+                  "price": 0
+                },
+                {
+                  "name": "Nashville Seasoning",
+                  "price": 0
+                },
+                {
+                  "name": "Honey Mustard",
+                  "price": 0
+                },
+                {
+                  "name": "Garlic Parm",
+                  "price": 0
+                },
+                {
+                  "name": "Spicy Garlic Parm",
+                  "price": 0
+                },
+                {
+                  "name": "Hot Honey",
+                  "price": 0
+                },
+                {
+                  "name": "Sweet n Spicy",
+                  "price": 0
+                },
+                {
+                  "name": "BBQ",
+                  "price": 0
+                },
+                {
+                  "name": "Buffalo",
+                  "price": 0
+                },
+                {
+                  "name": "Chili Mango",
+                  "price": 0
+                }
+              ]
+            },
+            "Flats, Drums, or Mixed": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Mixed as is",
+                  "price": 0
+                },
+                {
+                  "name": "All flats",
+                  "price": 3
+                },
+                {
+                  "name": "All drums",
+                  "price": 3
+                }
+              ]
+            },
+            "Recommended Sides And Apps": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Animal Fries",
+                  "price": 10.99
+                },
+                {
+                  "name": "Mozzarella Sticks",
+                  "price": 8.99
+                },
+                {
+                  "name": "Regular Fries",
+                  "price": 5.5
+                },
+                {
+                  "name": "Battered Onion Rings",
+                  "price": 8.99
+                },
+                {
+                  "name": "Jalapeño Poppers",
+                  "price": 10.99
+                }
+              ]
+            },
+            "Recommended Beverages": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Can Coke",
+                  "price": 2
+                },
+                {
+                  "name": "Can Sprite",
+                  "price": 2
+                },
+                {
+                  "name": "Can Coke Zero",
+                  "price": 2
+                },
+                {
+                  "name": "Glass Coke",
+                  "price": 3
+                },
+                {
+                  "name": "Can Diet Coke",
+                  "price": 2
+                }
+              ]
+            },
+            "Recommended Desserts": {
+              "required": false,
+              "max_select": 3,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Cookies 'N Cream",
+                  "price": 2.99
+                },
+                {
+                  "name": "Chocolate Chip",
+                  "price": 2.99
+                },
+                {
+                  "name": "M&M Chocolate Chip",
+                  "price": 2.99
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "18pc Bone-In Breaded",
+          "description": "Choose up to 3 flavors Below",
+          "base_price": 21.99,
+          "modifications": {
+            "Make It a Combo With Fries": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Plain Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Lemon Pepper Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Cajun Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Nashville Seasoning Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "No Thanks",
+                  "price": 0
+                }
+              ]
+            },
+            "18pc Flavors": {
+              "required": true,
+              "min_select": 1,
+              "max_select": 3,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Naked",
+                  "price": 0
+                },
+                {
+                  "name": "Lemon Pepper Seasoning",
+                  "price": 0
+                },
+                {
+                  "name": "Nashville Seasoning",
+                  "price": 0
+                },
+                {
+                  "name": "Honey Mustard",
+                  "price": 0
+                },
+                {
+                  "name": "Garlic Parm",
+                  "price": 0
+                },
+                {
+                  "name": "Spicy Garlic Parm",
+                  "price": 0
+                },
+                {
+                  "name": "Hot Honey",
+                  "price": 0
+                },
+                {
+                  "name": "Sweet n Spicy",
+                  "price": 0
+                },
+                {
+                  "name": "BBQ",
+                  "price": 0
+                },
+                {
+                  "name": "Buffalo",
+                  "price": 0
+                },
+                {
+                  "name": "Chili Mango",
+                  "price": 0
+                }
+              ]
+            },
+            "Flats, Drums, or Mixed": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Mixed as is",
+                  "price": 0
+                },
+                {
+                  "name": "All flats",
+                  "price": 3
+                },
+                {
+                  "name": "All drums",
+                  "price": 3
+                }
+              ]
+            },
+            "Recommended Sides And Apps": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Animal Fries",
+                  "price": 10.99
+                },
+                {
+                  "name": "Mozzarella Sticks",
+                  "price": 8.99
+                },
+                {
+                  "name": "Regular Fries",
+                  "price": 5.5
+                },
+                {
+                  "name": "Battered Onion Rings",
+                  "price": 8.99
+                },
+                {
+                  "name": "Jalapeño Poppers",
+                  "price": 10.99
+                }
+              ]
+            },
+            "Recommended Beverages": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Can Coke",
+                  "price": 2
+                },
+                {
+                  "name": "Can Sprite",
+                  "price": 2
+                },
+                {
+                  "name": "Can Coke Zero",
+                  "price": 2
+                },
+                {
+                  "name": "Glass Coke",
+                  "price": 3
+                },
+                {
+                  "name": "Can Diet Coke",
+                  "price": 2
+                }
+              ]
+            },
+            "Recommended Desserts": {
+              "required": false,
+              "max_select": 3,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Cookies 'N Cream",
+                  "price": 2.99
+                },
+                {
+                  "name": "Chocolate Chip",
+                  "price": 2.99
+                },
+                {
+                  "name": "M&M Chocolate Chip",
+                  "price": 2.99
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "24pc Bone-In Breaded",
+          "description": "Choose up to 4 Flavors below",
+          "base_price": 28.99,
+          "modifications": {
+            "Make It a Combo With Fries": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Plain Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Lemon Pepper Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Cajun Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Nashville Seasoning Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "No Thanks",
+                  "price": 0
+                }
+              ]
+            },
+            "24pc Flavors": {
+              "required": true,
+              "min_select": 1,
+              "max_select": 4,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Naked",
+                  "price": 0
+                },
+                {
+                  "name": "Lemon Pepper Seasoning",
+                  "price": 0
+                },
+                {
+                  "name": "Nashville Seasoning",
+                  "price": 0
+                },
+                {
+                  "name": "Honey Mustard",
+                  "price": 0
+                },
+                {
+                  "name": "Garlic Parm",
+                  "price": 0
+                },
+                {
+                  "name": "Spicy Garlic Parm",
+                  "price": 0
+                },
+                {
+                  "name": "Hot Honey",
+                  "price": 0
+                },
+                {
+                  "name": "Sweet n Spicy",
+                  "price": 0
+                },
+                {
+                  "name": "BBQ",
+                  "price": 0
+                },
+                {
+                  "name": "Buffalo",
+                  "price": 0
+                },
+                {
+                  "name": "Chili Mango",
+                  "price": 0
+                }
+              ]
+            },
+            "Flats, Drums, or Mixed": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Mixed as is",
+                  "price": 0
+                },
+                {
+                  "name": "All flats",
+                  "price": 3
+                },
+                {
+                  "name": "All drums",
+                  "price": 3
+                }
+              ]
+            },
+            "Recommended Sides And Apps": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Animal Fries",
+                  "price": 10.99
+                },
+                {
+                  "name": "Mozzarella Sticks",
+                  "price": 8.99
+                },
+                {
+                  "name": "Regular Fries",
+                  "price": 5.5
+                },
+                {
+                  "name": "Battered Onion Rings",
+                  "price": 8.99
+                },
+                {
+                  "name": "Jalapeño Poppers",
+                  "price": 10.99
+                }
+              ]
+            },
+            "Recommended Beverages": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Can Coke",
+                  "price": 2
+                },
+                {
+                  "name": "Can Sprite",
+                  "price": 2
+                },
+                {
+                  "name": "Can Coke Zero",
+                  "price": 2
+                },
+                {
+                  "name": "Glass Coke",
+                  "price": 3
+                },
+                {
+                  "name": "Can Diet Coke",
+                  "price": 2
+                }
+              ]
+            },
+            "Recommended Desserts": {
+              "required": false,
+              "max_select": 3,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Cookies 'N Cream",
+                  "price": 2.99
+                },
+                {
+                  "name": "Chocolate Chip",
+                  "price": 2.99
+                },
+                {
+                  "name": "M&M Chocolate Chip",
+                  "price": 2.99
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "30 pc Bone-In Breaded",
+          "description": "Choose up to 5 Flavors below",
+          "base_price": 36.99,
+          "modifications": {
+            "Make It a Combo With Fries": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Plain Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Lemon Pepper Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Cajun Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Nashville Seasoning Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "No Thanks",
+                  "price": 0
+                }
+              ]
+            },
+            "30pc Flavors": {
+              "required": true,
+              "min_select": 1,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Naked",
+                  "price": 0
+                },
+                {
+                  "name": "Lemon Pepper Seasoning",
+                  "price": 0
+                },
+                {
+                  "name": "Nashville Seasoning",
+                  "price": 0
+                },
+                {
+                  "name": "Honey Mustard",
+                  "price": 0
+                },
+                {
+                  "name": "Garlic Parm",
+                  "price": 0
+                },
+                {
+                  "name": "Spicy Garlic Parm",
+                  "price": 0
+                },
+                {
+                  "name": "Hot Honey",
+                  "price": 0
+                },
+                {
+                  "name": "Sweet n Spicy",
+                  "price": 0
+                },
+                {
+                  "name": "BBQ",
+                  "price": 0
+                },
+                {
+                  "name": "Buffalo",
+                  "price": 0
+                },
+                {
+                  "name": "Chili Mango",
+                  "price": 0
+                }
+              ]
+            },
+            "Flats, Drums, or Mixed": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Mixed as is",
+                  "price": 0
+                },
+                {
+                  "name": "All flats",
+                  "price": 3
+                },
+                {
+                  "name": "All drums",
+                  "price": 3
+                }
+              ]
+            },
+            "Recommended Sides And Apps": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Animal Fries",
+                  "price": 10.99
+                },
+                {
+                  "name": "Mozzarella Sticks",
+                  "price": 8.99
+                },
+                {
+                  "name": "Regular Fries",
+                  "price": 5.5
+                },
+                {
+                  "name": "Battered Onion Rings",
+                  "price": 8.99
+                },
+                {
+                  "name": "Jalapeño Poppers",
+                  "price": 10.99
+                }
+              ]
+            },
+            "Recommended Beverages": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Can Coke",
+                  "price": 2
+                },
+                {
+                  "name": "Can Sprite",
+                  "price": 2
+                },
+                {
+                  "name": "Can Coke Zero",
+                  "price": 2
+                },
+                {
+                  "name": "Glass Coke",
+                  "price": 3
+                },
+                {
+                  "name": "Can Diet Coke",
+                  "price": 2
+                }
+              ]
+            },
+            "Recommended Desserts": {
+              "required": false,
+              "max_select": 3,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Cookies 'N Cream",
+                  "price": 2.99
+                },
+                {
+                  "name": "Chocolate Chip",
+                  "price": 2.99
+                },
+                {
+                  "name": "M&M Chocolate Chip",
+                  "price": 2.99
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "category": "Specialties",
+      "description": "Our menu is 100% halal.",
+      "items": [
+        {
+          "name": "Chicken Sub (throwback to 2008)",
+          "description": "Marinated Chicken + Lettuce + Tomato + Pickles + Mayo + Toasted French Bread",
+          "base_price": 14.99,
+          "modifications": {
+            "Extra Chicken": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Extra Chicken",
+                  "price": 6
+                },
+                {
+                  "name": "No Thank You",
+                  "price": 0
+                }
+              ]
+            },
+            "Make It a Combo With Fries": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Plain Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Lemon Pepper Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Cajun Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Nashville Seasoning Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "No Thanks",
+                  "price": 0
+                }
+              ]
+            },
+            "Recommended Sides And Apps": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Animal Fries",
+                  "price": 10.99
+                },
+                {
+                  "name": "Mozzarella Sticks",
+                  "price": 8.99
+                },
+                {
+                  "name": "Regular Fries",
+                  "price": 5.5
+                },
+                {
+                  "name": "Battered Onion Rings",
+                  "price": 8.99
+                },
+                {
+                  "name": "Jalapeño Poppers",
+                  "price": 10.99
+                }
+              ]
+            },
+            "Recommended Beverages": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Can Coke",
+                  "price": 2
+                },
+                {
+                  "name": "Can Sprite",
+                  "price": 2
+                },
+                {
+                  "name": "Can Coke Zero",
+                  "price": 2
+                },
+                {
+                  "name": "Glass Coke",
+                  "price": 3
+                },
+                {
+                  "name": "Can Diet Coke",
+                  "price": 2
+                }
+              ]
+            },
+            "Recommended Desserts": {
+              "required": false,
+              "max_select": 3,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Cookies 'N Cream",
+                  "price": 2.99
+                },
+                {
+                  "name": "Chocolate Chip",
+                  "price": 2.99
+                },
+                {
+                  "name": "M&M Chocolate Chip",
+                  "price": 2.99
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Fish",
+          "description": "Wild caught Cod, Tartar Sauce, American Cheese.",
+          "base_price": 10.99,
+          "modifications": {
+            "Make It a Combo With Fries": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Plain Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Lemon Pepper Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Cajun Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Nashville Seasoning Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "No Thanks",
+                  "price": 0
+                }
+              ]
+            },
+            "Hold Fish Sandwich": {
+              "required": false,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "No Tartar",
+                  "price": 0
+                },
+                {
+                  "name": "No Cheese",
+                  "price": 0
+                }
+              ]
+            },
+            "Recommended Sides And Apps": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Animal Fries",
+                  "price": 10.99
+                },
+                {
+                  "name": "Mozzarella Sticks",
+                  "price": 8.99
+                },
+                {
+                  "name": "Regular Fries",
+                  "price": 5.5
+                },
+                {
+                  "name": "Battered Onion Rings",
+                  "price": 8.99
+                },
+                {
+                  "name": "Jalapeño Poppers",
+                  "price": 10.99
+                }
+              ]
+            },
+            "Recommended Beverages": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Can Coke",
+                  "price": 2
+                },
+                {
+                  "name": "Can Sprite",
+                  "price": 2
+                },
+                {
+                  "name": "Can Coke Zero",
+                  "price": 2
+                },
+                {
+                  "name": "Glass Coke",
+                  "price": 3
+                },
+                {
+                  "name": "Can Diet Coke",
+                  "price": 2
+                }
+              ]
+            },
+            "Recommended Desserts": {
+              "required": false,
+              "max_select": 3,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Cookies 'N Cream",
+                  "price": 2.99
+                },
+                {
+                  "name": "Chocolate Chip",
+                  "price": 2.99
+                },
+                {
+                  "name": "M&M Chocolate Chip",
+                  "price": 2.99
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Hot Dog",
+          "description": "Grilled Hot Dog, Toasted Potato Bun, Ketchup, Mustard, Diced Onion, Chopped Relish, Chips Seasoning.",
+          "base_price": 7.99,
+          "modifications": {
+            "Make It a Combo With Fries": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Plain Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Lemon Pepper Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Cajun Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Nashville Seasoning Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "No Thanks",
+                  "price": 0
+                }
+              ]
+            },
+            "Hot Dog Hold": {
+              "required": false,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "No Ketchup",
+                  "price": 0
+                },
+                {
+                  "name": "No Mustard",
+                  "price": 0
+                },
+                {
+                  "name": "No Diced Onion",
+                  "price": 0
+                },
+                {
+                  "name": "No Chopped Relish",
+                  "price": 0
+                }
+              ]
+            },
+            "Recommended Sides And Apps": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Animal Fries",
+                  "price": 10.99
+                },
+                {
+                  "name": "Mozzarella Sticks",
+                  "price": 8.99
+                },
+                {
+                  "name": "Regular Fries",
+                  "price": 5.5
+                },
+                {
+                  "name": "Battered Onion Rings",
+                  "price": 8.99
+                },
+                {
+                  "name": "Jalapeño Poppers",
+                  "price": 10.99
+                }
+              ]
+            },
+            "Recommended Beverages": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Can Coke",
+                  "price": 2
+                },
+                {
+                  "name": "Can Sprite",
+                  "price": 2
+                },
+                {
+                  "name": "Can Coke Zero",
+                  "price": 2
+                },
+                {
+                  "name": "Glass Coke",
+                  "price": 3
+                },
+                {
+                  "name": "Can Diet Coke",
+                  "price": 2
+                }
+              ]
+            },
+            "Recommended Desserts": {
+              "required": false,
+              "max_select": 3,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Cookies 'N Cream",
+                  "price": 2.99
+                },
+                {
+                  "name": "Chocolate Chip",
+                  "price": 2.99
+                },
+                {
+                  "name": "M&M Chocolate Chip",
+                  "price": 2.99
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Chicken Shawarma - Smash Way",
+          "description": "Marinated Chicken, Garlic Sauce, Pickles, Fries, Zaatar, With Toasted Marinated Bread",
+          "base_price": 14.99,
+          "modifications": {
+            "Make It a Combo With Fries": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Plain Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Lemon Pepper Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Cajun Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Nashville Seasoning Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "No Thanks",
+                  "price": 0
+                }
+              ]
+            },
+            "Extra Chicken": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Extra Chicken",
+                  "price": 6
+                },
+                {
+                  "name": "No Thank You",
+                  "price": 0
+                }
+              ]
+            },
+            "Shawarma Hold": {
+              "required": false,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "No Garlic",
+                  "price": 0
+                },
+                {
+                  "name": "No Fries",
+                  "price": 0
+                },
+                {
+                  "name": "No Pickles",
+                  "price": 0
+                }
+              ]
+            },
+            "Recommended Sides And Apps": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Animal Fries",
+                  "price": 10.99
+                },
+                {
+                  "name": "Mozzarella Sticks",
+                  "price": 8.99
+                },
+                {
+                  "name": "Regular Fries",
+                  "price": 5.5
+                },
+                {
+                  "name": "Battered Onion Rings",
+                  "price": 8.99
+                },
+                {
+                  "name": "Jalapeño Poppers",
+                  "price": 10.99
+                }
+              ]
+            },
+            "Recommended Beverages": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Can Coke",
+                  "price": 2
+                },
+                {
+                  "name": "Can Sprite",
+                  "price": 2
+                },
+                {
+                  "name": "Can Coke Zero",
+                  "price": 2
+                },
+                {
+                  "name": "Glass Coke",
+                  "price": 3
+                },
+                {
+                  "name": "Can Diet Coke",
+                  "price": 2
+                }
+              ]
+            },
+            "Recommended Desserts": {
+              "required": false,
+              "max_select": 3,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Cookies 'N Cream",
+                  "price": 2.99
+                },
+                {
+                  "name": "Chocolate Chip",
+                  "price": 2.99
+                },
+                {
+                  "name": "M&M Chocolate Chip",
+                  "price": 2.99
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Chicken Shawarma",
+          "description": "Marinated chicken, garlic sauce, pickles, fries, toasted french bread.",
+          "base_price": 12.99,
+          "modifications": {
+            "Make It a Combo With Fries": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Plain Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Lemon Pepper Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Cajun Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "Nashville Seasoning Fries",
+                  "price": 3.5
+                },
+                {
+                  "name": "No Thanks",
+                  "price": 0
+                }
+              ]
+            },
+            "Extra Chicken": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Extra Chicken",
+                  "price": 6
+                },
+                {
+                  "name": "No Thank You",
+                  "price": 0
+                }
+              ]
+            },
+            "Shawarma Hold": {
+              "required": false,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "No Garlic",
+                  "price": 0
+                },
+                {
+                  "name": "No Fries",
+                  "price": 0
+                },
+                {
+                  "name": "No Pickles",
+                  "price": 0
+                }
+              ]
+            },
+            "Recommended Sides And Apps": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Animal Fries",
+                  "price": 10.99
+                },
+                {
+                  "name": "Mozzarella Sticks",
+                  "price": 8.99
+                },
+                {
+                  "name": "Regular Fries",
+                  "price": 5.5
+                },
+                {
+                  "name": "Battered Onion Rings",
+                  "price": 8.99
+                },
+                {
+                  "name": "Jalapeño Poppers",
+                  "price": 10.99
+                }
+              ]
+            },
+            "Recommended Beverages": {
+              "required": false,
+              "max_select": 5,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Can Coke",
+                  "price": 2
+                },
+                {
+                  "name": "Can Sprite",
+                  "price": 2
+                },
+                {
+                  "name": "Can Coke Zero",
+                  "price": 2
+                },
+                {
+                  "name": "Glass Coke",
+                  "price": 3
+                },
+                {
+                  "name": "Can Diet Coke",
+                  "price": 2
+                }
+              ]
+            },
+            "Recommended Desserts": {
+              "required": false,
+              "max_select": 3,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "Cookies 'N Cream",
+                  "price": 2.99
+                },
+                {
+                  "name": "Chocolate Chip",
+                  "price": 2.99
+                },
+                {
+                  "name": "M&M Chocolate Chip",
+                  "price": 2.99
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "category": "Sides",
+      "description": "Our menu is 100% halal.",
+      "items": [
+        {
+          "name": "Mozzarella Sticks",
+          "description": "Topped with Italian Parmesan herb. Served with our creamy red sauce.",
+          "base_price": 8.99,
+          "modifications": {}
+        },
+        {
+          "name": "Jalapeño Poppers",
+          "description": "Topped with hot honey and crushed red pepper.",
+          "base_price": 10.99,
+          "modifications": {}
+        },
+        {
+          "name": "Battered Onion Rings",
+          "description": "Served with umami sauce.",
+          "base_price": 8.99,
+          "modifications": {}
+        },
+        {
+          "name": "Sliced Chicken Breast",
+          "description": "6oz of Chicken Breast Sliced",
+          "base_price": 6,
+          "modifications": {}
+        },
+        {
+          "name": "Animal Fries",
+          "description": "Beef Patty, in-house smash sauce, American cheese, grilled onions, fresh shaved jalapeños.",
+          "base_price": 10.99,
+          "modifications": {
+            "Extra Patty": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Extra Smash Patty",
+                  "price": 3
+                },
+                {
+                  "name": "No Thank You",
+                  "price": 0
+                }
+              ]
+            },
+            "Hold Animal Fries": {
+              "required": false,
+              "type": "checkbox",
+              "options": [
+                {
+                  "name": "No Patty",
+                  "price": 0
+                },
+                {
+                  "name": "No Smash Sauce",
+                  "price": 0
+                },
+                {
+                  "name": "No Grilled Onion",
+                  "price": 0
+                },
+                {
+                  "name": "No Jalapeno",
+                  "price": 0
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Regular Fries",
+          "description": "Your choice of seasoning: salt & pepper, cajun, lemon pepper, or paprika.",
+          "base_price": 5.5,
+          "modifications": {
+            "Fries Seasoning": {
+              "required": true,
+              "select": 1,
+              "type": "radio",
+              "options": [
+                {
+                  "name": "Cajun",
+                  "price": 0
+                },
+                {
+                  "name": "Nashville",
+                  "price": 0
+                },
+                {
+                  "name": "Lemon Pepper",
+                  "price": 0
+                },
+                {
+                  "name": "Salt and Pepper",
+                  "price": 0
+                },
+                {
+                  "name": "Plain",
+                  "price": 0
+                },
+                {
+                  "name": "Salt",
+                  "price": 0
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "category": "Sauces",
+      "items": [
+        {
+          "name": "BBQ",
+          "description": "",
+          "base_price": 1,
+          "modifications": {}
+        },
+        {
+          "name": "Chili Mango",
+          "description": "",
+          "base_price": 1,
+          "modifications": {}
+        },
+        {
+          "name": "Buffalo",
+          "description": "",
+          "base_price": 1,
+          "modifications": {}
+        },
+        {
+          "name": "Sweet n Spicy",
+          "description": "",
+          "base_price": 1,
+          "modifications": {}
+        },
+        {
+          "name": "Ranch",
+          "description": "",
+          "base_price": 1,
+          "modifications": {}
+        },
+        {
+          "name": "Hot Honey",
+          "description": "",
+          "base_price": 1.5,
+          "modifications": {}
+        }
+      ]
+    },
+    {
+      "category": "Drinks",
+      "items": [
+        {
+          "name": "Glass Coke",
+          "description": "The cold, refreshing, sparkling classic that America loves.",
+          "base_price": 3,
+          "modifications": {}
+        },
+        {
+          "name": "Can Sprite",
+          "description": "The cold, refreshing flavors of lemon and lime, perfectly blended.",
+          "base_price": 2,
+          "modifications": {}
+        },
+        {
+          "name": "Glass Sprite",
+          "description": "The cold, refreshing flavors of lemon and lime, perfectly blended.",
+          "base_price": 3,
+          "modifications": {}
+        },
+        {
+          "name": "Can Diet Coke",
+          "description": "A crisp, refreshing taste you know and love with zero calories.",
+          "base_price": 2,
+          "modifications": {}
+        },
+        {
+          "name": "Can Sprite Zero",
+          "description": "",
+          "base_price": 2,
+          "modifications": {}
+        },
+        {
+          "name": "Can Coke",
+          "description": "The cold, refreshing, sparkling classic that America loves.",
+          "base_price": 2,
+          "modifications": {}
+        },
+        {
+          "name": "Can Coke Zero",
+          "description": "The same great taste but with zero calories.",
+          "base_price": 2,
+          "modifications": {}
+        }
+      ]
+    }
+  ]
+}

@@ -1,17 +1,20 @@
-from openai import AsyncOpenAI, OpenAIError
-from src.config import settings
 import json
+
+from openai import AsyncOpenAI, OpenAIError
+
 from src.chatbot.exceptions import AIServiceError
 from src.chatbot.internal_schemas import (
     FoodOrderIntentAnalysis,
     FoodOrderStateVerification,
     IntentAnalysis,
     OrderFinalizationIntent,
+    OrderSupervisionResult,
     StateVerification,
 )
 from src.chatbot.prompts import (
     ANALYZE_FOOD_ORDER_INTENT_SYSTEM_PROMPT,
     ANALYZE_INTENT_SYSTEM_PROMPT,
+    SUPERVISE_ORDER_STATE_SYSTEM_PROMPT,
     CLARIFY_VAGUE_MESSAGE_SYSTEM_PROMPT,
     EXTRACT_ADD_ITEMS_SYSTEM_PROMPT,
     EXTRACT_MODIFY_ITEMS_SYSTEM_PROMPT,
@@ -30,18 +33,19 @@ from src.chatbot.prompts import (
     VERIFY_STATE_SYSTEM_PROMPT,
 )
 from src.chatbot.schema import Message, ModifyItem, OrderItem, SwapItems
+from src.config import settings
 
 _client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
 
 class ChatbotAI:
-    async def analyze_intent(
+    async def detectUserIntent(
         self,
         latest_message: str,
         message_history: list[Message] | None = None,
         previous_state: str | None = None,
     ) -> IntentAnalysis:
-        history = [m.model_dump() for m in (message_history or [])[-6:]]
+        history = [m.model_dump() for m in (message_history or [])[-10:]]
         messages: list[dict] = [{"role": "system", "content": ANALYZE_INTENT_SYSTEM_PROMPT}]
         if previous_state:
             messages.append({"role": "system", "content": f"Previous conversation state: {previous_state}"})
@@ -52,7 +56,7 @@ class ChatbotAI:
             response = await _client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=messages,
-                max_tokens=120,
+                max_tokens=200,
                 temperature=0,
                 response_format={"type": "json_object"},
             )
@@ -60,7 +64,8 @@ class ChatbotAI:
             raise AIServiceError(f"OpenAI request failed: {e}") from e
 
         try:
-            return IntentAnalysis(**json.loads(response.choices[0].message.content))
+            raw = response.choices[0].message.content
+            return IntentAnalysis(**json.loads(raw))
         except Exception as e:
             raise AIServiceError(f"Failed to parse intent analysis: {e}") from e
 
@@ -73,7 +78,7 @@ class ChatbotAI:
         transition_valid: bool = True,
         analysis_reasoning: str = "",
     ) -> StateVerification:
-        history = [m.model_dump() for m in (message_history or [])[-6:]]
+        history = [m.model_dump() for m in (message_history or [])[-10:]]
         context_lines = [
             f"Proposed state: {proposed_state}",
             f"Previous state: {previous_state}",
@@ -516,6 +521,39 @@ class ChatbotAI:
             return OrderFinalizationIntent(**json.loads(response.choices[0].message.content))
         except Exception as e:
             raise AIServiceError(f"Failed to parse order finalization intent: {e}") from e
+
+    async def supervise_order_state(
+        self,
+        proposed_order_state: dict,
+        latest_message: str,
+        message_history: list[Message] | None = None,
+    ) -> OrderSupervisionResult:
+        history = [m.model_dump() for m in (message_history or [])]
+        context_lines = [
+            f"Proposed order state: {proposed_order_state}",
+        ]
+        messages: list[dict] = [
+            {"role": "system", "content": SUPERVISE_ORDER_STATE_SYSTEM_PROMPT},
+            {"role": "system", "content": "\n".join(context_lines)},
+            *history,
+            {"role": "user", "content": latest_message},
+        ]
+
+        try:
+            response = await _client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=messages,
+                max_tokens=300,
+                temperature=0,
+                response_format={"type": "json_object"},
+            )
+        except OpenAIError as e:
+            raise AIServiceError(f"OpenAI request failed: {e}") from e
+
+        try:
+            return OrderSupervisionResult(**json.loads(response.choices[0].message.content))
+        except Exception as e:
+            raise AIServiceError(f"Failed to parse order supervision result: {e}") from e
 
     async def answer_restaurant_question(
         self,
