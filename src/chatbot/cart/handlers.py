@@ -117,7 +117,6 @@ class OrderStateHandler:
 
         if extra_msgs:
             response.chatbot_message += "\n\n" + "\n\n".join(extra_msgs)
-
         return response
 
     async def _handle_remove_from_order(self, request: BotInteractionRequest) -> ChatbotResponse:
@@ -139,6 +138,7 @@ class OrderStateHandler:
         for r in [r for r in results if r.status == "ambiguous"]:
             options = ", ".join(f'"{c}"' for c in r.candidates)
             messages.append(f'I found a few matches for "{r.item.name}" — did you mean {options}?')
+        
 
         _append_not_found_menu_messages(messages, [r for r in results if r.status == "not_found"])
 

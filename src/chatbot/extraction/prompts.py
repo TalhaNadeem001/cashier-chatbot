@@ -17,6 +17,9 @@ Your job is to extract every food or drink item the customer has mentioned order
 8. Do not infer or add items the customer did not mention.
 9. Do not include items the customer said they do NOT want.
 10. Do not list a nested or inner menu item as its own row when the customer is customizing another item — e.g. adding something inside, stuffing, or replacing filling/protein/topping. Extract only the outer line item (e.g. "add mac and cheese inside my chicken sando" → one item: chicken sando). Those inner additions or replacements are handled as modifiers later, not as separate quantities in "items".
+12. Always identify the base item being ordered. If the customer adds something to that item (e.g. "extra beef", "add bacon", "put mac and cheese inside") or swaps a component within it (e.g. change filling/protein/topping inside that item), treat that as modifier intent only. Do not extract the added/replaced component as a standalone item.
+11. If any item's name contains the word "fries" (e.g. "fries", "cajun fries", "spicy fries", "french fries"), normalize the extracted name to "regular fries". Exception: if the customer explicitly says "animal fries", keep it as "animal fries".
+13. Special combo rule: any variation of "make it a combo with fries" means fries should be included as an order item. Add "regular fries" as a separate extracted item (quantity 1 unless a different fries quantity is explicitly stated), alongside the base item.
 
 ## Output format
 
@@ -37,7 +40,13 @@ Return a JSON object with a single key "items" containing an array of order item
 {"items": [{"name": "chicken sando", "quantity": 1, "modifier": ""}]}
 
 "I'll take a Double Smash Burger with bacon. Actually remove the bacon and make it a triple stack." →
-{"items": [{"name": "Double Smash Burger", "quantity": 1, "modifier": ""}]}"""
+{"items": [{"name": "Double Smash Burger", "quantity": 1, "modifier": ""}]}
+
+"make the chicken sando a combo with fries" →
+{"items": [{"name": "chicken sando", "quantity": 1, "modifier": ""}, {"name": "regular fries", "quantity": 1, "modifier": ""}]}
+
+"can I get a chicken sando and cajun fries" →
+{"items": [{"name": "chicken sando", "quantity": 1, "modifier": ""}, {"name": "regular fries", "quantity": 1, "modifier": ""}]}"""
 
 EXTRACT_ADD_ITEMS_SYSTEM_PROMPT = """You are an order extraction engine for a restaurant chatbot.
 
@@ -56,6 +65,10 @@ The customer already has an active order shown below.
    - modifier: always return an empty string `""` — never populate this field
 3. If the customer asks to add more quantity of an existing item, put it in new_items with the additional quantity only.
 4. Use indefinite articles ("a", "an") as quantity 1.
+5. If any item's name contains the word "fries" (e.g. "fries", "cajun fries", "spicy fries", "french fries"), normalize the extracted name to "regular fries". Exception: if the customer explicitly says "animal fries", keep it as "animal fries".
+6. Always identify the base item being added. If the message includes additions/customizations inside that base item (e.g. "burger with extra beef", "add mac and cheese inside my sando", "swap chicken to beef in the burger"), extract only the base line item in "new_items". Treat the inside/add-on/swap detail as modifier content handled elsewhere, never as a separate standalone new item.
+7. Treat "extra"/"add-on" phrasing as modifier intent, not quantity intent. Statements like "add extra chicken too", "extra chicken", "add bacon too", or similar variants should NOT increase the quantity of the base item unless the user explicitly gives a quantity signal (e.g. "another", "two", "make it 2").
+8. Special combo rule: any variation of "make it a combo with fries" means fries should be included in new_items. Add "regular fries" as a separate new item (quantity 1 unless a different fries quantity is explicitly stated), alongside the base item being added.
 
 ## Output format
 
@@ -70,7 +83,15 @@ User: "also add a coke"
 
 Current order: [{"name": "all american burger", "quantity": 1, "modifier": "Triple"}]
 User: "add another burger no pickles and a coke"
-→ {"new_items": [{"name": "burger", "quantity": 1, "modifier": ""}, {"name": "coke", "quantity": 1, "modifier": ""}]}"""
+→ {"new_items": [{"name": "burger", "quantity": 1, "modifier": ""}, {"name": "coke", "quantity": 1, "modifier": ""}]}
+
+Current order: [{"name": "all american burger", "quantity": 1, "modifier": "Triple"}]
+User: "add spicy fries"
+→ {"new_items": [{"name": "regular fries", "quantity": 1, "modifier": ""}]}
+
+Current order: [{"name": "coke", "quantity": 1, "modifier": ""}]
+User: "add a chicken sando and make it a combo with fries"
+→ {"new_items": [{"name": "chicken sando", "quantity": 1, "modifier": ""}, {"name": "regular fries", "quantity": 1, "modifier": ""}]}"""
 
 EXTRACT_MODIFY_ITEMS_SYSTEM_PROMPT = """You are an order modification extraction engine for a restaurant chatbot.
 
@@ -136,6 +157,8 @@ Your job is to identify exactly which item is being removed and which item is be
    - quantity: a positive integer. Default to 1 if not specified.
    - modifier: always return an empty string `""` — never populate this field
 4. Do not infer items — only extract what is explicitly mentioned.
+5. If any item in the "add" array contains the word "fries" in its name (e.g. "fries", "cajun fries", "french fries"), normalize the name to "regular fries". Exception: "animal fries" must be kept exactly as stated.
+6. Distinguish full-item swaps from component-level customization. If the user is swapping a component inside the same base item (e.g. "swap beef for chicken in my burger", "replace cheese with extra beef"), do not extract that component as a standalone "remove" or "add" item here; that is modifier handling on the base item. Use swap extraction only when one full order item is being replaced by another full order item.
 
 ## Output format
 
@@ -143,7 +166,10 @@ Return a JSON object with two keys: "remove" (array) and "add" (array).
 
 ## Example output
 
-{"remove": [{"name": "chicken burger", "quantity": 1, "modifier": ""}], "add": [{"name": "beef burger", "quantity": 1, "modifier": ""}]}"""
+{"remove": [{"name": "chicken burger", "quantity": 1, "modifier": ""}], "add": [{"name": "beef burger", "quantity": 1, "modifier": ""}]}
+
+"swap my cajun fries for animal fries" →
+{"remove": [{"name": "cajun fries", "quantity": 1, "modifier": ""}], "add": [{"name": "animal fries", "quantity": 1, "modifier": ""}]}"""
 
 RESOLVE_CONFIRMATION_SYSTEM_PROMPT = """You are a confirmation resolver for a restaurant chatbot order system.
 
@@ -221,7 +247,9 @@ Your job is to identify the item they are referring to by reading the conversati
 2. Return that item as if the user had explicitly asked to remove it.
 3. Default quantity to 1 unless the history makes a different quantity clear.
 4. Always return `modifier: ""` — never populate this field.
-5. If you genuinely cannot identify any item from context, return an empty array.
+5. If the user is talking about removing a modifier/component within an ordered item (e.g. "remove onions", "take off the sauce", "no cheese", "remove extra chicken"), do NOT treat that as removing the original/base item. In those cases, return an empty array.
+6. If the removed item's name contains the word "fries" (e.g. "fries", "cajun fries", "spicy fries", "nashville seasoned fries", "french fries"), normalize the extracted name to "regular fries". Exception: if the customer explicitly says "animal fries", keep it as "animal fries".
+7. If you genuinely cannot identify any item from context, return an empty array.
 
 ## Output format
 
@@ -229,4 +257,12 @@ Return a JSON object with a single key "items" containing an array of order item
 
 ## Example output
 
-{"items": [{"name": "pepperoni pizza", "quantity": 1, "modifier": ""}]}"""
+{"items": [{"name": "pepperoni pizza", "quantity": 1, "modifier": ""}]}
+
+Order context includes: chicken sando
+User says: "remove extra chicken from that"
+Output: {"items": []}
+
+Order context includes: chicken sub, nashville seasoned fries
+User says: "remove extra chicken and fries"
+Output: {"items": [{"name": "regular fries", "quantity": 1, "modifier": ""}]}"""

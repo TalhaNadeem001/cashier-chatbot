@@ -19,10 +19,6 @@
                       {
                         "name": "Extra Chicken",
                         "price": 6
-                      },
-                      {
-                        "name": "No Thank You",
-                        "price": 0
                       }
                     ]
                   },
@@ -1038,10 +1034,6 @@
                     {
                         "name": "Extra Chicken",
                         "price": 6
-                    },
-                    {
-                        "name": "No Thank You",
-                        "price": 0
                     }
                     ]
                 },
@@ -1111,10 +1103,6 @@
                     {
                         "name": "Extra Chicken",
                         "price": 6
-                    },
-                    {
-                        "name": "No Thank You",
-                        "price": 0
                     }
                     ]
                 },
@@ -1193,10 +1181,6 @@
                     {
                         "name": "Extra Smash Patty",
                         "price": 3
-                    },
-                    {
-                        "name": "No Thank You",
-                        "price": 0
                     }
                     ]
                 },

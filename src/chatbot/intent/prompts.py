@@ -11,6 +11,9 @@ You are given a list of individual menu items (one entry per physical unit, no q
 6. If the customer specifies only one modifier for multiple units of the same item (e.g. "both spicy", "all plain"), apply that modifier to every unit of that item.
 7. If the customer specifies multiple modifiers for an item, set "modifier" to a single comma-separated string (e.g. "spicy, no onions").
 8. Phrases meaning the default or standard option — e.g. "normal", "regular", "the original", "standard", "default" — must never appear as literal text in "modifier". Represent that by omitting the choice: use null if nothing else applies, or keep only the other comma-separated parts when multiple dimensions are involved (e.g. customer wants default spice on "spicy, large" → "large" only).
+9. Fries flavors (e.g. "plain fries", "cajun fries", "lemon pepper fries", "nashville seasoning fries", "nashville fries") are modifier options for some items, not standalone order items. If the customer mentions a fries type while discussing a modifier request for an item, assign it as an additional modifier on that item alongside any other modifiers (comma-separated). Do not ignore fries mentions in a modifier context.
+10. If a fries flavor/modifier is mentioned and there is a fries item in the provided list, apply that fries modifier to the fries item(s) rather than to non-fries items. Example: if items include "chicken sando" and "regular fries" and the customer says "add lemon pepper fries", update "regular fries" with "lemon pepper fries" and do not apply that modifier to "chicken sando".
+11. Never add "combo" (or phrases like "make it a combo", "combo please") into any item's "modifier" text. Combo intent is handled by order-item flow, not modifier assignment.
 
 ## Output format
 Return a JSON object: {"items": [{"name": "...", "modifier": "...", "selected_mods": ...}, ...]}"""
@@ -29,6 +32,8 @@ You are given a list of individual menu items (one entry per physical unit, no q
 6. Return the exact same list of items in the same order, with only the "modifier" field updated. Do not add or remove items.
 7. Do not change "name" or "selected_mods".
 8. If the customer swaps to "normal", "regular", "the original", "standard", "default", or similar (meaning the default option), remove the old modifier they are replacing and do not insert any synonym of "normal" in "modifier". Leave other comma-separated modifiers unchanged (e.g. "spicy, large" + "normal spice" / "regular heat" → "large").
+9. If the swap mentions a fries flavor/modifier and there is a fries item in the provided list, perform that swap on the fries item(s), not on non-fries items. Example: items include "chicken sando" and "regular fries", user says "swap plain fries for lemon pepper fries" or "make it lemon pepper fries" — target "regular fries".
+10. Never insert "combo" (or equivalent phrasing) as a modifier value during swaps. If the requested new value is combo-related, do not write it into "modifier".
 
 ## Examples
 - modifier: "spicy, no onions", customer says "swap spicy for mild" → modifier: "mild, no onions"
@@ -53,6 +58,8 @@ You are given a list of individual menu items (one entry per physical unit, no q
 6. Return the exact same list of items in the same order, with only the "modifier" field updated. Do not add or remove items.
 7. Do not change "name" or "selected_mods".
 8. If the customer asks for "normal", "regular", "the original", "standard", "default", or similar for a choice they currently have, treat it as clearing that non-default option only: remove the matching modifier segment, do not add any synonym of "normal", and keep the rest of the comma-separated string (e.g. "spicy, large" + "make the spice normal" → "large").
+9. If removing or clearing a fries flavor/modifier and there is a fries item in the provided list, apply the removal to the fries item(s) rather than non-fries items.
+10. Treat any combo-related wording as non-modifier content: do not remove to or add from a literal "combo" modifier value, and never output "combo" in "modifier".
 
 ## Examples
 - modifier: "spicy, no onions", customer says "remove spicy" → modifier: "no onions"
@@ -104,8 +111,15 @@ Return a JSON object with this exact structure:
 
 ANALYZE_FOOD_ORDER_INTENT_SYSTEM_PROMPT = """You are a sub-intent classifier for a restaurant chatbot order system.
 
-The user's message has already been identified as food order related. An order context is provided (may be empty).
+The user's message has already been identified as food order related. A `Current order` context is provided (may be empty).
 Your job is to classify the user's exact intent regarding their order and report your confidence.
+
+## Using `Current order` context
+
+Always check the `Current order` before selecting a state:
+- `order_modifier_request` is only valid when `Current order` is **non-empty** and the target item is present in it.
+- If `Current order` is empty, `order_modifier_request` is **never** valid — use `new_order` instead.
+- If the target item is not in `Current order`, treat the message as ordering a new item.
 
 ## Valid states
 
@@ -117,25 +131,51 @@ Your job is to classify the user's exact intent regarding their order and report
 - review_order      — The user wants to hear back what is currently in their order or what their running total is (e.g. "what do I have so far?", "read back my order", "what's in my cart?", "how much is this?", "what's my total?").
 - order_modifier_request — The user wants to add, remove, or swap a modifier on an base item the user has already ordered and confirmed. 
 
+## Mixed intent principle
+
+Whenever the message contains **any** combination of ordering a new item AND modifying something (mixed intent), always use the item-level state (`add_to_order`, `new_order`, `swap_item`, or `remove_from_order`). Modifiers in mixed messages are captured downstream by the extraction layer. Reserve `order_modifier_request` for messages that are **solely** about modifying an already-confirmed item — nothing new is being ordered.
+
 ## Rules
 
 1. If the user mentions a new item not in the order, it is add_to_order.
-2. swap_item requires both a removal and a replacement to be clearly expressed — if only one side is clear, use remove_from_order or add_to_order instead.
+2. swap_item requires both a removal and a replacement to be clearly expressed — if only one side is clear, use remove_from_order or add_to_order instead. swap_item applies to **menu items only** — not modifiers. If the user swaps one modifier for another on a confirmed item (e.g. "swap the nashville seasoning with lemon pepper"), that is order_modifier_request, not swap_item.
 3. cancel_order is only when the user wants to scrap the entire order, not just one item. Require high confidence for cancel_order — a short ambiguous "cancel" should not trigger it.
 4. Use the message history, current order state, and previous sub-state as context.
 5. If a message could belong to two states, put the secondary one in "alternative".
 6. review_order applies when the user is asking what they have ordered or asking for a total — not when placing or changing an order.
-7. If user's request is solely about changing a modifier (the base item stays), classify as order_modifier_request.
+7. order_modifier_request ONLY when ALL three conditions hold: (a) `Current order` is non-empty, (b) the target item is present in `Current order`, AND (c) no new items are mentioned anywhere in the message — the message is solely about modifying an already-confirmed item. Example: "make it spicy", "remove the sauce", "change to mild". If any condition fails, use an item-level state instead.
 8. For "remove" phrasing, distinguish item removal vs modifier removal:
    - remove_from_order when the user clearly wants fewer physical units/items in the cart.
-   - order_modifier_request when user wants to remove/change an attribute/modifier (spicy, sauce, cheese, etc.) on the base item.
-10. Modifier-heavy wording (e.g. "remove spicy", "add tartar sauce", "take spicy off the tenders") is **not** order_modifier_request
-11. Do not treat adjective-led phrasing (e.g. "spicy tenders", "plain burger") as item removal by default when the likely intent is still ordering or the target line is not explicit; in those cases avoid order_modifier_request.
+   - order_modifier_request when user wants to remove/change an attribute/modifier (spicy, sauce, cheese, etc.) on the base item and no new item is mentioned.
+9. If the message mentions any new menu item — even alongside a modifier phrase (e.g. "extra spicy chicken sando", "spicy tenders and a coke") — do NOT classify as order_modifier_request. Use add_to_order, swap_item, or new_order as appropriate; the modifier will be captured downstream. Exception: "add extra [ingredient]" or "extra [ingredient] too/as well" where the word is a modifier add-on (e.g. "extra chicken", "extra sauce", "extra cheese") rather than a standalone full menu item name — classify as order_modifier_request when the base item is already in the order.
+10. If the user was discussing a specific menu item in a menu-question turn and then follows up with confirmation phrasing plus modifier wording (e.g. "yeah add this", "yea make that spicy"), treat it as ordering that item (with modifier details) rather than modifier-editing an existing cart line: classify as new_order when the cart is empty, otherwise add_to_order.
 ## Confidence guide
 
 - high   — The intent is unambiguous.
 - medium — Likely correct but depends on context or the message is short.
 - low    — Could plausibly be two different sub-states.
+
+## Examples
+
+[Current order: empty]
+"spicy chicken sando please" → new_order  (empty cart → can't be order_modifier_request)
+
+[Current order: {chicken sando x1}]
+"add a chicken sando, make it spicy" → add_to_order  (mixed: new item + modifier → item state, modifier captured downstream)
+"make it spicy" → order_modifier_request  (pure modifier, item already confirmed in cart)
+"add extra chicken too" → order_modifier_request  (pure modifier add-on, base item confirmed)
+"I want a burger with no onions" → add_to_order  (new item + modifier → item state)
+"I want a burger with no onions and a Sprite" → add_to_order  (multiple new items + modifier → item state)
+
+[Current order: {chicken sando x1}]
+"make it spicy" → order_modifier_request
+"remove the sauce" → order_modifier_request
+"add a Sprite" → add_to_order
+"extra spicy chicken sando" → add_to_order
+
+[Current order: {chicken sando x1, regular fries x1}]
+"swap the nashville seasoning with lemon pepper seasoning" → order_modifier_request  (modifier swap on confirmed item, not an item swap)
+"actually swap the nashville seasoning with lemon pepper" → order_modifier_request  (modifier swap on confirmed item, not an item swap)
 
 ## Output format
 

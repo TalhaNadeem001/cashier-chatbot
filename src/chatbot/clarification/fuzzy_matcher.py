@@ -48,6 +48,8 @@ class FuzzyMatcher:
         for name in menu_names:
             if name.lower() == item.name.lower():
                 return _MatchResult(item=item, status="confirmed", canonical_name=name)
+        
+        print(item.name)
 
         top_matches = process.extract(
             item.name,
