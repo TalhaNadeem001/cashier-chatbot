@@ -3,18 +3,10 @@ from typing import Literal
 
 from rapidfuzz import fuzz, process, utils
 
-from src.chatbot.clarification.ai_resolver import resolve_ambiguous_match
+from src.chatbot.clarification.ai_resolver import resolve_ambiguous_match, resolve_not_found_item
+from src.menu.loader import get_menu_context
 from src.chatbot.schema import Message, OrderItem
-
-# Thresholds
-CONFIRMED_THRESHOLD = 70     # single top match at or above this → confirmed
-MODS_CONFIRMED_THRESHOLD = 80 # single top match at or above this → confirmed
-NOT_FOUND_THRESHOLD = 50     # match_free_modifier: top match below this → not on option list
-LOW_MENU_MATCH_THRESHOLD = 65  # match_item: below this → not on menu (no ambiguity / gap pass)
-LOW_MENU_MATCH_MESSAGE = (
-    "This item doesn't exist on our menu. Please refer to our menu for available options!"
-)
-AMBIGUITY_GAP = 6            # top N matches within this score range of each other → ambiguous
+from src.chatbot.clarification.constants import CONFIRMED_THRESHOLD, MODS_CONFIRMED_THRESHOLD, NOT_FOUND_THRESHOLD, LOW_MENU_MATCH_THRESHOLD, AMBIGUITY_GAP
 
 
 @dataclass
@@ -60,11 +52,15 @@ class FuzzyMatcher:
         print(f"top_matches: {top_matches}")
 
         if not top_matches or top_matches[0][1] < LOW_MENU_MATCH_THRESHOLD:
-            return _MatchResult(
-                item=item,
-                status="not_found",
-                clarification_message=LOW_MENU_MATCH_MESSAGE,
+            top_candidates = [m[0] for m in top_matches] if top_matches else []
+            ai_message = await resolve_not_found_item(
+                item_name=item.name,
+                top_candidates=top_candidates,
+                menu_context=get_menu_context(),
+                latest_message=latest_message,
+                message_history=message_history,
             )
+            return _MatchResult(item=item, status="not_found", clarification_message=ai_message)
 
         best_score = top_matches[0][1]
 

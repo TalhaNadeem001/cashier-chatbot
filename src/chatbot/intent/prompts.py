@@ -259,7 +259,7 @@ Classify the user's latest message into exactly one state. Use conversation hist
 "spicy" (bot asked spice level) → food_order
 "large please" (bot asked size) → food_order
 "no combo" / "plain fries" → food_order
-"I want a drink" / "get me a soda" / "what do you have to drink?" / "what sodas do you have?" → menu_question
+"I want a drink" / "get me a soda" / "what do you have to drink?" / "what sodas do you have?" / "add a drink" → menu_question
 "add a Sprite" / "I'll take a Coke" / "can I get a large lemonade" → food_order
 "remove the fries" → food_order
 "a burger, fries, and a Coke" → food_order
