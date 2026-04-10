@@ -1,0 +1,143 @@
+{
+  "description": "Validation test set for 4 sample conversations. Each conversation defines its turns (user messages) and the expected final order_state.items after all turns are played.",
+  "conversations": [
+    {
+      "id": "flow_01_smash_burger_combo_modifiers",
+      "title": "Smash Burger Combo with Modifiers",
+      "description": "Smash burger (patty selection + combo fries + lettuce bun), then add-ons/holds, then sides/sauces/drinks, then swap/remove and finalize.",
+      "turns": [
+        { "user_message": "Hey!" },
+        { "user_message": "I want an All American burger." },
+        { "user_message": "Make that a double patty." },
+        { "user_message": "Make it a combo with Cajun Fries." },
+        { "user_message": "Actually switch the fries to Lemon Pepper Fries." },
+        { "user_message": "Add Beef Bacon and Jalepeno on the burger." },
+        { "user_message": "Can you make it medium-rare and cut it in half?" },
+        { "user_message": "Also add Grilled Shaved Onion." },
+        { "user_message": "No sliced tomato and no pickles on that All American." },
+        { "user_message": "Add avocado and pepper jack too." },
+        { "user_message": "Do the Lettuce Bun on that burger." },
+        { "user_message": "Add an order of Animal Fries too." },
+        { "user_message": "For the Animal Fries, add Extra Smash Patty." },
+        { "user_message": "But hold the jalapeno on the Animal Fries." },
+        { "user_message": "Add a side of Mozzarella Sticks." },
+        { "user_message": "Add 2 Ranch sauces and 1 Hot Honey." },
+        { "user_message": "Make the drink a Glass Coke." },
+        { "user_message": "Actually can I get a Diet Dr Pepper instead?" },
+        { "user_message": "Wait\u2014remove the Mozzarella Sticks." },
+        { "user_message": "Swap the Glass Coke for a Can Sprite Zero." },
+        { "user_message": "Ok that\u2019s it." }
+      ],
+      "expected_final_items": [
+        { "name": "All American", "quantity": 1 },
+        { "name": "Animal Fries", "quantity": 1 },
+        { "name": "Ranch", "quantity": 2 },
+        { "name": "Hot Honey", "quantity": 1 },
+        { "name": "Can Sprite Zero", "quantity": 1 }
+      ]
+    },
+    {
+      "id": "flow_02_crispy_chicken_meal_spice_changes",
+      "title": "Crispy Chicken Meal with Spice Changes",
+      "description": "Crispy chicken meal with spice levels and fry seasoning, plus desserts/drinks, then change mind multiple times.",
+      "turns": [
+        { "user_message": "Hi, placing a pickup order." },
+        { "user_message": "Can I get 2 Chicken Tenders & Fries?" },
+        { "user_message": "For the fries seasoning: Nashville Seasoning." },
+        { "user_message": "Tender spice level: Extra Spicy." },
+        { "user_message": "Actually make the tenders Mild instead." },
+        { "user_message": "Make the tenders extra crispy and add a side salad." },
+        { "user_message": "Add Jalape\u00f1o Poppers on the side." },
+        { "user_message": "And add Battered Onion Rings too." },
+        { "user_message": "Add a Can Coke Zero." },
+        { "user_message": "No ice in the Coke Zero." },
+        { "user_message": "Also add 2 Chocolate Chip cookies." },
+        { "user_message": "Change the drink to a Glass Sprite instead." },
+        { "user_message": "Remove the onion rings." },
+        { "user_message": "Add Animal Fries as well." },
+        { "user_message": "For the Animal Fries: No Thank You on extra patty." },
+        { "user_message": "Hold the smash sauce on the Animal Fries." },
+        { "user_message": "Add one sauce: Sweet n Spicy." },
+        { "user_message": "Actually make that two Sweet n Spicy sauces." },
+        { "user_message": "Cancel the Jalape\u00f1o Poppers." },
+        { "user_message": "Ok place it." }
+      ],
+      "expected_final_items": [
+        { "name": "Chicken Tender", "quantity": 2 },
+        { "name": "Regular Fries", "quantity": 1 },
+        { "name": "Chocolate Chip", "quantity": 2 },
+        { "name": "Glass Sprite", "quantity": 1 },
+        { "name": "Animal Fries", "quantity": 1 },
+        { "name": "Sweet n Spicy", "quantity": 2 }
+      ]
+    },
+    {
+      "id": "flow_03_boneless_wings_flavor_and_combo_swaps",
+      "title": "Boneless Wings Flavor & Combo Swaps",
+      "description": "Boneless wings flavor selection + combo fries, then switch flavors, add sauces and drinks, then swap fries and remove an item.",
+      "turns": [
+        { "user_message": "Yo!" },
+        { "user_message": "I want 6Pc Boneless." },
+        { "user_message": "Flavor: Garlic Parm." },
+        { "user_message": "Make it a combo with Plain Fries." },
+        { "user_message": "Actually switch the fries to Nashville Seasoning Fries." },
+        { "user_message": "Change the flavor to Hot Honey." },
+        { "user_message": "Wait no\u2014make it Spicy Garlic Parm instead." },
+        { "user_message": "Also make them grilled not fried." },
+        { "user_message": "Add a side of Regular Fries too." },
+        { "user_message": "For the Regular Fries seasoning: Salt and Pepper." },
+        { "user_message": "Add Buffalo sauce and Ranch." },
+        { "user_message": "Add one Chili Mango sauce as well." },
+        { "user_message": "Add a Can Diet Coke." },
+        { "user_message": "And throw in a bottle of water." },
+        { "user_message": "Also add Cookies \u2018N Cream cookie." },
+        { "user_message": "Remove the extra Regular Fries." },
+        { "user_message": "Make the combo fries Cajun Fries now." },
+        { "user_message": "Add Mozzarella Sticks." },
+        { "user_message": "Actually cancel the Mozzarella Sticks." },
+        { "user_message": "Ok done." }
+      ],
+      "expected_final_items": [
+        { "name": "Boneless", "quantity": 1 },
+        { "name": "Buffalo", "quantity": 1 },
+        { "name": "Ranch", "quantity": 1 },
+        { "name": "Chili Mango", "quantity": 1 },
+        { "name": "Can Diet Coke", "quantity": 1 },
+        { "name": "Cookies 'N Cream", "quantity": 1 }
+      ]
+    },
+    {
+      "id": "flow_04_chicken_sub_throwback_combo_cancel_restart",
+      "title": "Chicken Sub Combo, Cancel & Restart",
+      "description": "Chicken sub with combo fries + add-ons, then full cancel and restart with a different complex order.",
+      "turns": [
+        { "user_message": "Hello!" },
+        { "user_message": "Get me the Chicken Sub (throwback to 2008)." },
+        { "user_message": "For Extra Chicken: No Thank You." },
+        { "user_message": "Make it a combo with Nashville Seasoning Fries." },
+        { "user_message": "Add Animal Fries as a side too." },
+        { "user_message": "Add Battered Onion Rings as well." },
+        { "user_message": "Swap the bread to a gluten-free wrap." },
+        { "user_message": "Add a Can Sprite." },
+        { "user_message": "Add M&M Chocolate Chip cookie." },
+        { "user_message": "Actually, change the combo fries to Cajun Fries." },
+        { "user_message": "Remove the onion rings." },
+        { "user_message": "Add Hot Honey sauce." },
+        { "user_message": "Wait\u2014cancel everything, I want to start over." },
+        { "user_message": "New order: All American." },
+        { "user_message": "Make it a triple patty." },
+        { "user_message": "Combo with Lemon Pepper Fries." },
+        { "user_message": "Add Onion Ring and Beef Bacon on the burger." },
+        { "user_message": "No mayo and no mustard on the burger." },
+        { "user_message": "Add a Glass Coke." },
+        { "user_message": "Also add Animal Fries, but hold the grilled onion on it." },
+        { "user_message": "That\u2019s all." }
+      ],
+      "expected_final_items": [
+        { "name": "All American", "quantity": 1 },
+        { "name": "Glass Coke", "quantity": 1 },
+        { "name": "Animal Fries", "quantity": 1 }
+      ]
+    }
+  ]
+}
