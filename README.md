@@ -197,7 +197,7 @@ This writes three Redis keys for `user_id = "1"`:
 ## Running the Server
 
 ```bash
-uvicorn src.main:app --reload
+uvicorn src.app.main:app --reload
 ```
 
 Open `http://localhost:8000` in your browser. The chat UI is served from `templates/index.html`.
@@ -296,7 +296,7 @@ cashier-chatbot/
 
 ```bash
 # Run dev server
-uvicorn src.main:app --reload
+uvicorn src.app.main:app --reload
 
 # Seed menu and restaurant data into Redis
 python scripts/seed_menu.py

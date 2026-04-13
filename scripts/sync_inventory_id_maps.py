@@ -11,7 +11,7 @@ Fields:
   - items, categories, modifier_groups: flat display name -> id
   - modifiers_by_group: modifier group name -> { modifier name -> modifier id }
 
-Requires USER_ID and Firebase credentials in .env (see src.config.Config).
+Requires USER_ID and Firebase credentials in `.env` (see `src.shared.config.Config`).
 
 Usage:
   uv run python scripts/sync_inventory_id_maps.py

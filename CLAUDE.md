@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 # Run the server
-uvicorn src.main:app --reload
+uvicorn src.app.main:app --reload
 
 # Lint and format
 ruff check .           # Lint

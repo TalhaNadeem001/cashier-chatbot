@@ -81,7 +81,6 @@ class {pascal}(BaseModel):
         "constants.py": f'''# Constants for {module_name}
 ''',
         "exceptions.py": f'''# Custom exceptions for {module_name}
-# from src.exceptions import AppException
 ''',
         "utils.py": f'''# Helper functions for {module_name}
 ''',

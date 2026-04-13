@@ -7,7 +7,7 @@ Core application code lives in `src/`. `src/main.py` wires the FastAPI app, life
 There is no separate build step; use `uv` for environment management and run the app directly.
 
 - `uv sync`: install locked dependencies from `pyproject.toml` and `uv.lock`.
-- `uvicorn src.main:app --reload`: start the FastAPI server locally.
+- `uvicorn src.app.main:app --reload`: start the FastAPI server locally.
 - `python scripts/seed_menu.py`: seed Redis with menu and restaurant context.
 - `ruff check .`: run linting.
 - `ruff check --fix .`: apply safe Ruff fixes.
