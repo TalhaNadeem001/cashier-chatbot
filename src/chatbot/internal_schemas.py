@@ -1,5 +1,5 @@
-from typing import Literal
-from pydantic import BaseModel, field_validator
+from typing import Any, Literal
+from pydantic import BaseModel, Field, field_validator
 from src.chatbot.constants import ConversationState
 from src.chatbot.utils import _parse_conversation_state
 
@@ -64,3 +64,50 @@ class CustomerNameAnalysis(BaseModel):
 
 class ModifierAssignmentResult(BaseModel):
     items: list[dict]
+
+
+class MenuMatchIssue(BaseModel):
+    kind: Literal["ambiguous", "not_found"]
+    requested_name: str
+    candidates: list[str] = Field(default_factory=list)
+    clarification_message: str | None = None
+
+
+class ModifierValidationIssue(BaseModel):
+    item_name: str
+    invalid_modifier: str
+    allowed_options: list[str] = Field(default_factory=list)
+
+
+class OrderFollowUpRequirement(BaseModel):
+    kind: Literal["burger_patties", "wings_quantity", "wings_flavor", "wings_flavor_limit"]
+    item_name: str
+    details: dict[str, Any] = Field(default_factory=dict)
+
+
+class ComboEvent(BaseModel):
+    kind: Literal["attached", "removed"]
+    combo_name: str
+    combo_price: int | None = None
+
+
+class ComboApplicationResult(BaseModel):
+    order_state: dict
+    combo_event: ComboEvent | None = None
+
+
+class OrderValidationResult(BaseModel):
+    items: list[dict] = Field(default_factory=list)
+    invalid_modifiers: list[ModifierValidationIssue] = Field(default_factory=list)
+    follow_up_requirements: list[OrderFollowUpRequirement] = Field(default_factory=list)
+
+
+class OrderProcessingOutcome(BaseModel):
+    previous_order: dict = Field(default_factory=dict)
+    accepted_order: dict = Field(default_factory=dict)
+    menu_match_issues: list[MenuMatchIssue] = Field(default_factory=list)
+    invalid_modifiers: list[ModifierValidationIssue] = Field(default_factory=list)
+    follow_up_requirements: list[OrderFollowUpRequirement] = Field(default_factory=list)
+    combo_event: ComboEvent | None = None
+    confirmation_resolved: bool = False
+    order_empty: bool = False

@@ -474,7 +474,10 @@ class ChatbotAI:
         message_history: list[Message] | None = None,
     ) -> str:
         history = openai_chat_history_from_messages(message_history)
-        system = POLISH_FOOD_ORDER_REPLY_SYSTEM_PROMPT.format(order_state=order_state)
+        system = POLISH_FOOD_ORDER_REPLY_SYSTEM_PROMPT.format(
+            order_state=order_state,
+            order_outcome={},
+        )
         messages: list[dict] = [
             {"role": "system", "content": system},
             *history,

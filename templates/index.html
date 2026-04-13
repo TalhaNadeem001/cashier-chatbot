@@ -516,7 +516,6 @@
   let messageHistory = [];
   let orderState = null;
   let previousState = null;
-  let previousFoodOrderState = null;
   let awaitingOrderConfirmation = false;
 
   const messagesEl        = document.getElementById("messages");
@@ -697,7 +696,6 @@
       message_history: messageHistory.length ? messageHistory : null,
       order_state: orderState,
       previous_state: previousState,
-      previous_food_order_state: previousFoodOrderState,
       awaiting_order_confirmation: awaitingOrderConfirmation,
     };
 
@@ -729,9 +727,6 @@
       if (data.previous_state !== undefined && data.previous_state !== null) {
         previousState = data.previous_state;
       }
-      if (data.previous_food_order_state !== undefined && data.previous_food_order_state !== null) {
-        previousFoodOrderState = data.previous_food_order_state;
-      }
       awaitingOrderConfirmation = data.awaiting_order_confirmation ?? false;
       renderOrderState(orderState);
 
@@ -762,7 +757,6 @@
     messageHistory = [];
     orderState = null;
     previousState = null;
-    previousFoodOrderState = null;
     awaitingOrderConfirmation = false;
     messagesEl.innerHTML = "";
     renderOrderState(null);
@@ -809,7 +803,6 @@
       message_history: messageHistory.length ? messageHistory : null,
       order_state: orderState,
       previous_state: previousState,
-      previous_food_order_state: previousFoodOrderState,
       awaiting_order_confirmation: awaitingOrderConfirmation,
     };
 
@@ -840,9 +833,6 @@
       if (data.previous_state !== undefined && data.previous_state !== null) {
         previousState = data.previous_state;
       }
-      if (data.previous_food_order_state !== undefined && data.previous_food_order_state !== null) {
-        previousFoodOrderState = data.previous_food_order_state;
-      }
       awaitingOrderConfirmation = data.awaiting_order_confirmation ?? false;
       renderOrderState(orderState);
 
@@ -868,7 +858,6 @@
     messageHistory = [];
     orderState = null;
     previousState = null;
-    previousFoodOrderState = null;
     awaitingOrderConfirmation = false;
     messagesEl.innerHTML = "";
     renderOrderState(null);

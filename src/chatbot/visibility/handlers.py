@@ -1,5 +1,5 @@
 from src.cache import cache_get
-from src.chatbot.cart.handlers import OrderStateHandler, ModifierStateHandler
+from src.chatbot.cart.handlers import OrderStateHandler
 from src.chatbot.constants import ConversationState
 from src.chatbot.exceptions import UnhandledStateError
 from src.chatbot.schema import BotInteractionRequest, ChatbotResponse
@@ -17,7 +17,6 @@ from src.chatbot.visibility.utils import _get_restaurant_profile_json, _get_rest
 class StateHandlerFactory:
     def __init__(self):
         self.current_order_state = OrderStateHandler()
-        self.current_modifier_state = ModifierStateHandler()
         self._handlers = {
             ConversationState.GREETING: self._handle_greeting,
             ConversationState.FAREWELL: self._handle_farewell,
@@ -116,11 +115,7 @@ class StateHandlerFactory:
         return ChatbotResponse(chatbot_message=message, order_state=request.order_state)
 
     async def _handle_food_order(self, request: BotInteractionRequest) -> ChatbotResponse:
-        food_response = await self.current_order_state.handle(request)
-        updated_request = request.model_copy(update={"order_state": food_response.order_state})
-        return await self.current_modifier_state.handle(updated_request, food_response)
-    
-    async def _handle_modifiers(self, request: BotInteractionRequest) -> ChatbotResponse:
+        print("[visibility] entering_food_order_handler")
         return await self.current_order_state.handle(request)
 
     async def _handle_pickup_ping(self, request: BotInteractionRequest) -> ChatbotResponse:

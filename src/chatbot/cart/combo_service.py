@@ -1,11 +1,41 @@
+from src.chatbot.internal_schemas import ComboApplicationResult, ComboEvent
 from src.menu.loader import _combos, _items_by_name
-from src.chatbot.schema import ChatbotResponse
 
-async def detect_and_attach_combo(order_items: list[dict], response: ChatbotResponse) -> ChatbotResponse:
+
+async def apply_best_combo(
+    order_state: dict,
+    previous_combo: dict | None = None,
+) -> ComboApplicationResult:
+    order_items = order_state.get("items", [])
     best_combo = await _find_best_matching_combo(order_items)
-    previous_combo = (response.order_state or {}).get("combo")
-    is_new_combo = previous_combo is None or previous_combo.get("name") != (best_combo or {}).get("name")
-    return await _apply_combo(response, best_combo, is_new_combo)
+
+    previous_combo_name = (previous_combo or {}).get("name")
+    current_combo_name = (best_combo or {}).get("name")
+
+    combo_event: ComboEvent | None = None
+    updated_order_state = dict(order_state)
+
+    if best_combo is not None:
+        updated_order_state["combo"] = best_combo
+        if previous_combo_name != current_combo_name:
+            combo_event = ComboEvent(
+                kind="attached",
+                combo_name=best_combo["name"],
+                combo_price=best_combo.get("price"),
+            )
+    else:
+        updated_order_state = {k: v for k, v in updated_order_state.items() if k != "combo"}
+        if previous_combo_name:
+            combo_event = ComboEvent(
+                kind="removed",
+                combo_name=previous_combo_name,
+                combo_price=(previous_combo or {}).get("price"),
+            )
+
+    return ComboApplicationResult(
+        order_state=updated_order_state,
+        combo_event=combo_event,
+    )
 
 
 async def _find_best_matching_combo(order_items: list[dict]) -> dict | None:
@@ -19,7 +49,7 @@ async def _find_best_matching_combo(order_items: list[dict]) -> dict | None:
     if not matched:
         return None
 
-    matched.sort(key=lambda c: c.get("price", 0), reverse=True)
+    matched.sort(key=lambda combo: combo.get("price", 0), reverse=True)
     return matched[0]
 
 
@@ -47,33 +77,3 @@ async def _resolve_canonical_name(name: str) -> str | None:
     if name.endswith("s") and name[:-1] in _items_by_name:
         return name[:-1]
     return None
-
-
-async def _apply_combo(response: ChatbotResponse, combo: dict | None, is_new_combo: bool) -> ChatbotResponse:
-    if combo is not None:
-        return await _attach_combo(response, combo, is_new_combo)
-    return await _remove_combo(response)
-
-
-async def _attach_combo(response: ChatbotResponse, combo: dict, is_new_combo: bool) -> ChatbotResponse:
-    updated_order_state = {**(response.order_state or {}), "combo": combo}
-    message = response.chatbot_message
-    if is_new_combo:
-        message += await _build_combo_acknowledgement(combo)
-    return response.model_copy(update={
-        "order_state": updated_order_state,
-        "chatbot_message": message,
-    })
-
-
-async def _remove_combo(response: ChatbotResponse) -> ChatbotResponse:
-    order_state = response.order_state
-    if not order_state or "combo" not in order_state:
-        return response
-    updated_order_state = {k: v for k, v in order_state.items() if k != "combo"}
-    return response.model_copy(update={"order_state": updated_order_state})
-
-
-async def _build_combo_acknowledgement(combo: dict) -> str:
-    price = combo.get("price", 0)
-    return f"\n\nBy the way, that's our {combo['name']} combo deal at ${price / 100:.2f}!"
