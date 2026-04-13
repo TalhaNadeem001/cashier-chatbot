@@ -1,9 +1,5 @@
-from src.chatbot.intent.resolver import (
-    ConversationStateResolver,
-    FoodOrderStateResolver,
-)
+from src.chatbot.intent.resolver import ConversationStateResolver
 
 __all__ = [
     "ConversationStateResolver",
-    "FoodOrderStateResolver",
 ]

@@ -245,6 +245,7 @@ Classify the user's latest message into exactly one state. Use conversation hist
    - pickup_ping: customer ASKS about readiness ("when will it be ready?", "how long?").
    - order_complete: customer signals done ordering with no time suggestion ("that's all").
    A message with both a time suggestion AND done-ordering language → pickup_time_suggestion (time info takes priority).
+8. **Concrete order + pickup/readiness wording**: if the same utterance contains a clear order for specific menu items and also includes pickup/readiness wording ("let me know when to get there", "how long will it take", "when should I come"), classify it as food_order. Treat the pickup/readiness wording as secondary context, not the top-level state. Only use pickup_ping or pickup_time_suggestion when the message is primarily about readiness/status or pickup timing rather than placing a concrete order.
 
 ## Confidence
 
@@ -274,6 +275,7 @@ Classify the user's latest message into exactly one state. Use conversation hist
 "can I pick this up in 2 hours?" → pickup_time_suggestion
 "I'll be there in 30 minutes" → pickup_time_suggestion
 "when will it be ready?" → pickup_ping
+"Hey, I'd like to place a pickup order for Zach. 1. Classic burger, light onions, double patty\n2. Classic burger, no pickles, light onions, double patty\n3. Side of mozzarella sticks with marinara\nThanks, let me know when to get there." → food_order
 
 ## Output format
 

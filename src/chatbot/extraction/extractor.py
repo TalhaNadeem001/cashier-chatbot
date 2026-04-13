@@ -1,8 +1,20 @@
 from src.chatbot.extraction import ai_client
-from src.chatbot.schema import AddItemsResult, Message, ModifyItem, OrderItem, SwapItems
+from src.chatbot.schema import AddItemsResult, Message, ModifyItem, OrderDeltaResult, OrderItem, SwapItems
 
 
 class OrderExtractor:
+    async def apply_order_delta(
+        self,
+        latest_message: str,
+        order_state: dict,
+        message_history: list[Message] | None = None,
+    ) -> OrderDeltaResult:
+        return await ai_client.apply_order_delta(
+            latest_message=latest_message,
+            order_state=order_state,
+            message_history=message_history,
+        )
+
     async def extract_order_items(self,latest_message: str,message_history: list[Message] | None = None,) -> list[OrderItem]:
         return await ai_client.extract_order_items(
             latest_message=latest_message,

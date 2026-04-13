@@ -1,7 +1,6 @@
-from src.chatbot.constants import ConversationState, FoodOrderState
+from src.chatbot.constants import ConversationState
 
 _ALL_STATES = set(ConversationState)
-_ALL_FOOD_STATES = set(FoodOrderState)
 
 VALID_TRANSITIONS: dict[ConversationState | None, set[ConversationState]] = {
     None: _ALL_STATES,
@@ -100,15 +99,4 @@ VALID_TRANSITIONS: dict[ConversationState | None, set[ConversationState]] = {
         ConversationState.ORDER_REVIEW,
     },
     ConversationState.ORDER_REVIEW: _ALL_STATES - {ConversationState.GREETING},
-}
-
-VALID_FOOD_ORDER_TRANSITIONS: dict[FoodOrderState | None, set[FoodOrderState]] = {
-    None: _ALL_FOOD_STATES,
-    FoodOrderState.NEW_ORDER: _ALL_FOOD_STATES,
-    FoodOrderState.ADD_TO_ORDER: _ALL_FOOD_STATES,
-    FoodOrderState.REMOVE_FROM_ORDER: _ALL_FOOD_STATES,
-    FoodOrderState.SWAP_ITEM: _ALL_FOOD_STATES,
-    FoodOrderState.CANCEL_ORDER: {FoodOrderState.NEW_ORDER},
-    FoodOrderState.ADDING_MODIFIERS: _ALL_FOOD_STATES,
-    FoodOrderState.ORDER_MODIFIER_REQUEST: _ALL_FOOD_STATES,
 }

@@ -1,5 +1,6 @@
 from src.chatbot.clarification.fuzzy_matcher import _MatchResult
 from src.chatbot.schema import BotInteractionRequest, ChatbotResponse
+from src.menu.loader import get_item_id
 
 
 def merge_items(existing_order_state: dict | None, new_items: list[dict]) -> list[dict]:
@@ -70,7 +71,10 @@ class ClarificationBuilder:
         new_order_state: dict | None = None
 
         if confirmed:
-            new_items = [{**r.item.model_dump(), "name": r.canonical_name} for r in confirmed]
+            new_items = [
+                {**r.item.model_dump(), "name": r.canonical_name, "item_id": get_item_id(r.canonical_name)}
+                for r in confirmed
+            ]
             merged = merge_items(existing_order_state, new_items)
             new_order_state = {"items": merged}
 

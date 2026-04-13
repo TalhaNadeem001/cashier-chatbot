@@ -1,0 +1,57 @@
+{
+    "menu": {
+      "id": "menu_id",
+      "name": "Main Menu",
+      "categories": [
+        {
+          "id": "cat_1",
+          "name": "Burgers",
+          "items": [
+            {
+              "id": "item_1",
+              "name": "Cheeseburger",
+              "price": 899,
+              "modifier_groups": [
+                {
+                  "id": "mod_group_1",
+                  "name": "Choose Cheese",
+                  "min_required": 1,
+                  "max_allowed": 1,
+                  "modifiers": [
+                    {
+                      "id": "mod_1",
+                      "name": "American Cheese",
+                      "price": 0
+                    },
+                    {
+                      "id": "mod_2",
+                      "name": "Swiss Cheese",
+                      "price": 50
+                    }
+                  ]
+                },
+                {
+                  "id": "mod_group_2",
+                  "name": "Add-ons",
+                  "min_required": 0,
+                  "max_allowed": 3,
+                  "modifiers": [
+                    {
+                      "id": "mod_3",
+                      "name": "Bacon",
+                      "price": 150
+                    },
+                    {
+                      "id": "mod_4",
+                      "name": "Avocado",
+                      "price": 200
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }

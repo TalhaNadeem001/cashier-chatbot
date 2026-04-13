@@ -13,7 +13,11 @@ class Config(BaseSettings):
     ENVIRONMENT: Environment = Environment.DEVELOPMENT
     OPENAI_API_KEY: str
     REDIS_URL: RedisDsn
-
+    FIREBASE_PROJECT_ID: str
+    FIREBASE_CLIENT_EMAIL: str
+    FIREBASE_PRIVATE_KEY: str
+    RESTAURANT_ID: str
+    USER_ID: str | None = None
 
 
 settings = Config()

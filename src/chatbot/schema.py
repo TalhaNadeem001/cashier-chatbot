@@ -1,7 +1,7 @@
 from typing import Literal
 from pydantic import BaseModel, Field, field_validator
-from src.chatbot.utils import _parse_food_order_state, _parse_safely
-from src.chatbot.constants import ConversationState, FoodOrderState
+from src.chatbot.utils import _parse_safely
+from src.chatbot.constants import ConversationState
 
 class Message(BaseModel):
     role: Literal["system", "user", "assistant"]
@@ -19,6 +19,8 @@ class OrderItem(BaseModel):
     quantity: int
     modifier: str | None = None
     selected_mods: dict[str, str | list[str]] | None = None
+    item_id: str | None = None
+    resolved_mods: list[dict] | None = None
 
 
 class ModifyItem(BaseModel):
@@ -39,6 +41,10 @@ class AddItemsResult(BaseModel):
     new_items: list[OrderItem]
 
 
+class OrderDeltaResult(BaseModel):
+    items: list[OrderItem]
+
+
 _LONG_MESSAGE_THRESHOLD = 400  # chars; menu dumps are typically 300–800 chars
 
 
@@ -48,20 +54,12 @@ class BotInteractionRequest(BaseModel):
     latest_message: str = Field(..., max_length=1000)
     order_state: dict | None = None
     previous_state: ConversationState | None = None
-    previous_food_order_state: FoodOrderState | None = None
     customer_name: str | None = None
 
     @field_validator("previous_state", mode="before")
     @classmethod
     def parse_previous_state(cls, v):
         return _parse_safely(v, ConversationState)
-
-    @field_validator("previous_food_order_state", mode="before")
-    @classmethod
-    def parse_previous_food_order_state(cls, v):
-        if v is None or isinstance(v, FoodOrderState):
-            return v
-        return _parse_food_order_state(str(v).strip())
 
     @field_validator("message_history", mode="before")
     @classmethod
@@ -84,7 +82,6 @@ class ChatbotResponse(BaseModel):
     ping_for_human: bool = False
     order_state: dict | None = None
     previous_state: str | None = None
-    previous_food_order_state: str | None = None
     customer_name: str | None = None
     pickup_time_suggestion: int | None = None
     pickup_time_suggestion_timestamp: str | None = None

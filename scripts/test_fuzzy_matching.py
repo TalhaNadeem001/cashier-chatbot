@@ -15,6 +15,10 @@ from pathlib import Path
 os.environ.setdefault("OPENAI_API_KEY", "test-key")
 os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://x:x@localhost/x")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
+os.environ.setdefault("FIREBASE_PROJECT_ID", "test-project")
+os.environ.setdefault("FIREBASE_CLIENT_EMAIL", "test@test.iam.gserviceaccount.com")
+os.environ.setdefault("FIREBASE_PRIVATE_KEY", "test-key")
+os.environ.setdefault("RESTAURANT_ID", "test-restaurant")
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -58,10 +62,10 @@ class ModifierTestCase:
     group_name: str
 
 # ── 5. Load menu names ───────────────────────────────────────────────────────
-_MENU_PATH = Path(__file__).parent.parent / "data" / "normalized_menu.json"
+_MENU_PATH = Path(__file__).parent.parent / "data" / "inventory.json"
 with _MENU_PATH.open() as _f:
-    _menu_data = json.load(_f)
-MENU_NAMES: list[str] = list(_menu_data["menu"]["items"].keys())
+    _inv_data = json.load(_f)
+MENU_NAMES: list[str] = [item["name"].lower() for item in _inv_data.values()]
 
 # ── 6. Modifier option constants ─────────────────────────────────────────────
 COMBO_OPTS = ["Plain Fries", "Lemon Pepper Fries", "Cajun Fries", "Nashville Seasoning Fries", "No Mods"]

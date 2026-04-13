@@ -208,6 +208,36 @@
       margin-top: 3px;
     }
 
+    .order-item-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 10px;
+    }
+
+    .order-item-row .order-item-name {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .order-item-price {
+      font-size: 15px;
+      font-weight: 600;
+      color: #1a1a2e;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    #order-footer {
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1.5px solid #e8eaf0;
+      font-size: 16px;
+      font-weight: 700;
+      color: #1a1a2e;
+      text-align: right;
+    }
+
     #raw-state {
       margin-top: 20px;
       border-top: 1.5px solid #e8eaf0;
@@ -463,6 +493,7 @@
   <div id="order-body">
     <div id="order-empty">No items yet.</div>
     <div id="order-items" style="display:none"></div>
+    <div id="order-footer" style="display:none"></div>
     <details id="raw-state" style="display:none">
       <summary>Raw order_state JSON</summary>
       <pre id="raw-json"></pre>
@@ -485,7 +516,6 @@
   let messageHistory = [];
   let orderState = null;
   let previousState = null;
-  let previousFoodOrderState = null;
   let awaitingOrderConfirmation = false;
 
   const messagesEl        = document.getElementById("messages");
@@ -493,6 +523,7 @@
   const sendBtn           = document.getElementById("send-btn");
   const clearBtn          = document.getElementById("clear-btn");
   const orderItems        = document.getElementById("order-items");
+  const orderFooter       = document.getElementById("order-footer");
   const orderEmpty        = document.getElementById("order-empty");
   const rawState          = document.getElementById("raw-state");
   const rawJson           = document.getElementById("raw-json");
@@ -503,6 +534,14 @@
   const humanCloseBtn     = document.getElementById("human-close-btn");
 
   // ── Render helpers ─────────────────────────────────────────────
+
+  /** Menu / order_state amounts are integer cents; format for display only. */
+  function formatCentsUsd(cents) {
+    if (cents == null || cents === "") return null;
+    const n = Number(cents);
+    if (!Number.isFinite(n)) return null;
+    return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n / 100);
+  }
 
   function appendMessage(role, text, isPickup = false) {
     const wrapper = document.createElement("div");
@@ -551,6 +590,7 @@
     if (!state || !state.items || state.items.length === 0) {
       orderEmpty.style.display = "block";
       orderItems.style.display = "none";
+      orderFooter.style.display = "none";
       rawState.style.display = "none";
       return;
     }
@@ -563,11 +603,23 @@
       const card = document.createElement("div");
       card.className = "order-item";
 
+      const row = document.createElement("div");
+      row.className = "order-item-row";
+
       const name = document.createElement("div");
       name.className = "order-item-name";
       name.textContent = `${item.quantity}× ${item.name}`;
+      row.appendChild(name);
 
-      card.appendChild(name);
+      const lineTotal = formatCentsUsd(item.item_total);
+      if (lineTotal) {
+        const priceEl = document.createElement("div");
+        priceEl.className = "order-item-price";
+        priceEl.textContent = lineTotal;
+        row.appendChild(priceEl);
+      }
+
+      card.appendChild(row);
 
       if (item.modifier) {
         const meta = document.createElement("div");
@@ -579,6 +631,14 @@
       orderItems.appendChild(card);
     }
 
+    const orderTotalStr = formatCentsUsd(state.order_total);
+    if (orderTotalStr) {
+      orderFooter.textContent = `Total ${orderTotalStr}`;
+      orderFooter.style.display = "block";
+    } else {
+      orderFooter.style.display = "none";
+    }
+
     rawState.style.display = "block";
     rawJson.textContent = JSON.stringify(state, null, 2);
   }
@@ -588,9 +648,15 @@
   function showPickupModal(state) {
     pickupOrderLines.innerHTML = "";
     if (state && state.items && state.items.length > 0) {
-      pickupOrderLines.textContent = state.items
-        .map(i => `${i.quantity}× ${i.name}${i.modifier ? ` (${i.modifier})` : ""}`)
-        .join("\n");
+      const lines = state.items.map(i => {
+        let line = `${i.quantity}× ${i.name}${i.modifier ? ` (${i.modifier})` : ""}`;
+        const lt = formatCentsUsd(i.item_total);
+        if (lt) line += `  ${lt}`;
+        return line;
+      });
+      const totalStr = formatCentsUsd(state.order_total);
+      if (totalStr) lines.push(`Total: ${totalStr}`);
+      pickupOrderLines.textContent = lines.join("\n");
     } else {
       pickupOrderLines.textContent = "—";
     }
@@ -630,7 +696,6 @@
       message_history: messageHistory.length ? messageHistory : null,
       order_state: orderState,
       previous_state: previousState,
-      previous_food_order_state: previousFoodOrderState,
       awaiting_order_confirmation: awaitingOrderConfirmation,
     };
 
@@ -662,9 +727,6 @@
       if (data.previous_state !== undefined && data.previous_state !== null) {
         previousState = data.previous_state;
       }
-      if (data.previous_food_order_state !== undefined && data.previous_food_order_state !== null) {
-        previousFoodOrderState = data.previous_food_order_state;
-      }
       awaitingOrderConfirmation = data.awaiting_order_confirmation ?? false;
       renderOrderState(orderState);
 
@@ -695,7 +757,6 @@
     messageHistory = [];
     orderState = null;
     previousState = null;
-    previousFoodOrderState = null;
     awaitingOrderConfirmation = false;
     messagesEl.innerHTML = "";
     renderOrderState(null);
@@ -742,7 +803,6 @@
       message_history: messageHistory.length ? messageHistory : null,
       order_state: orderState,
       previous_state: previousState,
-      previous_food_order_state: previousFoodOrderState,
       awaiting_order_confirmation: awaitingOrderConfirmation,
     };
 
@@ -773,9 +833,6 @@
       if (data.previous_state !== undefined && data.previous_state !== null) {
         previousState = data.previous_state;
       }
-      if (data.previous_food_order_state !== undefined && data.previous_food_order_state !== null) {
-        previousFoodOrderState = data.previous_food_order_state;
-      }
       awaitingOrderConfirmation = data.awaiting_order_confirmation ?? false;
       renderOrderState(orderState);
 
@@ -801,7 +858,6 @@
     messageHistory = [];
     orderState = null;
     previousState = null;
-    previousFoodOrderState = null;
     awaitingOrderConfirmation = false;
     messagesEl.innerHTML = "";
     renderOrderState(null);

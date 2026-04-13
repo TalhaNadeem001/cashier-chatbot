@@ -28,3 +28,7 @@ async def cache_set(key: str, value: str, ttl: int | None = None) -> None:
 
 async def cache_delete(key: str) -> None:
     await redis.delete(key)
+
+
+async def cache_flush_all() -> None:
+    await redis.flushall()

@@ -1,0 +1,1809 @@
+{
+  "14FrWvCVBuzeY3TMHfW9": {
+    "name": "Sweet n Spicy",
+    "price": 100,
+    "priceType": "FIXED",
+    "categories": [
+      {
+        "name": "Sauces",
+        "id": "V4SAFRQYA1Q0P"
+      }
+    ],
+    "id": "KM2B2Z0QRBA1J",
+    "modifierGroups": [],
+    "pos_id": "clover"
+  },
+  "17Nh7uX2No2Nssjmxn7K": {
+    "alternateName": "Topped with hot honey and crushed red pepper.",
+    "priceType": "FIXED",
+    "id": "EHDJDV7DWR9N6",
+    "pos_id": "clover",
+    "name": "Jalapeno Poppers",
+    "price": 1099,
+    "categories": [
+      {
+        "name": "Sides",
+        "id": "4X0XV64TJJ19W"
+      }
+    ],
+    "modifierGroups": []
+  },
+  "2d8HXjPO3JGH5uvrMkqp": {
+    "alternateName": "The cold, refreshing flavors of lemon and lime, perfectly blended.",
+    "priceType": "FIXED",
+    "id": "834FFDC4PMCKW",
+    "pos_id": "clover",
+    "name": "Can Sprite",
+    "price": 200,
+    "categories": [
+      {
+        "name": "Drinks",
+        "id": "3ABJKXYZECG5P"
+      }
+    ],
+    "modifierGroups": []
+  },
+  "3J8Ivw1hl2MdE7QJDOtp": {
+    "alternateName": "The cold, refreshing, sparkling classic that America loves.",
+    "priceType": "FIXED",
+    "id": "VMRNTRY1EM0DR",
+    "pos_id": "clover",
+    "name": "Glass Coke",
+    "price": 300,
+    "categories": [
+      {
+        "name": "Drinks",
+        "id": "3ABJKXYZECG5P"
+      }
+    ],
+    "modifierGroups": []
+  },
+  "3i4zZL3GFV1AgAceOnc1": {
+    "alternateName": "Shaved grilled onions, pickles, American cheese, smash sauce.",
+    "priceType": "VARIABLE",
+    "id": "W84H6VKW1K5D4",
+    "pos_id": "clover",
+    "name": "Classic",
+    "price": 0,
+    "categories": [
+      {
+        "name": "Smash Burgers",
+        "id": "DK7G1ZNBZSM7R"
+      }
+    ],
+    "modifierGroups": [
+      {
+        "name": "Add Ons",
+        "modifiers": [
+          {
+            "name": "Raw Diced Onion",
+            "price": 75,
+            "id": "R9NZMW5RYFKTJ"
+          },
+          {
+            "name": "Grilled Shaved Onion",
+            "price": 75,
+            "id": "THRQQM9TRSEZY"
+          },
+          {
+            "name": "Jalepeno",
+            "price": 75,
+            "id": "ER1Y0Y3M4ZSEE"
+          },
+          {
+            "name": "Onion Ring",
+            "price": 100,
+            "id": "G6XS8CGMNAM3P"
+          },
+          {
+            "name": "Beef Bacon",
+            "price": 300,
+            "id": "AYEZR1VAF8CVE"
+          }
+        ],
+        "id": "MDZ9DNF7T63ZG"
+      },
+      {
+        "name": "Hold Classic",
+        "modifiers": [
+          {
+            "name": "No Shaved Grilled Onion",
+            "price": 0,
+            "id": "JZAAQ4VW9G976"
+          },
+          {
+            "name": "No Pickles",
+            "price": 0,
+            "id": "JYT642BW25NRC"
+          },
+          {
+            "name": "No Cheese",
+            "price": 0,
+            "id": "KX4JYQQ8Z1JNJ"
+          },
+          {
+            "name": "No Smash Sauce",
+            "price": 0,
+            "id": "YFT5AHN1SHWAA"
+          }
+        ],
+        "id": "A3N9HRKHDVATW"
+      },
+      {
+        "name": "Lettuce Bun",
+        "modifiers": [
+          {
+            "name": "Lettuce Bun",
+            "price": 150,
+            "id": "VAHJT28NE9ZXM"
+          },
+          {
+            "name": "No Mods",
+            "price": 0,
+            "id": "0QAXCJFMZKKN0"
+          }
+        ],
+        "id": "RH43QFFF99GH0"
+      },
+      {
+        "name": "Make It a Combo With Fries",
+        "modifiers": [
+          {
+            "name": "Plain Fries",
+            "price": 350,
+            "id": "3MWZTR3VCY4X2"
+          },
+          {
+            "name": "Lemon Pepper Fries",
+            "price": 350,
+            "id": "39QG6VKJXD0WG"
+          },
+          {
+            "name": "Cajun Fries",
+            "price": 350,
+            "id": "Z5D211K707CFJ"
+          },
+          {
+            "name": "Nashville Seasoning Fries",
+            "price": 350,
+            "id": "SGSFVN0DM1DZ4"
+          },
+          {
+            "name": "No Mods",
+            "price": 0,
+            "id": "6YKV008R95M5J"
+          }
+        ],
+        "id": "1VX2C2BPW7W14"
+      },
+      {
+        "name": "Patties",
+        "modifiers": [
+          {
+            "name": "Single",
+            "price": 899,
+            "id": "9W84PFTR54Z20"
+          },
+          {
+            "name": "Double",
+            "price": 1199,
+            "id": "83H5WQY3RD3MT"
+          },
+          {
+            "name": "Triple",
+            "price": 1499,
+            "id": "92GR5XDJJMF2A"
+          },
+          {
+            "name": "Quadruple",
+            "price": 1699,
+            "id": "XD0KDR95AVW1M"
+          }
+        ],
+        "id": "QKV44MYTDKCF6"
+      }
+    ]
+  },
+  "4JOkNAXrfSIwYvmErHXF": {
+    "alternateName": "A crisp, refreshing taste you know and love with zero calories.",
+    "priceType": "FIXED",
+    "id": "976Z5Q7M38X08",
+    "pos_id": "clover",
+    "name": "Can Diet Coke",
+    "price": 200,
+    "categories": [
+      {
+        "name": "Drinks",
+        "id": "3ABJKXYZECG5P"
+      }
+    ],
+    "modifierGroups": []
+  },
+  "EDKBhGdk3lnd3hipQAjv": {
+    "alternateName": "Your choice of seasoning: salt & pepper, cajun, lemon pepper, or paprika.",
+    "priceType": "FIXED",
+    "id": "57WR2JVDJ0XT4",
+    "pos_id": "clover",
+    "name": "Regular Fries",
+    "price": 550,
+    "categories": [
+      {
+        "name": "Sides",
+        "id": "4X0XV64TJJ19W"
+      }
+    ],
+    "modifierGroups": [
+      {
+        "name": "Fries Seasoning",
+        "modifiers": [
+          {
+            "name": "Cajun",
+            "price": 0,
+            "id": "HX264Z4XDMPXP"
+          },
+          {
+            "name": "Nashville",
+            "price": 0,
+            "id": "0C2Y0XGEJYNPC"
+          },
+          {
+            "name": "Lemon Pepper",
+            "price": 0,
+            "id": "4AHSTS1EF53YW"
+          },
+          {
+            "name": "Salt and Pepper",
+            "price": 0,
+            "id": "3K1ZRC15E4YYY"
+          },
+          {
+            "name": "Plain",
+            "price": 0,
+            "id": "H17V999SZWM8M"
+          },
+          {
+            "name": "Salt",
+            "price": 0,
+            "id": "657N32Q1199AY"
+          }
+        ],
+        "id": "QPEK5MF5MGESE"
+      }
+    ]
+  },
+  "FHfj86sKp9fcbqQJgqcr": {
+    "name": "Bone-In Breaded Wings",
+    "price": 0,
+    "priceType": "VARIABLE",
+    "categories": [
+      {
+        "name": "Bone-In Breaded Wings",
+        "id": "6F0P3E8095FS2"
+      }
+    ],
+    "id": "44D7FX7SHHH34",
+    "modifierGroups": [
+      {
+        "name": "Flats, Drums, or Mixed",
+        "modifiers": [
+          {
+            "name": "Mixed as is",
+            "price": 0,
+            "id": "1A8QTV8ZR6Z5T"
+          },
+          {
+            "name": "All flats",
+            "price": 300,
+            "id": "M2KH5B3J7YZ4W"
+          },
+          {
+            "name": "All drums",
+            "price": 300,
+            "id": "09AB5NQFJQBBC"
+          }
+        ],
+        "id": "MASC9X3JZYD66"
+      },
+      {
+        "name": "Flavor",
+        "modifiers": [
+          {
+            "name": "Naked",
+            "price": 0,
+            "id": "6JCKSR3S61APE"
+          },
+          {
+            "name": "Lemon Pepper Seasoning",
+            "price": 0,
+            "id": "0FG2832MKHW34"
+          },
+          {
+            "name": "Nashville Seasoning",
+            "price": 0,
+            "id": "G09VSVY4X0HP8"
+          },
+          {
+            "name": "Honey Mustard",
+            "price": 0,
+            "id": "TVP8C5740CQH8"
+          },
+          {
+            "name": "Garlic Parm",
+            "price": 0,
+            "id": "J515KG4J3FT0W"
+          },
+          {
+            "name": "Spicy Garlic Parm",
+            "price": 0,
+            "id": "CZ164Q7569SRM"
+          },
+          {
+            "name": "Hot Honey",
+            "price": 0,
+            "id": "JTCXPJ7MXK6W0"
+          },
+          {
+            "name": "Sweet n Spicy",
+            "price": 0,
+            "id": "921FERPQ4VKSY"
+          },
+          {
+            "name": "BBQ",
+            "price": 0,
+            "id": "CB5P00TWQK0GC"
+          },
+          {
+            "name": "Buffalo",
+            "price": 0,
+            "id": "VB9QM4AR2C1J8"
+          },
+          {
+            "name": "Chili Mango",
+            "price": 0,
+            "id": "E6065QW454B1J"
+          }
+        ],
+        "id": "1MK5YN9Z9XT7Y"
+      },
+      {
+        "name": "Make It a Combo With Fries",
+        "modifiers": [
+          {
+            "name": "Plain Fries",
+            "price": 350,
+            "id": "3MWZTR3VCY4X2"
+          },
+          {
+            "name": "Lemon Pepper Fries",
+            "price": 350,
+            "id": "39QG6VKJXD0WG"
+          },
+          {
+            "name": "Cajun Fries",
+            "price": 350,
+            "id": "Z5D211K707CFJ"
+          },
+          {
+            "name": "Nashville Seasoning Fries",
+            "price": 350,
+            "id": "SGSFVN0DM1DZ4"
+          },
+          {
+            "name": "No Mods",
+            "price": 0,
+            "id": "6YKV008R95M5J"
+          }
+        ],
+        "id": "1VX2C2BPW7W14"
+      },
+      {
+        "name": "Quantity",
+        "modifiers": [
+          {
+            "name": "6",
+            "price": 799,
+            "id": "GYW5GPXCHK36J"
+          },
+          {
+            "name": "12",
+            "price": 1598,
+            "id": "JYEPE83VH3JJA"
+          },
+          {
+            "name": "18",
+            "price": 2397,
+            "id": "45WZYAVKSS1EG"
+          },
+          {
+            "name": "24",
+            "price": 3196,
+            "id": "G83E8CV1Z3JCR"
+          },
+          {
+            "name": "30",
+            "price": 3995,
+            "id": "F5B44RP5G4MT4"
+          }
+        ],
+        "id": "SYBCNREXS13E8"
+      }
+    ],
+    "pos_id": "clover"
+  },
+  "FZRBc0wSsF7wR3UFcMaY": {
+    "alternateName": "Marinated Chicken, Garlic Sauce, Pickles, Fries, Zaatar, With Toasted Marinated Bread",
+    "priceType": "FIXED",
+    "id": "122D0RA5WHTXE",
+    "pos_id": "clover",
+    "name": "chicken shawarma - smash way",
+    "price": 1499,
+    "categories": [
+      {
+        "name": "Specialties",
+        "id": "3HFNQ3GMSWNRT"
+      }
+    ],
+    "modifierGroups": [
+      {
+        "name": "Extra Chicken",
+        "modifiers": [
+          {
+            "name": "Extra Chicken",
+            "price": 600,
+            "id": "FD8J2WMNWKYWE"
+          }
+        ],
+        "id": "1QHJH52E16C38"
+      },
+      {
+        "name": "Make It a Combo With Fries",
+        "modifiers": [
+          {
+            "name": "Plain Fries",
+            "price": 350,
+            "id": "3MWZTR3VCY4X2"
+          },
+          {
+            "name": "Lemon Pepper Fries",
+            "price": 350,
+            "id": "39QG6VKJXD0WG"
+          },
+          {
+            "name": "Cajun Fries",
+            "price": 350,
+            "id": "Z5D211K707CFJ"
+          },
+          {
+            "name": "Nashville Seasoning Fries",
+            "price": 350,
+            "id": "SGSFVN0DM1DZ4"
+          },
+          {
+            "name": "No Mods",
+            "price": 0,
+            "id": "6YKV008R95M5J"
+          }
+        ],
+        "id": "1VX2C2BPW7W14"
+      },
+      {
+        "name": "Shawarma Hold",
+        "modifiers": [
+          {
+            "name": "No Garlic",
+            "price": 0,
+            "id": "X6WGXCAX4F1DE"
+          },
+          {
+            "name": "No Fries",
+            "price": 0,
+            "id": "K8YFW7H288S70"
+          },
+          {
+            "name": "No Pickles",
+            "price": 0,
+            "id": "YZ97S76F0E4VT"
+          }
+        ],
+        "id": "ETVF4H3P6X8D4"
+      }
+    ]
+  },
+  "GLnxqPJcQGDQiisCkxaU": {
+    "alternateName": "Smash sauce, diced Spanish onion, American cheese, fresh shaved jalape\u00f1os, hot honey.",
+    "priceType": "VARIABLE",
+    "id": "QVEYZCZF2YVTJ",
+    "pos_id": "clover",
+    "name": "Hot Honey Burger",
+    "price": 0,
+    "categories": [
+      {
+        "name": "Smash Burgers",
+        "id": "DK7G1ZNBZSM7R"
+      }
+    ],
+    "modifierGroups": [
+      {
+        "name": "Add Ons",
+        "modifiers": [
+          {
+            "name": "Raw Diced Onion",
+            "price": 75,
+            "id": "R9NZMW5RYFKTJ"
+          },
+          {
+            "name": "Grilled Shaved Onion",
+            "price": 75,
+            "id": "THRQQM9TRSEZY"
+          },
+          {
+            "name": "Jalepeno",
+            "price": 75,
+            "id": "ER1Y0Y3M4ZSEE"
+          },
+          {
+            "name": "Onion Ring",
+            "price": 100,
+            "id": "G6XS8CGMNAM3P"
+          },
+          {
+            "name": "Beef Bacon",
+            "price": 300,
+            "id": "AYEZR1VAF8CVE"
+          }
+        ],
+        "id": "MDZ9DNF7T63ZG"
+      },
+      {
+        "name": "Hold Hot Honey",
+        "modifiers": [
+          {
+            "name": "No Smash Sauce",
+            "price": 0,
+            "id": "P4ZCW29FCFJTT"
+          },
+          {
+            "name": "No Diced Onion",
+            "price": 0,
+            "id": "R7HMTJ0QXKFDY"
+          },
+          {
+            "name": "No Cheese",
+            "price": 0,
+            "id": "8QB46CCNHSS3P"
+          },
+          {
+            "name": "No Jalepeno",
+            "price": 0,
+            "id": "RM4S0TFDN7GRE"
+          },
+          {
+            "name": "No Hot Honey",
+            "price": 0,
+            "id": "P3943NC2R7QHJ"
+          }
+        ],
+        "id": "YTV0VT6PNMDSY"
+      },
+      {
+        "name": "Lettuce Bun",
+        "modifiers": [
+          {
+            "name": "Lettuce Bun",
+            "price": 150,
+            "id": "VAHJT28NE9ZXM"
+          },
+          {
+            "name": "No Mods",
+            "price": 0,
+            "id": "0QAXCJFMZKKN0"
+          }
+        ],
+        "id": "RH43QFFF99GH0"
+      },
+      {
+        "name": "Make It a Combo With Fries",
+        "modifiers": [
+          {
+            "name": "Plain Fries",
+            "price": 350,
+            "id": "3MWZTR3VCY4X2"
+          },
+          {
+            "name": "Lemon Pepper Fries",
+            "price": 350,
+            "id": "39QG6VKJXD0WG"
+          },
+          {
+            "name": "Cajun Fries",
+            "price": 350,
+            "id": "Z5D211K707CFJ"
+          },
+          {
+            "name": "Nashville Seasoning Fries",
+            "price": 350,
+            "id": "SGSFVN0DM1DZ4"
+          },
+          {
+            "name": "No Mods",
+            "price": 0,
+            "id": "6YKV008R95M5J"
+          }
+        ],
+        "id": "1VX2C2BPW7W14"
+      },
+      {
+        "name": "Patties",
+        "modifiers": [
+          {
+            "name": "Single",
+            "price": 899,
+            "id": "9W84PFTR54Z20"
+          },
+          {
+            "name": "Double",
+            "price": 1199,
+            "id": "83H5WQY3RD3MT"
+          },
+          {
+            "name": "Triple",
+            "price": 1499,
+            "id": "92GR5XDJJMF2A"
+          },
+          {
+            "name": "Quadruple",
+            "price": 1699,
+            "id": "XD0KDR95AVW1M"
+          }
+        ],
+        "id": "QKV44MYTDKCF6"
+      }
+    ]
+  },
+  "GatgfzBaf0Bs1Rdsn86w": {
+    "name": "Buffalo",
+    "price": 100,
+    "priceType": "FIXED",
+    "categories": [
+      {
+        "name": "Sauces",
+        "id": "V4SAFRQYA1Q0P"
+      }
+    ],
+    "id": "C226GMB69RRP8",
+    "modifierGroups": [],
+    "pos_id": "clover"
+  },
+  "JFLhNvRwp7XE0FRYnPtB": {
+    "alternateName": "Potato Roll, Crispy Hand Battered Chicken, Kaleslaw, Crinkle Cut pickles, Sweet Chili Aioli",
+    "priceType": "FIXED",
+    "id": "6STZFD12K1VBC",
+    "pos_id": "clover",
+    "name": "Chicken Sando",
+    "price": 899,
+    "categories": [
+      {
+        "name": "Lets Smash (Crispy Chicken Menu)",
+        "id": "QXZW91N9KD516"
+      }
+    ],
+    "modifierGroups": [
+      {
+        "name": "Chicken Sando Seasoning",
+        "modifiers": [
+          {
+            "name": "Naked",
+            "price": 0,
+            "id": "9YJW5D7V07QPC"
+          },
+          {
+            "name": "Mild",
+            "price": 0,
+            "id": "BW3A5ARZGTHZ8"
+          },
+          {
+            "name": "Spicy",
+            "price": 0,
+            "id": "4XCRSWBJK0C5Y"
+          },
+          {
+            "name": "Extra Spicy",
+            "price": 0,
+            "id": "43X18SGQV39QE"
+          }
+        ],
+        "id": "5D40H2RY6M9NR"
+      },
+      {
+        "name": "Make It a Combo With Fries",
+        "modifiers": [
+          {
+            "name": "Plain Fries",
+            "price": 350,
+            "id": "3MWZTR3VCY4X2"
+          },
+          {
+            "name": "Lemon Pepper Fries",
+            "price": 350,
+            "id": "39QG6VKJXD0WG"
+          },
+          {
+            "name": "Cajun Fries",
+            "price": 350,
+            "id": "Z5D211K707CFJ"
+          },
+          {
+            "name": "Nashville Seasoning Fries",
+            "price": 350,
+            "id": "SGSFVN0DM1DZ4"
+          },
+          {
+            "name": "No Mods",
+            "price": 0,
+            "id": "6YKV008R95M5J"
+          }
+        ],
+        "id": "1VX2C2BPW7W14"
+      }
+    ]
+  },
+  "KC9x0qZVlTDFRr1uQzs7": {
+    "name": "Hot Honey",
+    "price": 150,
+    "priceType": "FIXED",
+    "categories": [
+      {
+        "name": "Sauces",
+        "id": "V4SAFRQYA1Q0P"
+      }
+    ],
+    "id": "XKBQGX5WM4HT4",
+    "modifierGroups": [],
+    "pos_id": "clover"
+  },
+  "Kdi7s7CoLwDYo57G9J9y": {
+    "alternateName": "Beef Patty, in-house smash sauce, American cheese, grilled onions, fresh shaved jalape\u00f1os.",
+    "priceType": "FIXED",
+    "id": "5QG14T6YR1CVT",
+    "pos_id": "clover",
+    "name": "Animal Fries",
+    "price": 1099,
+    "categories": [
+      {
+        "name": "Sides",
+        "id": "4X0XV64TJJ19W"
+      }
+    ],
+    "modifierGroups": [
+      {
+        "name": "Extra Patty",
+        "modifiers": [
+          {
+            "name": "Extra Smash Patty",
+            "price": 300,
+            "id": "QSK7T3ZBJ7KPP"
+          }
+        ],
+        "id": "KBJRPCMF1CH3P"
+      },
+      {
+        "name": "Hold Animal Fries",
+        "modifiers": [
+          {
+            "name": "No Patty",
+            "price": 0,
+            "id": "KW5QTQ7V8XZC0"
+          },
+          {
+            "name": "No Smash Sauce",
+            "price": 0,
+            "id": "1K4N324EDV5DR"
+          },
+          {
+            "name": "No Grilled Onion",
+            "price": 0,
+            "id": "X8X3Z28SN48R8"
+          },
+          {
+            "name": "No Jalapeno",
+            "price": 0,
+            "id": "71PM6WMFCJWFR"
+          }
+        ],
+        "id": "P4DB84F2CS0J2"
+      }
+    ]
+  },
+  "MX1XUOisxMl2SodFqrpt": {
+    "alternateName": "The cold, refreshing, sparkling classic that America loves.",
+    "priceType": "FIXED",
+    "id": "3Z9ZE8DDF05JW",
+    "pos_id": "clover",
+    "name": "Can Coke",
+    "price": 200,
+    "categories": [
+      {
+        "name": "Drinks",
+        "id": "3ABJKXYZECG5P"
+      }
+    ],
+    "modifierGroups": []
+  },
+  "QKfPijB4w2dZg9ctDbfA": {
+    "alternateName": "Marinated chicken, garlic sauce, pickles, fries, toasted french bread.",
+    "priceType": "FIXED",
+    "id": "FYFS212NEJBDW",
+    "pos_id": "clover",
+    "name": "Chicken Shawarma",
+    "price": 1299,
+    "categories": [
+      {
+        "name": "Specialties",
+        "id": "3HFNQ3GMSWNRT"
+      }
+    ],
+    "modifierGroups": [
+      {
+        "name": "Extra Chicken",
+        "modifiers": [
+          {
+            "name": "Extra Chicken",
+            "price": 600,
+            "id": "FD8J2WMNWKYWE"
+          }
+        ],
+        "id": "1QHJH52E16C38"
+      },
+      {
+        "name": "Make It a Combo With Fries",
+        "modifiers": [
+          {
+            "name": "Plain Fries",
+            "price": 350,
+            "id": "3MWZTR3VCY4X2"
+          },
+          {
+            "name": "Lemon Pepper Fries",
+            "price": 350,
+            "id": "39QG6VKJXD0WG"
+          },
+          {
+            "name": "Cajun Fries",
+            "price": 350,
+            "id": "Z5D211K707CFJ"
+          },
+          {
+            "name": "Nashville Seasoning Fries",
+            "price": 350,
+            "id": "SGSFVN0DM1DZ4"
+          },
+          {
+            "name": "No Mods",
+            "price": 0,
+            "id": "6YKV008R95M5J"
+          }
+        ],
+        "id": "1VX2C2BPW7W14"
+      },
+      {
+        "name": "Shawarma Hold",
+        "modifiers": [
+          {
+            "name": "No Garlic",
+            "price": 0,
+            "id": "X6WGXCAX4F1DE"
+          },
+          {
+            "name": "No Fries",
+            "price": 0,
+            "id": "K8YFW7H288S70"
+          },
+          {
+            "name": "No Pickles",
+            "price": 0,
+            "id": "YZ97S76F0E4VT"
+          }
+        ],
+        "id": "ETVF4H3P6X8D4"
+      }
+    ]
+  },
+  "QyrqscVExlhcCrKUDrKG": {
+    "alternateName": "The same great taste but with zero calories.",
+    "priceType": "FIXED",
+    "id": "2PZBFMWVB8PXJ",
+    "pos_id": "clover",
+    "name": "Can Coke Zero",
+    "price": 200,
+    "categories": [
+      {
+        "name": "Drinks",
+        "id": "3ABJKXYZECG5P"
+      }
+    ],
+    "modifierGroups": []
+  },
+  "Tao0m9ivbllIO3ZW8DVV": {
+    "alternateName": "Topped with Italian Parmesan herb. Served with our creamy red sauce.",
+    "priceType": "FIXED",
+    "id": "VYX2HW468NYSY",
+    "pos_id": "clover",
+    "name": "Mozzarella Sticks",
+    "price": 899,
+    "categories": [
+      {
+        "name": "Sides",
+        "id": "4X0XV64TJJ19W"
+      }
+    ],
+    "modifierGroups": []
+  },
+  "VoiWkYToYUFmGRw0vZO8": {
+    "alternateName": "Hand Battered Crispy Chicken Tender",
+    "priceType": "FIXED",
+    "id": "1W1XZYQA70Q0Y",
+    "pos_id": "clover",
+    "name": "Chicken Tender",
+    "price": 449,
+    "categories": [
+      {
+        "name": "Lets Smash (Crispy Chicken Menu)",
+        "id": "QXZW91N9KD516"
+      }
+    ],
+    "modifierGroups": [
+      {
+        "name": "Make It a Combo With Fries",
+        "modifiers": [
+          {
+            "name": "Plain Fries",
+            "price": 350,
+            "id": "3MWZTR3VCY4X2"
+          },
+          {
+            "name": "Lemon Pepper Fries",
+            "price": 350,
+            "id": "39QG6VKJXD0WG"
+          },
+          {
+            "name": "Cajun Fries",
+            "price": 350,
+            "id": "Z5D211K707CFJ"
+          },
+          {
+            "name": "Nashville Seasoning Fries",
+            "price": 350,
+            "id": "SGSFVN0DM1DZ4"
+          },
+          {
+            "name": "No Mods",
+            "price": 0,
+            "id": "6YKV008R95M5J"
+          }
+        ],
+        "id": "1VX2C2BPW7W14"
+      },
+      {
+        "name": "Tender Spice Level",
+        "modifiers": [
+          {
+            "name": "Naked",
+            "price": 0,
+            "id": "314Y264C1WTPR"
+          },
+          {
+            "name": "Mild",
+            "price": 0,
+            "id": "AJBNCP61P2RQJ"
+          },
+          {
+            "name": "Spicy",
+            "price": 0,
+            "id": "4JHC9FPG9GBXA"
+          },
+          {
+            "name": "Extra Spicy",
+            "price": 0,
+            "id": "455C38VV49G4J"
+          }
+        ],
+        "id": "1TZCXMF3E77RW"
+      }
+    ]
+  },
+  "WP2UzscALUbw11orAKCr": {
+    "name": "Chili Mango",
+    "price": 100,
+    "priceType": "FIXED",
+    "categories": [
+      {
+        "name": "Sauces",
+        "id": "V4SAFRQYA1Q0P"
+      }
+    ],
+    "id": "0D827YDBH2GN4",
+    "modifierGroups": [],
+    "pos_id": "clover"
+  },
+  "X7tP4rWAOEUM6dUfXW08": {
+    "alternateName": "The cold, refreshing flavors of lemon and lime, perfectly blended.",
+    "priceType": "FIXED",
+    "id": "DSR1THZCRGYF8",
+    "pos_id": "clover",
+    "name": "Glass Sprite",
+    "price": 300,
+    "categories": [
+      {
+        "name": "Drinks",
+        "id": "3ABJKXYZECG5P"
+      }
+    ],
+    "modifierGroups": []
+  },
+  "Xy82iDsOn02PfsczfTpu": {
+    "alternateName": "Big Size Cookies 'N Cream Cookie",
+    "priceType": "FIXED",
+    "id": "ESFG1MCC07FE2",
+    "pos_id": "clover",
+    "name": "Cookies 'N Cream",
+    "price": 299,
+    "categories": [
+      {
+        "name": "Cookies",
+        "id": "MRY5DX1HQQNGE"
+      }
+    ],
+    "modifierGroups": []
+  },
+  "ZjIKru6Rq4W3G1rzQ3ac": {
+    "name": "Ranch",
+    "price": 100,
+    "priceType": "FIXED",
+    "categories": [
+      {
+        "name": "Sauces",
+        "id": "V4SAFRQYA1Q0P"
+      }
+    ],
+    "id": "JN03FMVF8ABBJ",
+    "modifierGroups": [],
+    "pos_id": "clover"
+  },
+  "k7SLSIe5JVkyrgnPIDsU": {
+    "alternateName": "Grilled Hot Dog, Toasted Potato Bun, Ketchup, Mustard, Diced Onion, Chopped Relish, Chips Seasoning.",
+    "priceType": "FIXED",
+    "id": "E5S7CS351ZB2M",
+    "pos_id": "clover",
+    "name": "Hot Dog",
+    "price": 799,
+    "categories": [
+      {
+        "name": "Specialties",
+        "id": "3HFNQ3GMSWNRT"
+      }
+    ],
+    "modifierGroups": [
+      {
+        "name": "Hot Dog Hold",
+        "modifiers": [
+          {
+            "name": "No Ketchup",
+            "price": 0,
+            "id": "3FQHG1QW7836A"
+          },
+          {
+            "name": "No Mustard",
+            "price": 0,
+            "id": "9J1X6PN0FT330"
+          },
+          {
+            "name": "No Diced Onion",
+            "price": 0,
+            "id": "0TDQQ2H9SHBR2"
+          },
+          {
+            "name": "No Chopped Relish",
+            "price": 0,
+            "id": "R4Z3M8FEY7TNT"
+          }
+        ],
+        "id": "QP8ZTNDD0N128"
+      },
+      {
+        "name": "Make It a Combo With Fries",
+        "modifiers": [
+          {
+            "name": "Plain Fries",
+            "price": 350,
+            "id": "3MWZTR3VCY4X2"
+          },
+          {
+            "name": "Lemon Pepper Fries",
+            "price": 350,
+            "id": "39QG6VKJXD0WG"
+          },
+          {
+            "name": "Cajun Fries",
+            "price": 350,
+            "id": "Z5D211K707CFJ"
+          },
+          {
+            "name": "Nashville Seasoning Fries",
+            "price": 350,
+            "id": "SGSFVN0DM1DZ4"
+          },
+          {
+            "name": "No Mods",
+            "price": 0,
+            "id": "6YKV008R95M5J"
+          }
+        ],
+        "id": "1VX2C2BPW7W14"
+      }
+    ]
+  },
+  "l2nQ1jUll306w9M3ymtm": {
+    "alternateName": "Shredded lettuce, mayo, ketchup, mustard, sliced tomato, pickles, diced white onion, American cheese.",
+    "priceType": "VARIABLE",
+    "id": "D1231RYB3GC0G",
+    "pos_id": "clover",
+    "name": "All American",
+    "price": 0,
+    "categories": [
+      {
+        "name": "Smash Burgers",
+        "id": "DK7G1ZNBZSM7R"
+      }
+    ],
+    "modifierGroups": [
+      {
+        "name": "Add Ons",
+        "modifiers": [
+          {
+            "name": "Raw Diced Onion",
+            "price": 75,
+            "id": "R9NZMW5RYFKTJ"
+          },
+          {
+            "name": "Grilled Shaved Onion",
+            "price": 75,
+            "id": "THRQQM9TRSEZY"
+          },
+          {
+            "name": "Jalepeno",
+            "price": 75,
+            "id": "ER1Y0Y3M4ZSEE"
+          },
+          {
+            "name": "Onion Ring",
+            "price": 100,
+            "id": "G6XS8CGMNAM3P"
+          },
+          {
+            "name": "Beef Bacon",
+            "price": 300,
+            "id": "AYEZR1VAF8CVE"
+          }
+        ],
+        "id": "MDZ9DNF7T63ZG"
+      },
+      {
+        "name": "Hold All American",
+        "modifiers": [
+          {
+            "name": "No Lettuce",
+            "price": 0,
+            "id": "0MMS07YHN952E"
+          },
+          {
+            "name": "No Mayo",
+            "price": 0,
+            "id": "E8K7NFKVGVW5A"
+          },
+          {
+            "name": "No Ketchup",
+            "price": 0,
+            "id": "T6DJ45RVBX6WP"
+          },
+          {
+            "name": "No Mustard",
+            "price": 0,
+            "id": "6NBDFD5AKQ9J8"
+          },
+          {
+            "name": "No Sliced Tomato",
+            "price": 0,
+            "id": "0HGJQP2P8DPQW"
+          },
+          {
+            "name": "No Pickles",
+            "price": 0,
+            "id": "2Q3PPT1JMT0H0"
+          },
+          {
+            "name": "No Diced Onion",
+            "price": 0,
+            "id": "W9STSRHMWQNAA"
+          },
+          {
+            "name": "No Cheese",
+            "price": 0,
+            "id": "TPDT478YP9TR4"
+          }
+        ],
+        "id": "ZB6HT4QQ0E432"
+      },
+      {
+        "name": "Lettuce Bun",
+        "modifiers": [
+          {
+            "name": "Lettuce Bun",
+            "price": 150,
+            "id": "VAHJT28NE9ZXM"
+          },
+          {
+            "name": "No Mods",
+            "price": 0,
+            "id": "0QAXCJFMZKKN0"
+          }
+        ],
+        "id": "RH43QFFF99GH0"
+      },
+      {
+        "name": "Make It a Combo With Fries",
+        "modifiers": [
+          {
+            "name": "Plain Fries",
+            "price": 350,
+            "id": "3MWZTR3VCY4X2"
+          },
+          {
+            "name": "Lemon Pepper Fries",
+            "price": 350,
+            "id": "39QG6VKJXD0WG"
+          },
+          {
+            "name": "Cajun Fries",
+            "price": 350,
+            "id": "Z5D211K707CFJ"
+          },
+          {
+            "name": "Nashville Seasoning Fries",
+            "price": 350,
+            "id": "SGSFVN0DM1DZ4"
+          },
+          {
+            "name": "No Mods",
+            "price": 0,
+            "id": "6YKV008R95M5J"
+          }
+        ],
+        "id": "1VX2C2BPW7W14"
+      },
+      {
+        "name": "Patties",
+        "modifiers": [
+          {
+            "name": "Single",
+            "price": 899,
+            "id": "9W84PFTR54Z20"
+          },
+          {
+            "name": "Double",
+            "price": 1199,
+            "id": "83H5WQY3RD3MT"
+          },
+          {
+            "name": "Triple",
+            "price": 1499,
+            "id": "92GR5XDJJMF2A"
+          },
+          {
+            "name": "Quadruple",
+            "price": 1699,
+            "id": "XD0KDR95AVW1M"
+          }
+        ],
+        "id": "QKV44MYTDKCF6"
+      }
+    ]
+  },
+  "lMtXmPwPj67AZ3l7Uk5N": {
+    "alternateName": "Wild caught Cod, Tartar Sauce, American Cheese.",
+    "priceType": "FIXED",
+    "id": "5X4YWK0T75K0R",
+    "pos_id": "clover",
+    "name": "Fish",
+    "price": 1099,
+    "categories": [
+      {
+        "name": "Specialties",
+        "id": "3HFNQ3GMSWNRT"
+      }
+    ],
+    "modifierGroups": [
+      {
+        "name": "Hold Fish Sandwich",
+        "modifiers": [
+          {
+            "name": "No Tartar",
+            "price": 0,
+            "id": "49MA5GJ47P8Y2"
+          },
+          {
+            "name": "No Cheese",
+            "price": 0,
+            "id": "HVM338QMTB9NW"
+          }
+        ],
+        "id": "PP8SA3K1R1E9T"
+      },
+      {
+        "name": "Make It a Combo With Fries",
+        "modifiers": [
+          {
+            "name": "Plain Fries",
+            "price": 350,
+            "id": "3MWZTR3VCY4X2"
+          },
+          {
+            "name": "Lemon Pepper Fries",
+            "price": 350,
+            "id": "39QG6VKJXD0WG"
+          },
+          {
+            "name": "Cajun Fries",
+            "price": 350,
+            "id": "Z5D211K707CFJ"
+          },
+          {
+            "name": "Nashville Seasoning Fries",
+            "price": 350,
+            "id": "SGSFVN0DM1DZ4"
+          },
+          {
+            "name": "No Mods",
+            "price": 0,
+            "id": "6YKV008R95M5J"
+          }
+        ],
+        "id": "1VX2C2BPW7W14"
+      }
+    ]
+  },
+  "lNNhco1eDa0xaoPXC2WE": {
+    "name": "Can Sprite Zero",
+    "price": 200,
+    "priceType": "FIXED",
+    "categories": [
+      {
+        "name": "Drinks",
+        "id": "3ABJKXYZECG5P"
+      }
+    ],
+    "id": "Z2F67ZJ8FEYZA",
+    "modifierGroups": [],
+    "pos_id": "clover"
+  },
+  "qNdXDs9jODoMUyp2wief": {
+    "alternateName": "6oz of Chicken Breast Sliced",
+    "priceType": "FIXED",
+    "id": "RRY3MA3YWX4PT",
+    "pos_id": "clover",
+    "name": "Sliced Chicken Breast",
+    "price": 600,
+    "categories": [
+      {
+        "name": "Sides",
+        "id": "4X0XV64TJJ19W"
+      }
+    ],
+    "modifierGroups": []
+  },
+  "qPw8U8y19BoxpKHjPy79": {
+    "alternateName": "Served with umami sauce.",
+    "priceType": "FIXED",
+    "id": "RQ48QVAC68WHW",
+    "pos_id": "clover",
+    "name": "Battered Onion Rings",
+    "price": 899,
+    "categories": [
+      {
+        "name": "Sides",
+        "id": "4X0XV64TJJ19W"
+      }
+    ],
+    "modifierGroups": []
+  },
+  "sLC1mO9M1tr3CW11dRjm": {
+    "alternateName": "Big Size M&M Chocolate Chip Cookie",
+    "priceType": "FIXED",
+    "id": "7ZYJYQTCEP332",
+    "pos_id": "clover",
+    "name": "M&m Chocolate Chip Cookie",
+    "price": 299,
+    "categories": [
+      {
+        "name": "Cookies",
+        "id": "MRY5DX1HQQNGE"
+      }
+    ],
+    "modifierGroups": []
+  },
+  "tKmxktWyUqoeuFwdMpT3": {
+    "alternateName": "Umami BBQ, fresh jalape\u00f1os, shredded lettuce, crispy battered onion ring, American cheese.",
+    "priceType": "VARIABLE",
+    "id": "XEM2T0EDK3EAP",
+    "pos_id": "clover",
+    "name": "Chef's Signature",
+    "price": 0,
+    "categories": [
+      {
+        "name": "Smash Burgers",
+        "id": "DK7G1ZNBZSM7R"
+      }
+    ],
+    "modifierGroups": [
+      {
+        "name": "Add Ons",
+        "modifiers": [
+          {
+            "name": "Raw Diced Onion",
+            "price": 75,
+            "id": "R9NZMW5RYFKTJ"
+          },
+          {
+            "name": "Grilled Shaved Onion",
+            "price": 75,
+            "id": "THRQQM9TRSEZY"
+          },
+          {
+            "name": "Jalepeno",
+            "price": 75,
+            "id": "ER1Y0Y3M4ZSEE"
+          },
+          {
+            "name": "Onion Ring",
+            "price": 100,
+            "id": "G6XS8CGMNAM3P"
+          },
+          {
+            "name": "Beef Bacon",
+            "price": 300,
+            "id": "AYEZR1VAF8CVE"
+          }
+        ],
+        "id": "MDZ9DNF7T63ZG"
+      },
+      {
+        "name": "Hold Chefs Signature",
+        "modifiers": [
+          {
+            "name": "No Umami BBQ",
+            "price": 0,
+            "id": "H1A48X12MV8VJ"
+          },
+          {
+            "name": "No Jalepeno",
+            "price": 0,
+            "id": "393GBQSVJCSYT"
+          },
+          {
+            "name": "No Lettuce",
+            "price": 0,
+            "id": "EV7WE543MXRSE"
+          },
+          {
+            "name": "No Onion Ring",
+            "price": 0,
+            "id": "QVZP00RKZC0Y0"
+          },
+          {
+            "name": "No Cheese",
+            "price": 0,
+            "id": "8E4HPXDHNR6R8"
+          }
+        ],
+        "id": "CWFHZA6C89D0P"
+      },
+      {
+        "name": "Lettuce Bun",
+        "modifiers": [
+          {
+            "name": "Lettuce Bun",
+            "price": 150,
+            "id": "VAHJT28NE9ZXM"
+          },
+          {
+            "name": "No Mods",
+            "price": 0,
+            "id": "0QAXCJFMZKKN0"
+          }
+        ],
+        "id": "RH43QFFF99GH0"
+      },
+      {
+        "name": "Make It a Combo With Fries",
+        "modifiers": [
+          {
+            "name": "Plain Fries",
+            "price": 350,
+            "id": "3MWZTR3VCY4X2"
+          },
+          {
+            "name": "Lemon Pepper Fries",
+            "price": 350,
+            "id": "39QG6VKJXD0WG"
+          },
+          {
+            "name": "Cajun Fries",
+            "price": 350,
+            "id": "Z5D211K707CFJ"
+          },
+          {
+            "name": "Nashville Seasoning Fries",
+            "price": 350,
+            "id": "SGSFVN0DM1DZ4"
+          },
+          {
+            "name": "No Mods",
+            "price": 0,
+            "id": "6YKV008R95M5J"
+          }
+        ],
+        "id": "1VX2C2BPW7W14"
+      },
+      {
+        "name": "Patties",
+        "modifiers": [
+          {
+            "name": "Single",
+            "price": 899,
+            "id": "9W84PFTR54Z20"
+          },
+          {
+            "name": "Double",
+            "price": 1199,
+            "id": "83H5WQY3RD3MT"
+          },
+          {
+            "name": "Triple",
+            "price": 1499,
+            "id": "92GR5XDJJMF2A"
+          },
+          {
+            "name": "Quadruple",
+            "price": 1699,
+            "id": "XD0KDR95AVW1M"
+          }
+        ],
+        "id": "QKV44MYTDKCF6"
+      }
+    ]
+  },
+  "v5CU7rFabl8qXkiXpxJF": {
+    "alternateName": "Big Size Chocolate Chip Cookie",
+    "priceType": "FIXED",
+    "id": "GSX03FNEWJB32",
+    "pos_id": "clover",
+    "name": "Chocolate Chip",
+    "price": 299,
+    "categories": [
+      {
+        "name": "Cookies",
+        "id": "MRY5DX1HQQNGE"
+      }
+    ],
+    "modifierGroups": []
+  },
+  "vvaX3acZjXNrkodD5DTn": {
+    "name": "BBQ",
+    "price": 100,
+    "priceType": "FIXED",
+    "categories": [
+      {
+        "name": "Sauces",
+        "id": "V4SAFRQYA1Q0P"
+      }
+    ],
+    "id": "E2FE0N039MCPJ",
+    "modifierGroups": [],
+    "pos_id": "clover"
+  },
+  "x3w0JBPUKtvuaBK0cySZ": {
+    "alternateName": "Marinated Chicken + Lettuce + Tomato + Pickles + Mayo + Toasted French Bread",
+    "priceType": "FIXED",
+    "id": "TH808KRESZQDW",
+    "pos_id": "clover",
+    "name": "chicken sub (throwback to 2008)",
+    "price": 1499,
+    "categories": [
+      {
+        "name": "Specialties",
+        "id": "3HFNQ3GMSWNRT"
+      }
+    ],
+    "modifierGroups": [
+      {
+        "name": "Extra Chicken",
+        "modifiers": [
+          {
+            "name": "Extra Chicken",
+            "price": 600,
+            "id": "FD8J2WMNWKYWE"
+          }
+        ],
+        "id": "1QHJH52E16C38"
+      },
+      {
+        "name": "Make It a Combo With Fries",
+        "modifiers": [
+          {
+            "name": "Plain Fries",
+            "price": 350,
+            "id": "3MWZTR3VCY4X2"
+          },
+          {
+            "name": "Lemon Pepper Fries",
+            "price": 350,
+            "id": "39QG6VKJXD0WG"
+          },
+          {
+            "name": "Cajun Fries",
+            "price": 350,
+            "id": "Z5D211K707CFJ"
+          },
+          {
+            "name": "Nashville Seasoning Fries",
+            "price": 350,
+            "id": "SGSFVN0DM1DZ4"
+          },
+          {
+            "name": "No Mods",
+            "price": 0,
+            "id": "6YKV008R95M5J"
+          }
+        ],
+        "id": "1VX2C2BPW7W14"
+      }
+    ]
+  },
+  "y4x8aN3qWJ04fcm2VVVl": {
+    "name": "Boneless Wings",
+    "price": 0,
+    "priceType": "VARIABLE",
+    "categories": [
+      {
+        "name": "Boneless Wings",
+        "id": "ZSGYDZKFC79X6"
+      }
+    ],
+    "id": "H8B4WCQ6JT2EP",
+    "modifierGroups": [
+      {
+        "name": "Flavor",
+        "modifiers": [
+          {
+            "name": "Naked",
+            "price": 0,
+            "id": "6JCKSR3S61APE"
+          },
+          {
+            "name": "Lemon Pepper Seasoning",
+            "price": 0,
+            "id": "0FG2832MKHW34"
+          },
+          {
+            "name": "Nashville Seasoning",
+            "price": 0,
+            "id": "G09VSVY4X0HP8"
+          },
+          {
+            "name": "Honey Mustard",
+            "price": 0,
+            "id": "TVP8C5740CQH8"
+          },
+          {
+            "name": "Garlic Parm",
+            "price": 0,
+            "id": "J515KG4J3FT0W"
+          },
+          {
+            "name": "Spicy Garlic Parm",
+            "price": 0,
+            "id": "CZ164Q7569SRM"
+          },
+          {
+            "name": "Hot Honey",
+            "price": 0,
+            "id": "JTCXPJ7MXK6W0"
+          },
+          {
+            "name": "Sweet n Spicy",
+            "price": 0,
+            "id": "921FERPQ4VKSY"
+          },
+          {
+            "name": "BBQ",
+            "price": 0,
+            "id": "CB5P00TWQK0GC"
+          },
+          {
+            "name": "Buffalo",
+            "price": 0,
+            "id": "VB9QM4AR2C1J8"
+          },
+          {
+            "name": "Chili Mango",
+            "price": 0,
+            "id": "E6065QW454B1J"
+          }
+        ],
+        "id": "1MK5YN9Z9XT7Y"
+      },
+      {
+        "name": "Make It a Combo With Fries",
+        "modifiers": [
+          {
+            "name": "Plain Fries",
+            "price": 350,
+            "id": "3MWZTR3VCY4X2"
+          },
+          {
+            "name": "Lemon Pepper Fries",
+            "price": 350,
+            "id": "39QG6VKJXD0WG"
+          },
+          {
+            "name": "Cajun Fries",
+            "price": 350,
+            "id": "Z5D211K707CFJ"
+          },
+          {
+            "name": "Nashville Seasoning Fries",
+            "price": 350,
+            "id": "SGSFVN0DM1DZ4"
+          },
+          {
+            "name": "No Mods",
+            "price": 0,
+            "id": "6YKV008R95M5J"
+          }
+        ],
+        "id": "1VX2C2BPW7W14"
+      },
+      {
+        "name": "Quantity",
+        "modifiers": [
+          {
+            "name": "6",
+            "price": 799,
+            "id": "GYW5GPXCHK36J"
+          },
+          {
+            "name": "12",
+            "price": 1598,
+            "id": "JYEPE83VH3JJA"
+          },
+          {
+            "name": "18",
+            "price": 2397,
+            "id": "45WZYAVKSS1EG"
+          },
+          {
+            "name": "24",
+            "price": 3196,
+            "id": "G83E8CV1Z3JCR"
+          },
+          {
+            "name": "30",
+            "price": 3995,
+            "id": "F5B44RP5G4MT4"
+          }
+        ],
+        "id": "SYBCNREXS13E8"
+      }
+    ],
+    "pos_id": "clover"
+  }
+}

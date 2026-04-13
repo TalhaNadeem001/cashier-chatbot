@@ -1,104 +1,273 @@
 from rapidfuzz import process
 
-from src.menu.loader import _MENU_DATA
-from src.menu.loader import get_item_category
-from src.chatbot.schema import ChatbotResponse
-from src.chatbot.clarification.fuzzy_matcher import _combined_scorer, CONFIRMED_THRESHOLD, MODS_CONFIRMED_THRESHOLD
-
-_WINGS_FLAVORS_STR = (
-    "• Naked\n• Lemon Pepper Seasoning\n• Nashville Seasoning\n• Honey Mustard\n"
-    "• Garlic Parm\n• Spicy Garlic Parm\n• Hot Honey\n• Sweet n Spicy\n• BBQ\n• Buffalo\n• Chili Mango"
+from src.chatbot.cart.ai_client import resolve_closest_modifier_match
+from src.chatbot.clarification.constants import AMBIGUITY_GAP, NOT_FOUND_THRESHOLD
+from src.chatbot.clarification.fuzzy_matcher import MODS_CONFIRMED_THRESHOLD, _combined_scorer
+from src.chatbot.exceptions import AIServiceError
+from src.chatbot.internal_schemas import (
+    ModifierValidationIssue,
+    OrderFollowUpRequirement,
+    OrderValidationResult,
 )
+from src.menu.loader import get_item_category, get_item_definition
+
+_WINGS_FLAVORS = [
+    "Naked",
+    "Lemon Pepper Seasoning",
+    "Nashville Seasoning",
+    "Honey Mustard",
+    "Garlic Parm",
+    "Spicy Garlic Parm",
+    "Hot Honey",
+    "Sweet n Spicy",
+    "BBQ",
+    "Buffalo",
+    "Chili Mango",
+]
 
 _WINGS_QUANTITY_FLAVORS = {6: 1, 12: 2, 18: 3, 24: 4, 30: 5}
 
-async def validate_order_items(order_items: list[dict], response: ChatbotResponse) -> ChatbotResponse:
-    for item in order_items:
+_BURGER_PATTY_OPTIONS = [
+    {"label": "Single", "price": 8.99},
+    {"label": "Double", "price": 11.99},
+    {"label": "Triple", "price": 14.99},
+    {"label": "Quadruple", "price": 16.99},
+]
+
+
+async def validate_order_items(
+    order_items: list[dict],
+    latest_message: str | None = None,
+) -> OrderValidationResult:
+    modifier_validation = await validate_order_item_modifiers(
+        order_items,
+        latest_message=latest_message,
+    )
+    follow_up_requirements: list[OrderFollowUpRequirement] = []
+
+    for item in modifier_validation.items:
         name = item.get("name", "")
-        if name in _MENU_DATA.get("menu", {}).get("items", {}).keys():
-            response = await detect_non_default_items(item, name, response)
-            response = await detect_mods_allowed(item, name, response)
-        else:
-            response.chatbot_message += f"\n\nSorry, this is not an allowed modifier"
-    return response
+        if get_item_definition(name) is None:
+            continue
 
-async def detect_mods_allowed(order_items: dict, item_name: str, response: ChatbotResponse) -> ChatbotResponse:
-    users_mods = order_items.get("modifier", "").split(",") if order_items.get("modifier") else []
-    response = await validate_mod_selections(item_name, users_mods, order_items, response)
-    return response
+        item_follow_ups = await detect_non_default_items(item, name)
+        follow_up_requirements.extend(item_follow_ups)
 
-async def validate_mod_selections(item_name: str, users_mods: list[str], order_item: dict, response: ChatbotResponse) -> ChatbotResponse:
-    item_data = _MENU_DATA.get("menu", {}).get("items", {}).get(item_name, {})
+    return OrderValidationResult(
+        items=modifier_validation.items,
+        invalid_modifiers=modifier_validation.invalid_modifiers,
+        follow_up_requirements=follow_up_requirements,
+    )
+
+
+async def validate_order_item_modifiers(
+    order_items: list[dict],
+    latest_message: str | None = None,
+) -> OrderValidationResult:
+    validated_items: list[dict] = []
+    invalid_modifiers: list[ModifierValidationIssue] = []
+
+    for item in order_items:
+        item_copy = dict(item)
+        name = item_copy.get("name", "")
+        if get_item_definition(name) is None:
+            validated_items.append(item_copy)
+            continue
+
+        item_invalid_modifiers = await detect_mods_allowed(
+            item_copy,
+            name,
+            latest_message=latest_message,
+        )
+        invalid_modifiers.extend(item_invalid_modifiers)
+
+        validated_items.append(item_copy)
+
+    return OrderValidationResult(
+        items=validated_items,
+        invalid_modifiers=invalid_modifiers,
+    )
+
+
+async def detect_mods_allowed(
+    order_item: dict,
+    item_name: str,
+    latest_message: str | None = None,
+) -> list[ModifierValidationIssue]:
+    users_mods = order_item.get("modifier", "").split(",") if order_item.get("modifier") else []
+    return await validate_mod_selections(
+        item_name,
+        users_mods,
+        order_item,
+        latest_message=latest_message,
+    )
+
+
+def _dedupe_preserving_order(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    deduped: list[str] = []
+    for value in values:
+        normalized = value.strip().lower()
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        deduped.append(value.strip())
+    return deduped
+
+
+async def _resolve_allowed_modifier(
+    item_name: str,
+    mod_text: str,
+    allowed_names: list[str],
+    latest_message: str | None = None,
+) -> str | None:
+    for allowed_name in allowed_names:
+        if allowed_name.lower() == mod_text.lower():
+            return allowed_name
+
+    top_matches = process.extract(
+        mod_text,
+        allowed_names,
+        scorer=_combined_scorer,
+        limit=5,
+    )
+    if not top_matches or top_matches[0][1] < NOT_FOUND_THRESHOLD:
+        return None
+    if top_matches and top_matches[0][1] >= MODS_CONFIRMED_THRESHOLD:
+        best_score = top_matches[0][1]
+        close_matches = [match for match in top_matches if best_score - match[1] <= AMBIGUITY_GAP]
+        if len(close_matches) == 1:
+            return top_matches[0][0]
+
+    try:
+        resolution = await resolve_closest_modifier_match(
+            item_name=item_name,
+            modifier_text=mod_text,
+            allowed_options=allowed_names,
+            latest_message=latest_message,
+        )
+    except AIServiceError as exc:
+        print(f"[modifier-validation] ai_fallback_failed: {exc}")
+        return None
+
+    if resolution.status != "match":
+        return None
+
+    canonical_modifier = str(resolution.canonical_modifier or "").strip()
+    allowed_by_lower = {allowed.lower(): allowed for allowed in allowed_names}
+    return allowed_by_lower.get(canonical_modifier.lower())
+
+
+async def validate_mod_selections(
+    item_name: str,
+    users_mods: list[str],
+    order_item: dict,
+    latest_message: str | None = None,
+) -> list[ModifierValidationIssue]:
+    item_data = get_item_definition(item_name) or {}
     allowed_names: list[str] = []
-    for mod in item_data.get("mods", {}).values():
-        for opt in mod.get("options", []):
-            if isinstance(opt, dict):
-                n = opt.get("name")
-                if n:
-                    allowed_names.append(str(n))
-            elif isinstance(opt, str):
-                allowed_names.append(opt)
+    for group in item_data.get("modifier_groups", []):
+        for mod in group.get("modifiers", []):
+            name = mod.get("name")
+            if name:
+                allowed_names.append(str(name))
+
+    allowed_names = _dedupe_preserving_order(allowed_names)
     print(f"allowed_names: {allowed_names}")
     if not allowed_names:
-        return response
+        return []
 
     valid_mods: list[str] = []
+    invalid_modifiers: list[ModifierValidationIssue] = []
 
     for mod_text in users_mods:
         print(f"mod_text: {mod_text}")
         mod_text = mod_text.strip()
         if not mod_text:
             continue
-        result = process.extractOne(mod_text, allowed_names, scorer=_combined_scorer)
-        print(f"result: {result}")
-        if result is None or result[1] < MODS_CONFIRMED_THRESHOLD:
-            response.chatbot_message += (
-                f'\n\n"{mod_text}" is not a valid modifier for {item_name}. '
-                f"Allowed options are: {', '.join(allowed_names)}"
+        canonical_modifier = await _resolve_allowed_modifier(
+            item_name=item_name,
+            mod_text=mod_text,
+            allowed_names=allowed_names,
+            latest_message=latest_message,
+        )
+        print(f"canonical_modifier: {canonical_modifier}")
+        if canonical_modifier is None:
+            invalid_modifiers.append(
+                ModifierValidationIssue(
+                    item_name=item_name,
+                    invalid_modifier=mod_text,
+                    allowed_options=allowed_names,
+                )
             )
         else:
-            valid_mods.append(mod_text)
+            valid_mods.append(canonical_modifier)
 
-    order_item["modifier"] = ", ".join(valid_mods)
-    return response
+    order_item["modifier"] = ", ".join(_dedupe_preserving_order(valid_mods)) or None
+    return invalid_modifiers
 
-async def detect_non_default_items(ordered_item: dict, item_name: str, response: ChatbotResponse) -> ChatbotResponse:
+
+async def detect_non_default_items(ordered_item: dict, item_name: str) -> list[OrderFollowUpRequirement]:
     category = await get_item_category(item_name)
     modifier = ordered_item.get("modifier", "")
     print(f"name: {item_name}, category: {category}, modifier: {modifier}")
+
+    follow_up_requirements: list[OrderFollowUpRequirement] = []
+
     if category == "Smash Burgers" and not await is_patties_in_mods(modifier):
-        response.chatbot_message += (
-            f"\n\nFor your {item_name}, how many patties would you like?\n"
-            "• Single — $8.99\n"
-            "• Double — $11.99\n"
-            "• Triple — $14.99\n"
-            "• Quadruple — $16.99"
+        follow_up_requirements.append(
+            OrderFollowUpRequirement(
+                kind="burger_patties",
+                item_name=item_name,
+                details={"options": _BURGER_PATTY_OPTIONS},
+            )
         )
+
     if category in ["Boneless Wings", "Bone-In Breaded Wings"]:
         quantity = ordered_item.get("quantity", 1)
         if quantity not in [6, 12, 18, 24, 30]:
-            response.chatbot_message += (
-                f"\n\nPlease specify the quantity of {item_name} you would like. "
-                "Allowed quantities are 6, 12, 18, 24, 30"
-                "\n\nFor the 6 piece you can choose 1 flavor, 12 piece you can choose 2 flavors, "
-                "18 piece you can choose 3 flavors, 24 piece you can choose 4 flavors, 30 piece you can choose 5 flavors"
-                f"\n\nAvailable flavors:\n{_WINGS_FLAVORS_STR}"
+            follow_up_requirements.append(
+                OrderFollowUpRequirement(
+                    kind="wings_quantity",
+                    item_name=item_name,
+                    details={
+                        "allowed_quantities": [6, 12, 18, 24, 30],
+                        "flavors_per_quantity": _WINGS_QUANTITY_FLAVORS,
+                        "available_flavors": _WINGS_FLAVORS,
+                    },
+                )
             )
         elif not modifier:
-            response.chatbot_message += (
-                f"\n\nWhat flavor(s) would you like for your {item_name}?\n\n{_WINGS_FLAVORS_STR}"
+            follow_up_requirements.append(
+                OrderFollowUpRequirement(
+                    kind="wings_flavor",
+                    item_name=item_name,
+                    details={
+                        "quantity": quantity,
+                        "available_flavors": _WINGS_FLAVORS,
+                        "max_flavors": await _max_wings_flavors(quantity),
+                    },
+                )
             )
         else:
             max_flavors = await _max_wings_flavors(quantity)
             if max_flavors is not None:
-                flavor_count = len([f for f in modifier.split(",") if f.strip()])
+                flavor_count = len([flavor for flavor in modifier.split(",") if flavor.strip()])
                 if flavor_count > max_flavors:
-                    response.chatbot_message += (
-                        f"\n\nYou can only choose {max_flavors} flavor(s) for a {quantity} piece {item_name}. "
-                        f"You selected {flavor_count}. Please reduce your selection."
+                    follow_up_requirements.append(
+                        OrderFollowUpRequirement(
+                            kind="wings_flavor_limit",
+                            item_name=item_name,
+                            details={
+                                "quantity": quantity,
+                                "max_flavors": max_flavors,
+                                "selected_count": flavor_count,
+                            },
+                        )
                     )
-    return response
-    
+
+    return follow_up_requirements
+
 
 async def _max_wings_flavors(quantity: int) -> int | None:
     return _WINGS_QUANTITY_FLAVORS.get(quantity)
