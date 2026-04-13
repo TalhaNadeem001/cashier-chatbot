@@ -13,7 +13,13 @@ from src.chatbot.exceptions import AIServiceError
 from src.chatbot.extraction.extractor import OrderExtractor
 from src.chatbot.internal_schemas import MenuMatchIssue, ModifierValidationIssue, OrderProcessingOutcome
 from src.chatbot.schema import BotInteractionRequest, ChatbotResponse, OrderItem
-from src.menu.loader import get_item_definition, get_item_id, get_menu_item_names, resolve_mod_ids_from_string
+from src.menu.loader import (
+    get_item_id,
+    get_menu_item_names,
+    get_order_item_line_total,
+    get_order_item_unit_price,
+    resolve_mod_ids_from_string,
+)
 
 
 async def _enrich_items_with_resolved_mods(items: list[dict]) -> list[dict]:
@@ -38,13 +44,17 @@ async def _enrich_order_state_with_prices(order_state: dict) -> dict:
     order_total = 0
     for item in items:
         enriched_item = dict(item)
-        definition = get_item_definition(enriched_item.get("name", ""))
-        unit_price = definition.get("price") if definition else None
+        unit_price = get_order_item_unit_price(enriched_item)
+        line_total = get_order_item_line_total(enriched_item)
         if unit_price is not None:
-            qty = enriched_item.get("quantity", 1)
             enriched_item["unit_price"] = unit_price
-            enriched_item["item_total"] = unit_price * qty
-            order_total += enriched_item["item_total"]
+        else:
+            enriched_item.pop("unit_price", None)
+        if line_total is not None:
+            enriched_item["item_total"] = line_total
+            order_total += line_total
+        else:
+            enriched_item.pop("item_total", None)
         enriched.append(enriched_item)
     return {**order_state, "items": enriched, "order_total": order_total}
 

@@ -39,13 +39,13 @@ def test_order_handler_strips_invalid_modifier_before_generating_reply(monkeypat
     monkeypatch.setattr(cart_handlers, "get_item_id", lambda name: "item-1")
     monkeypatch.setattr(
         cart_handlers,
-        "get_item_definition",
-        lambda name: {
-            "price": 9.99,
-            "modifier_groups": [
-                {"modifiers": [{"name": "Spicy"}]},
-            ],
-        },
+        "get_order_item_unit_price",
+        lambda item: 9.99,
+    )
+    monkeypatch.setattr(
+        cart_handlers,
+        "get_order_item_line_total",
+        lambda item: 9.99,
     )
     monkeypatch.setattr(
         cart_handlers,

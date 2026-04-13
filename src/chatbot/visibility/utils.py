@@ -8,7 +8,7 @@ from src.chatbot.visibility.constants import (
     RESTAURANT_CONTEXT_JSON_KEY,
 )
 from src.chatbot.schema import BotInteractionRequest, ChatbotResponse
-from src.menu.loader import get_item_price
+from src.menu.loader import get_order_item_line_total, get_order_item_unit_price, order_item_uses_quantity_selection
 import json
 
 async def fetch_restaurant_profile(user_id: str) -> dict:
@@ -113,25 +113,29 @@ async def _build_order_lines(items: list[dict]) -> tuple[list[str], float]:
 
 async def _format_line_item(item: dict) -> tuple[str, float | None]:
     name = item.get("name", "Unknown item")
-    quantity = item.get("quantity", 1)
     modifier = item.get("modifier")
 
-    price = await get_item_price(name)
+    raw_unit_price = get_order_item_unit_price(item)
+    raw_line_total = get_order_item_line_total(item)
+    price = raw_unit_price / 100 if raw_unit_price is not None else None
+    line_total = raw_line_total / 100 if raw_line_total is not None else None
 
-    label = await _build_item_label(name, price, quantity, modifier)
+    label = await _build_item_label(name, price, item, modifier)
 
-    qty_prefix = f"{quantity}x " if quantity > 1 else ""
-
-    if price is None:
+    if line_total is None:
+        qty_prefix = await _quantity_prefix(item)
         return f"- {qty_prefix}{label}", None
 
-    line_total = price * quantity
+    qty_prefix = await _quantity_prefix(item)
     return f"- {qty_prefix}{label} = ${line_total:.2f}", line_total
 
 
-async def _build_item_label(name: str, price: float | None, quantity: int, modifier: str | None) -> str:
+async def _build_item_label(name: str, price: float | None, item: dict, modifier: str | None) -> str:
+    quantity = int(item.get("quantity", 1) or 1)
+    quantity_is_selection = order_item_uses_quantity_selection(item)
+
     if price is not None:
-        if quantity > 1:
+        if quantity > 1 and not quantity_is_selection:
             label = f"{name} (${price:.2f} each)"
         else:
             label = f"{name} (${price:.2f})"
@@ -142,6 +146,13 @@ async def _build_item_label(name: str, price: float | None, quantity: int, modif
         label += f" [{modifier}]"
 
     return label
+
+
+async def _quantity_prefix(item: dict) -> str:
+    quantity = int(item.get("quantity", 1) or 1)
+    if quantity <= 1 or order_item_uses_quantity_selection(item):
+        return ""
+    return f"{quantity}x "
 
 
 async def _format_order_message(lines: list[str], total: float) -> str:

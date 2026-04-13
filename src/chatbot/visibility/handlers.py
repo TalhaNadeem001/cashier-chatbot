@@ -5,7 +5,12 @@ from src.chatbot.exceptions import UnhandledStateError
 from src.chatbot.schema import BotInteractionRequest, ChatbotResponse
 
 from src.chatbot.visibility import ai_client as visibility_ai
-from src.menu.loader import get_menu_context, get_item_price
+from src.menu.loader import (
+    get_menu_context,
+    get_order_item_line_total,
+    get_order_item_unit_price,
+    order_item_uses_quantity_selection,
+)
 from src.chatbot.visibility.constants import (
     RESTAURANT_NAME_LOCATION_KEY,
     RESTAURANT_NAME_LOCATION_FALLBACK,
@@ -166,19 +171,22 @@ class StateHandlerFactory:
         total = 0.0
         for item in items:
             name = item.get("name", "Unknown item")
-            quantity = item.get("quantity", 1)
             modifier = item.get("modifier")
-            price = await get_item_price(name)
+            quantity = int(item.get("quantity", 1) or 1)
+            raw_unit_price = get_order_item_unit_price(item)
+            raw_line_total = get_order_item_line_total(item)
+            price = raw_unit_price / 100 if raw_unit_price is not None else None
+            line_total = raw_line_total / 100 if raw_line_total is not None else None
+            quantity_is_selection = order_item_uses_quantity_selection(item)
 
             label = name
             if modifier:
                 label += f" [{modifier}]"
 
-            qty_prefix = f"{quantity}x " if quantity > 1 else ""
-            if price is not None:
-                line_total = price * quantity
+            qty_prefix = f"{quantity}x " if quantity > 1 and not quantity_is_selection else ""
+            if price is not None and line_total is not None:
                 total += line_total
-                price_str = f"(${price:.2f} each)" if quantity > 1 else f"(${price:.2f})"
+                price_str = f"(${price:.2f} each)" if quantity > 1 and not quantity_is_selection else f"(${price:.2f})"
                 lines.append(f"- {qty_prefix}{label} {price_str} = ${line_total:.2f}")
             else:
                 lines.append(f"- {qty_prefix}{label}")

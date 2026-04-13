@@ -4,6 +4,8 @@ from pathlib import Path
 from rapidfuzz import fuzz, process, utils
 
 INVENTORY_PATH = Path(__file__).parent.parent.parent / "data" / "inventory.json"
+_VARIABLE_PRICE_GROUP_NAMES = {"patties", "quantity"}
+_QUANTITY_AS_SELECTION_GROUP_NAMES = {"quantity"}
 
 _items_by_name: dict[str, dict] = {}
 _items_by_id: dict[str, dict] = {}
@@ -77,6 +79,147 @@ async def get_item_price(name: str) -> float | None:
         return None
     price = item.get("price")
     return price / 100 if price is not None else None
+
+
+def _resolved_mods_for_order_item(order_item: dict, item_definition: dict) -> list[dict]:
+    resolved_mods = order_item.get("resolved_mods")
+    if isinstance(resolved_mods, list):
+        return resolved_mods
+
+    modifier_str = str(order_item.get("modifier") or "").strip()
+    if not modifier_str:
+        return []
+
+    return resolve_mod_ids_from_string(item_definition.get("name", ""), modifier_str)
+
+
+def _modifier_price_lookup(item_definition: dict) -> dict[tuple[str, str], int | float]:
+    prices: dict[tuple[str, str], int | float] = {}
+    for group in item_definition.get("modifier_groups", []):
+        group_id = str(group.get("id", "")).strip()
+        group_name = str(group.get("name", "")).strip()
+        for modifier in group.get("modifiers", []):
+            modifier_name = str(modifier.get("name", "")).strip()
+            if not modifier_name:
+                continue
+            price = modifier.get("price")
+            if isinstance(price, (int, float)) and not isinstance(price, bool):
+                if group_id:
+                    prices[(group_id, modifier_name.lower())] = price
+                if group_name:
+                    prices[(group_name.lower(), modifier_name.lower())] = price
+    return prices
+
+
+def _variable_price_group_selections(item_definition: dict, resolved_mods: list[dict]) -> list[tuple[str, int | float]]:
+    prices = _modifier_price_lookup(item_definition)
+    selections: list[tuple[str, int | float]] = []
+
+    for resolved_mod in resolved_mods:
+        modifier_name = str(resolved_mod.get("modifier_name", "")).strip()
+        if not modifier_name:
+            continue
+
+        group_name = str(resolved_mod.get("group_name", "")).strip().lower()
+        if group_name not in _VARIABLE_PRICE_GROUP_NAMES:
+            continue
+
+        group_id = str(resolved_mod.get("group_id", "")).strip()
+        price = None
+        if group_id:
+            price = prices.get((group_id, modifier_name.lower()))
+        if price is None and group_name:
+            price = prices.get((group_name, modifier_name.lower()))
+        if isinstance(price, (int, float)) and not isinstance(price, bool):
+            selections.append((group_name, price))
+
+    return selections
+
+
+def get_order_item_unit_price(order_item: dict) -> int | float | None:
+    item_definition = get_item_definition(str(order_item.get("name", "")))
+    if item_definition is None:
+        return None
+
+    base_price = item_definition.get("price")
+    if base_price is not None and not isinstance(base_price, (int, float)):
+        base_price = None
+
+    resolved_mods = _resolved_mods_for_order_item(order_item, item_definition)
+    modifier_prices = _modifier_price_lookup(item_definition)
+    variable_price_selections = _variable_price_group_selections(item_definition, resolved_mods)
+
+    selected_modifier_total = 0
+    for resolved_mod in resolved_mods:
+        modifier_name = str(resolved_mod.get("modifier_name", "")).strip()
+        if not modifier_name:
+            continue
+
+        group_name = str(resolved_mod.get("group_name", "")).strip().lower()
+        group_id = str(resolved_mod.get("group_id", "")).strip()
+
+        price = None
+        if group_id:
+            price = modifier_prices.get((group_id, modifier_name.lower()))
+        if price is None and group_name:
+            price = modifier_prices.get((group_name, modifier_name.lower()))
+        if not isinstance(price, (int, float)) or isinstance(price, bool):
+            continue
+
+        if group_name in _VARIABLE_PRICE_GROUP_NAMES:
+            continue
+
+        selected_modifier_total += price
+
+    if isinstance(base_price, (int, float)) and base_price > 0:
+        return base_price + selected_modifier_total + sum(price for _, price in variable_price_selections)
+
+    if variable_price_selections:
+        return sum(price for _, price in variable_price_selections) + selected_modifier_total
+
+    has_variable_price_group = any(
+        str(group.get("name", "")).strip().lower() in _VARIABLE_PRICE_GROUP_NAMES
+        for group in item_definition.get("modifier_groups", [])
+    )
+    if has_variable_price_group:
+        return None
+
+    if isinstance(base_price, (int, float)):
+        return base_price + selected_modifier_total
+
+    return None
+
+
+def get_order_item_line_total(order_item: dict) -> int | float | None:
+    unit_price = get_order_item_unit_price(order_item)
+    if unit_price is None:
+        return None
+
+    item_definition = get_item_definition(str(order_item.get("name", "")))
+    resolved_mods = _resolved_mods_for_order_item(order_item, item_definition or {})
+    variable_price_selections = _variable_price_group_selections(item_definition or {}, resolved_mods)
+    uses_quantity_as_selection = any(
+        group_name in _QUANTITY_AS_SELECTION_GROUP_NAMES
+        for group_name, _ in variable_price_selections
+    )
+    if uses_quantity_as_selection:
+        return unit_price
+
+    quantity = int(order_item.get("quantity", 1) or 1)
+    return unit_price * quantity
+
+
+def order_item_uses_quantity_selection(order_item: dict) -> bool:
+    item_definition = get_item_definition(str(order_item.get("name", "")))
+    if item_definition is None:
+        return False
+
+    resolved_mods = _resolved_mods_for_order_item(order_item, item_definition)
+    variable_price_selections = _variable_price_group_selections(item_definition, resolved_mods)
+    return any(
+        group_name in _QUANTITY_AS_SELECTION_GROUP_NAMES
+        for group_name, _ in variable_price_selections
+    )
 
 
 async def get_item_category(name: str) -> str | None:
