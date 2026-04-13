@@ -5,8 +5,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import src.firebase as firebase_module
-from src.firebase import init_firebase
+import src.shared.firebase as firebase_module
+from src.shared.firebase import init_firebase
 
 USER_ID = "d60a9acd-53e8-4f6e-87f9-8651e2c29efe"
 OUTPUT_PATH = "data/inventory.json"

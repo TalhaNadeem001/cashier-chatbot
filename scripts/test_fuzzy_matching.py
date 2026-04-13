@@ -31,9 +31,9 @@ from dataclasses import dataclass
 from typing import Literal
 from unittest.mock import AsyncMock, patch
 
-from src.chatbot.clarification.ai_resolver import AmbiguousMatchResolution
-from src.chatbot.clarification.fuzzy_matcher import FuzzyMatcher, _FreeModifierMatch
-from src.chatbot.schema import OrderItem
+from src.chatbot.features.clarification.ai_resolver import AmbiguousMatchResolution
+from src.chatbot.features.clarification.fuzzy_matcher import FuzzyMatcher, _FreeModifierMatch
+from src.chatbot.api.schema import OrderItem
 
 # ── 3. ANSI color constants ──────────────────────────────────────────────────
 GREEN = "\033[32m"

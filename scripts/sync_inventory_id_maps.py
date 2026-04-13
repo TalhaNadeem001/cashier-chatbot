@@ -28,9 +28,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from google.cloud.firestore_v1 import SERVER_TIMESTAMP
 
-import src.firebase as firebase_module
-from src.config import settings
-from src.firebase import init_firebase
+import src.shared.firebase as firebase_module
+from src.shared.config import settings
+from src.shared.firebase import init_firebase
 
 INVENTORY_PATH = Path(__file__).resolve().parent.parent / "data" / "inventory.json"
 

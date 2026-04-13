@@ -12,7 +12,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import redis.asyncio as aioredis
-from src.config import settings
+from src.shared.config import settings
 from src.constants import MENU_CONTEXT_STRING, MENU_ITEM_MAP
 
 USER_ID = "1"

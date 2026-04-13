@@ -1,10 +1,25 @@
-RESTAURANT_CONTEXT_KEY = "restaurant_context:{user_id}"
-RESTAURANT_CONTEXT_FALLBACK = "No specific restaurant information is available at this time."
-RESTAURANT_NAME_LOCATION_KEY = "restaurant_name_location:{user_id}"
-RESTAURANT_NAME_LOCATION_FALLBACK = "No restaurant name or location is available at this time."
-RESTAURANT_CONTEXT_JSON_KEY = "restaurantContext:{user_id}"
-RESTAURANT_NAME_KEY = "restaurant_name:{user_id}"
-RESTAURANT_CITY_KEY = "restaurant_city:{user_id}"
-RESTAURANT_PHONE_KEY = "restaurant_phone:{user_id}"
-RESTAURANT_TAGLINE_KEY = "restaurant_tagline:{user_id}"
-RESTAURANT_GREETING_KEY = "restaurant_greeting:{user_id}"
+from src.chatbot.features.visibility.constants import (
+    RESTAURANT_CITY_KEY,
+    RESTAURANT_CONTEXT_FALLBACK,
+    RESTAURANT_CONTEXT_JSON_KEY,
+    RESTAURANT_CONTEXT_KEY,
+    RESTAURANT_GREETING_KEY,
+    RESTAURANT_NAME_KEY,
+    RESTAURANT_NAME_LOCATION_FALLBACK,
+    RESTAURANT_NAME_LOCATION_KEY,
+    RESTAURANT_PHONE_KEY,
+    RESTAURANT_TAGLINE_KEY,
+)
+
+__all__ = [
+    "RESTAURANT_CITY_KEY",
+    "RESTAURANT_CONTEXT_FALLBACK",
+    "RESTAURANT_CONTEXT_JSON_KEY",
+    "RESTAURANT_CONTEXT_KEY",
+    "RESTAURANT_GREETING_KEY",
+    "RESTAURANT_NAME_KEY",
+    "RESTAURANT_NAME_LOCATION_FALLBACK",
+    "RESTAURANT_NAME_LOCATION_KEY",
+    "RESTAURANT_PHONE_KEY",
+    "RESTAURANT_TAGLINE_KEY",
+]

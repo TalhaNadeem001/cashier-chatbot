@@ -1,66 +1,25 @@
-from typing import Literal
-from pydantic import BaseModel, field_validator
-from src.chatbot.constants import ConversationState
-from src.chatbot.utils import _parse_conversation_state
+from src.chatbot.domain.types import (
+    CustomerNameAnalysis,
+    FoodOrderIntentAnalysis,
+    FoodOrderStateVerification,
+    IntentAnalysis,
+    ModifierAssignmentResult,
+    ModifierJourneyAnalysis,
+    ModifierOrderIntentAnalysis,
+    OrderFinalizationIntent,
+    OrderSupervisionResult,
+    StateVerification,
+)
 
-class IntentAnalysis(BaseModel):
-    state: ConversationState
-    confidence: Literal["high", "medium", "low"]
-    reasoning: str
-    alternative: str | None = None
-    name: str | None = None
-
-    @field_validator("state", mode="before")
-    @classmethod
-    def parse_state(cls, value: str | None) -> str | None:
-        parsed = _parse_conversation_state(value)
-        return parsed.value if parsed else None
-
-
-class StateVerification(BaseModel):
-    confirmed: bool
-    corrected_state: str | None = None
-
-
-class FoodOrderIntentAnalysis(BaseModel):
-    state: str
-    confidence: Literal["high", "medium", "low"]
-    reasoning: str
-    alternative: str | None = None
-
-
-class FoodOrderStateVerification(BaseModel):
-    confirmed: bool
-    corrected_state: str | None = None
-
-
-class OrderFinalizationIntent(BaseModel):
-    intent: Literal["confirm", "modify", "unclear"]
-
-
-class OrderSupervisionResult(BaseModel):
-    is_correct: bool
-    corrected_items: list[dict] | None = None
-    reasoning: str
-
-
-class ModifierJourneyAnalysis(BaseModel):
-    intent: Literal["providing_selection", "not_providing_selection"]
-    confidence: Literal["high", "medium", "low"]
-    reasoning: str
-
-
-class ModifierOrderIntentAnalysis(BaseModel):
-    state: str
-    confidence: Literal["high", "medium", "low"]
-    reasoning: str
-    alternative: str | None = None
-
-
-class CustomerNameAnalysis(BaseModel):
-    full_name: str | None = None
-    confidence: Literal["high", "medium", "low"]
-
-
-class ModifierAssignmentResult(BaseModel):
-    items: list[dict]
+__all__ = [
+    "CustomerNameAnalysis",
+    "FoodOrderIntentAnalysis",
+    "FoodOrderStateVerification",
+    "IntentAnalysis",
+    "ModifierAssignmentResult",
+    "ModifierJourneyAnalysis",
+    "ModifierOrderIntentAnalysis",
+    "OrderFinalizationIntent",
+    "OrderSupervisionResult",
+    "StateVerification",
+]

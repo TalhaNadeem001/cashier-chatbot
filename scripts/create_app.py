@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Create a new FastAPI app module inside src/ and a test file in tests/.
+Create a new feature package using the current layered project structure.
 
 Usage:
-    python3 create_app.py app_name
+    python3 scripts/create_app.py app_name
 """
 import argparse
 import re
@@ -21,21 +21,21 @@ def to_pascal(name: str) -> str:
     return "".join(word.capitalize() for word in name.split("_"))
 
 
-def file_content(filename: str, app_name: str, module_name: str) -> str:
+def file_content(filename: str, module_name: str) -> str:
     """Return boilerplate content for each file."""
     pascal = to_pascal(module_name)
     templates = {
-        "router.py": f'''from fastapi import APIRouter
+        "api/router.py": f'''from fastapi import APIRouter
 
 router = APIRouter(prefix="/{module_name}", tags=["{module_name}"])
 
 
 @router.get("/")
-def list_items():
+async def list_items():
     """List items."""
     return {{}}
 ''',
-        "schema.py": f'''from pydantic import BaseModel
+        "api/schema.py": f'''from pydantic import BaseModel
 
 
 class {pascal}Create(BaseModel):
@@ -52,36 +52,44 @@ class {pascal}Response(BaseModel):
     """Response schema."""
     pass
 ''',
-        "models.py": f'''# SQLModel models for {module_name}
-# from sqlmodel import SQLModel, Field
-#
-# class {pascal}(SQLModel, table=True):
-#     __tablename__ = "{module_name}"
-#     id: int | None = Field(default=None, primary_key=True)
-''',
-        "dependencies.py": f'''from fastapi import Depends
+        "application/service.py": f'''class {pascal}Service:
+    """Business logic for {module_name}."""
 
-# Add dependency injection helpers for {module_name}
-# def get_service():
-#     ...
+    pass
+
+
+{module_name}_service = {pascal}Service()
 ''',
-        "config.py": f'''# App-specific config for {module_name}
-# from pydantic_settings import BaseSettings
-#
-# class {pascal}Settings(BaseSettings):
-#     ...
+        "domain/types.py": f'''from pydantic import BaseModel
+
+
+class {pascal}(BaseModel):
+    """Domain types for {module_name}."""
+
+    pass
+''',
+        "infrastructure/repository.py": f'''class {pascal}Repository:
+    """Persistence layer for {module_name}."""
+
+    pass
+
+
+{module_name}_repository = {pascal}Repository()
+''',
+        "dependencies.py": f'''# Dependency helpers for {module_name}
 ''',
         "constants.py": f'''# Constants for {module_name}
 ''',
         "exceptions.py": f'''# Custom exceptions for {module_name}
 # from src.exceptions import AppException
 ''',
-        "service.py": f'''# Business logic for {module_name}
-# class {pascal}Service:
-#     ...
-''',
         "utils.py": f'''# Helper functions for {module_name}
 ''',
+        "__init__.py": "",
+        "api/__init__.py": "",
+        "application/__init__.py": "",
+        "domain/__init__.py": "",
+        "infrastructure/__init__.py": "",
     }
     return templates.get(filename, "")
 
@@ -91,9 +99,9 @@ def test_file_content(module_name: str) -> str:
     return f'''import pytest
 from fastapi.testclient import TestClient
 
-from src.main import app
+from src.app.main import create_app
 
-client = TestClient(app)
+client = TestClient(create_app(use_lifespan=False))
 
 
 def test_{module_name}_list():
@@ -111,41 +119,45 @@ def main():
     module_name = to_snake_case(args.app_name)
     root = Path(__file__).resolve().parent.parent
     app_dir = root / "src" / module_name
-    tests_dir = root / "tests"
+    tests_dir = root / "tests" / module_name
 
     files = [
-        "router.py",
-        "schema.py",
-        "models.py",
+        "__init__.py",
+        "api/__init__.py",
+        "api/router.py",
+        "api/schema.py",
+        "application/__init__.py",
+        "application/service.py",
+        "domain/__init__.py",
+        "domain/types.py",
+        "infrastructure/__init__.py",
+        "infrastructure/repository.py",
         "dependencies.py",
-        "config.py",
         "constants.py",
         "exceptions.py",
-        "service.py",
         "utils.py",
     ]
 
-    app_dir.mkdir(parents=True, exist_ok=True)
-    (app_dir / "__init__.py").touch()
     for f in files:
         path = app_dir / f
+        path.parent.mkdir(parents=True, exist_ok=True)
         if path.exists():
             print(f"  skip (exists): {path.relative_to(root)}")
             continue
-        path.write_text(file_content(f, args.app_name, module_name), encoding="utf-8")
+        path.write_text(file_content(f, module_name), encoding="utf-8")
         print(f"  created: {path.relative_to(root)}")
 
     tests_dir.mkdir(parents=True, exist_ok=True)
-    test_path = tests_dir / f"{module_name}.py"
+    test_path = tests_dir / "test_api.py"
     if test_path.exists():
         print(f"  skip (exists): {test_path.relative_to(root)}")
     else:
         test_path.write_text(test_file_content(module_name), encoding="utf-8")
         print(f"  created: {test_path.relative_to(root)}")
 
-    print(f"\nDone. Add the router in src/main.py:")
-    print(f'  from src.{module_name}.router import router')
-    print(f'  app.include_router(router)')
+    print("\nDone. Add the router in src/app/api.py:")
+    print(f'  from src.{module_name}.api.router import router as {module_name}_router')
+    print(f'  app.include_router({module_name}_router)')
 
 
 if __name__ == "__main__":

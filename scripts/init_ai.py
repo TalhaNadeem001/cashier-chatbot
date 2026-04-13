@@ -31,7 +31,7 @@ def main():
 
     ai_dir.mkdir(parents=True, exist_ok=True)
     (ai_dir / "__init__.py").touch()
-    print(f"  created: src/ai/")
+    print("  created: src/ai/")
 
     for subdir in subdirs:
         d = ai_dir / subdir

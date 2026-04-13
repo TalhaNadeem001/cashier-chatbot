@@ -1,4 +1,4 @@
-"""Auto-generate src/menu/models.py from live Firestore data.
+"""Auto-generate src/menu/domain/types.py from live Firestore data.
 
 Usage:
     python scripts/generate_menu_models.py
@@ -11,11 +11,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import src.firebase as firebase_module
-from src.firebase import init_firebase
-from src.config import settings
+import src.shared.firebase as firebase_module
+from src.shared.firebase import init_firebase
+from src.shared.config import settings
 
-OUTPUT_PATH = Path(__file__).parent.parent / "src" / "menu" / "models.py"
+OUTPUT_PATH = Path(__file__).parent.parent / "src" / "menu" / "domain" / "types.py"
 
 HEADER = '''from __future__ import annotations
 
@@ -114,7 +114,7 @@ def infer_type(values: list, field_name: str, nested_models: dict[str, str], tot
 
     if optional:
         if base == "str":
-            return f"Optional[str] = None"
+            return "Optional[str] = None"
         return f"Optional[{base}] = None"
     return f"{base} = {default}"
 
