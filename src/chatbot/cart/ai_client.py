@@ -1,9 +1,7 @@
 import json
 
-from openai import AsyncOpenAI, OpenAIError
-
 from src.chatbot.cart.utils import format_money_context_for_prompt
-from src.chatbot.exceptions import AIServiceError
+from src.chatbot.gemini_client import generate_model, generate_text
 from src.chatbot.internal_schemas import (
     ClosestModifierResolution,
     OrderFinalizationIntent,
@@ -15,11 +13,8 @@ from src.chatbot.prompts import (
     RESOLVE_ORDER_FINALIZATION_SYSTEM_PROMPT,
     SUPERVISE_ORDER_STATE_SYSTEM_PROMPT,
 )
-from src.chatbot.openai_messages import openai_chat_history_from_messages
+from src.chatbot.llm_messages import chat_history_from_messages
 from src.chatbot.schema import Message
-from src.config import settings
-
-_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
 
 async def supervise_order_state(
@@ -27,7 +22,7 @@ async def supervise_order_state(
     latest_message: str,
     message_history: list[Message] | None = None,
 ) -> OrderSupervisionResult:
-    history = openai_chat_history_from_messages(message_history)
+    history = chat_history_from_messages(message_history)
     context_lines = [
         f"Proposed order state: {proposed_order_state}",
     ]
@@ -37,22 +32,11 @@ async def supervise_order_state(
         *history,
         {"role": "user", "content": latest_message},
     ]
-
-    try:
-        response = await _client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=messages,
-            max_tokens=300,
-            temperature=0,
-            response_format={"type": "json_object"},
-        )
-    except OpenAIError as e:
-        raise AIServiceError(f"OpenAI request failed: {e}") from e
-
-    try:
-        return OrderSupervisionResult(**json.loads(response.choices[0].message.content))
-    except Exception as e:
-        raise AIServiceError(f"Failed to parse order supervision result: {e}") from e
+    return await generate_model(
+        messages,
+        OrderSupervisionResult,
+        temperature=0,
+    )
 
 
 async def resolve_closest_modifier_match(
@@ -74,22 +58,11 @@ async def resolve_closest_modifier_match(
     if context_lines:
         messages.append({"role": "system", "content": "\n".join(context_lines)})
     messages.append({"role": "user", "content": modifier_text})
-
-    try:
-        response = await _client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=messages,
-            max_tokens=120,
-            temperature=0,
-            response_format={"type": "json_object"},
-        )
-    except OpenAIError as e:
-        raise AIServiceError(f"OpenAI request failed: {e}") from e
-
-    try:
-        return ClosestModifierResolution(**json.loads(response.choices[0].message.content))
-    except Exception as e:
-        raise AIServiceError(f"Failed to parse closest modifier resolution: {e}") from e
+    return await generate_model(
+        messages,
+        ClosestModifierResolution,
+        temperature=0,
+    )
 
 
 async def polish_food_order_reply(
@@ -98,7 +71,7 @@ async def polish_food_order_reply(
     latest_message: str,
     message_history: list[Message] | None = None,
 ) -> str:
-    history = openai_chat_history_from_messages(message_history)
+    history = chat_history_from_messages(message_history)
     prompt_order_state = format_money_context_for_prompt(order_state)
     prompt_order_outcome = format_money_context_for_prompt(order_outcome)
     system = POLISH_FOOD_ORDER_REPLY_SYSTEM_PROMPT.format(
@@ -110,21 +83,15 @@ async def polish_food_order_reply(
         *history,
         {"role": "user", "content": latest_message},
     ]
-
-    try:
-        response = await _client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=messages,
-            max_tokens=200,
-            temperature=0.4,
-        )
-    except OpenAIError as e:
-        raise AIServiceError(f"OpenAI request failed: {e}") from e
+    response_text = await generate_text(
+        messages,
+        temperature=0.4,
+    )
 
     print("[reply] order_outcome:", prompt_order_outcome)
     print("[reply] final_order_state_for_prompt:", prompt_order_state)
-    print("[reply] raw_cashier_reply:", response.choices[0].message.content.strip())
-    return response.choices[0].message.content.strip()
+    print("[reply] raw_cashier_reply:", response_text)
+    return response_text
 
 
 async def resolve_order_finalization(
@@ -132,26 +99,15 @@ async def resolve_order_finalization(
     order_state: dict,
     message_history: list[Message] | None = None,
 ) -> OrderFinalizationIntent:
-    history = openai_chat_history_from_messages(message_history)
+    history = chat_history_from_messages(message_history)
     system = RESOLVE_ORDER_FINALIZATION_SYSTEM_PROMPT.format(order_state=order_state)
     messages: list[dict] = [
         {"role": "system", "content": system},
         *history,
         {"role": "user", "content": latest_message},
     ]
-
-    try:
-        response = await _client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=messages,
-            max_tokens=40,
-            temperature=0,
-            response_format={"type": "json_object"},
-        )
-    except OpenAIError as e:
-        raise AIServiceError(f"OpenAI request failed: {e}") from e
-
-    try:
-        return OrderFinalizationIntent(**json.loads(response.choices[0].message.content))
-    except Exception as e:
-        raise AIServiceError(f"Failed to parse order finalization intent: {e}") from e
+    return await generate_model(
+        messages,
+        OrderFinalizationIntent,
+        temperature=0,
+    )

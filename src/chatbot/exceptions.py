@@ -1,5 +1,5 @@
 class AIServiceError(Exception):
-    """Raised when the OpenAI API call fails."""
+    """Raised when an AI provider call fails."""
 
 
 class InvalidConversationStateError(AIServiceError):

@@ -11,7 +11,9 @@ class Config(BaseSettings):
     )
 
     ENVIRONMENT: Environment = Environment.DEVELOPMENT
-    OPENAI_API_KEY: str
+    GEMINI_API_KEY: str | None = None
+    OPENAI_API_KEY: str | None = None
+    GEMINI_MODEL: str = "gemini-3-flash-preview"
     REDIS_URL: RedisDsn
     FIREBASE_PROJECT_ID: str
     FIREBASE_CLIENT_EMAIL: str

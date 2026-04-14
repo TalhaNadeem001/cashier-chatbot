@@ -1,15 +1,10 @@
-import json
 from dataclasses import dataclass
 
-from openai import AsyncOpenAI, OpenAIError
-
-from src.chatbot.exceptions import AIServiceError
 from src.chatbot.clarification.prompts import AMBIGUOUS_MATCH_RESOLUTION_SYSTEM_PROMPT, NOT_FOUND_ITEM_RESOLUTION_SYSTEM_PROMPT
-from src.chatbot.openai_messages import openai_chat_history_from_messages
+from src.chatbot.gemini_client import generate_model, generate_text
+from src.chatbot.llm_messages import chat_history_from_messages
 from src.chatbot.schema import Message
-from src.config import settings
-
-_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+from src.chatbot.structured_schemas import AmbiguousMatchResolutionPayload
 
 @dataclass
 class AmbiguousMatchResolution:
@@ -25,7 +20,7 @@ async def resolve_ambiguous_match(
     system_content = AMBIGUOUS_MATCH_RESOLUTION_SYSTEM_PROMPT.format(
         candidates=", ".join(f'"{c}"' for c in candidates),
     )
-    history = openai_chat_history_from_messages(message_history)
+    history = chat_history_from_messages(message_history)
     print(f"history: {history}")
     print(f"latest_message: {latest_message}")
     messages: list[dict] = [
@@ -33,29 +28,17 @@ async def resolve_ambiguous_match(
         *history,
         {"role": "user", "content": latest_message},
     ]
-
-    try:
-        response = await _client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=messages,
-            temperature=0,
-            response_format={"type": "json_object"},
-            max_tokens=120,
-        )
-    except OpenAIError as e:
-        raise AIServiceError(f"OpenAI request failed: {e}") from e
-
-    try:
-        raw = response.choices[0].message.content
-        print(f"raw: {raw}")
-        data = json.loads(raw)
-        return AmbiguousMatchResolution(
-            confident=data["confident"],
-            canonical=data.get("canonical"),
-            clarification_message=data.get("clarification_message"),
-        )
-    except Exception as e:
-        raise AIServiceError(f"Failed to parse ambiguous match resolution: {e}") from e
+    data = await generate_model(
+        messages,
+        AmbiguousMatchResolutionPayload,
+        temperature=0,
+    )
+    print(f"raw: {data.model_dump(mode='json')}")
+    return AmbiguousMatchResolution(
+        confident=data.confident,
+        canonical=data.canonical,
+        clarification_message=data.clarification_message,
+    )
 
 
 async def resolve_not_found_item(
@@ -71,24 +54,10 @@ async def resolve_not_found_item(
         top_candidates=candidates_str,
         menu_context=menu_context,
     )
-    history = openai_chat_history_from_messages(message_history)
+    history = chat_history_from_messages(message_history)
     messages: list[dict] = [
         {"role": "system", "content": system_content},
         *history,
         {"role": "user", "content": latest_message},
     ]
-
-    try:
-        response = await _client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=messages,
-            temperature=0,
-            max_tokens=120,
-        )
-    except OpenAIError as e:
-        raise AIServiceError(f"OpenAI request failed: {e}") from e
-
-    content = response.choices[0].message.content
-    if not content:
-        raise AIServiceError("Empty response from OpenAI for not-found item resolution")
-    return content
+    return await generate_text(messages, temperature=0)

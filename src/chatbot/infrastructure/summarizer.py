@@ -1,5 +1,3 @@
-from openai import AsyncOpenAI, OpenAIError
-
 from src.cache import cache_delete, cache_set
 from src.chatbot.constants import (
     CONVERSATION_SUMMARY_TTL,
@@ -7,11 +5,9 @@ from src.chatbot.constants import (
     SUMMARIZATION_THRESHOLD,
 )
 from src.chatbot.exceptions import AIServiceError
-from src.chatbot.openai_messages import openai_chat_history_from_messages
+from src.chatbot.gemini_client import generate_text
+from src.chatbot.llm_messages import chat_history_from_messages
 from src.chatbot.schema import Message
-from src.config import settings
-
-_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
 _SUMMARY_KEY = "conversation_summary:{user_id}"
 
@@ -38,23 +34,13 @@ Rules:
 async def _summarize(messages: list[Message]) -> str:
     payload: list[dict] = [
         {"role": "system", "content": _SYSTEM_PROMPT},
-        *openai_chat_history_from_messages(messages),
+        *chat_history_from_messages(messages),
         {"role": "user", "content": "Summarize the conversation above in 3–6 sentences."},
     ]
-    try:
-        response = await _client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=payload,
-            max_tokens=300,
-            temperature=0,
-        )
-    except OpenAIError as e:
-        raise AIServiceError(f"Summarization failed: {e}") from e
-
-    content = response.choices[0].message.content
-    if not content:
-        raise AIServiceError("Summarization returned empty content")
-    return content.strip()
+    return await generate_text(
+        payload,
+        temperature=0,
+    )
 
 
 async def compress_history_if_needed(

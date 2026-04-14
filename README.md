@@ -1,6 +1,6 @@
 # Cashier Chatbot
 
-An AI-powered restaurant cashier chatbot built with FastAPI, OpenAI, and Redis. It handles natural-language food ordering conversations through a browser-based chat UI — taking orders, answering menu and restaurant questions, applying modifiers, resolving ambiguous items via fuzzy matching, and pinging staff on demand.
+An AI-powered restaurant cashier chatbot built with FastAPI, Gemini, and Redis. It handles natural-language food ordering conversations through a browser-based chat UI — taking orders, answering menu and restaurant questions, applying modifiers, resolving ambiguous items via fuzzy matching, and pinging staff on demand.
 
 ---
 
@@ -23,7 +23,7 @@ Browser (index.html)
     │  POST /api/bot/message
     ▼
 ChatReplyService
-    ├── StateResolver          — classifies the user's intent (GPT-4o-mini, JSON mode)
+    ├── StateResolver          — classifies the user's intent (Gemini 2.5 Flash, structured JSON)
     │   └── StateVerifier      — double-checks low-confidence or invalid-transition results
     │
     └── StateHandlerFactory    — routes to the correct handler
@@ -54,7 +54,7 @@ Redis (per user_id)
 - **Stateless backend** — the frontend sends the full conversation history and current order state with every request; the server holds no session.
 - **Two-stage intent classification** — a fast primary classifier is checked by an independent verifier only when confidence is low or the state transition is invalid.
 - **Fuzzy item matching** — user item names are matched against canonical menu names using RapidFuzz (WRatio scorer), with three outcomes: confirmed (≥ 70), ambiguous (multiple close matches), or not found (< 50).
-- **All AI calls use `gpt-4o-mini`** in JSON mode with `temperature=0` for deterministic extraction, and `temperature=0.4–0.7` for natural-language replies.
+- **All AI calls use `gemini-2.5-flash`** with schema-enforced JSON output for extraction/classification, and text generation with `temperature=0.4–0.7` for natural-language replies.
 
 ---
 
@@ -107,7 +107,7 @@ When a user names an item:
 - Python 3.13+
 - [uv](https://github.com/astral-sh/uv)
 - Redis (local or remote)
-- An OpenAI API key
+- A Gemini API key
 
 ### Install
 
@@ -129,7 +129,8 @@ ENVIRONMENT=development
 
 | Variable | Required | Description |
 |---|---|---|
-| `OPENAI_API_KEY` | Yes | OpenAI API key (used for all AI calls) |
+| `GEMINI_API_KEY` | Yes | Gemini API key (preferred for all AI calls) |
+| `OPENAI_API_KEY` | No | Temporary fallback env var name for existing deployments migrating to Gemini |
 | `REDIS_URL` | Yes | Redis connection URL |
 | `ENVIRONMENT` | No | `development` (default), `staging`, or `production` |
 
@@ -268,7 +269,7 @@ cashier-chatbot/
 │   ├── chatbot/
 │   │   ├── router.py                  # POST /api/bot/message
 │   │   ├── service.py                 # ChatReplyService — top-level orchestrator
-│   │   ├── chatbot_ai.py              # ChatbotAI — all OpenAI calls
+│   │   ├── chatbot_ai.py              # ChatbotAI compatibility wrapper
 │   │   ├── handlers.py                # StateHandlerFactory — one handler per ConversationState
 │   │   ├── food_order_handlers.py     # FoodOrderHandlerFactory — order sub-state handlers + fuzzy matching
 │   │   ├── state_resolver.py          # StateResolver + FoodOrderStateResolver
