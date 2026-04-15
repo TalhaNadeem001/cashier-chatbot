@@ -5,9 +5,15 @@ from src.chatbot.clarification.constants import AMBIGUITY_GAP, NOT_FOUND_THRESHO
 from src.chatbot.clarification.fuzzy_matcher import MODS_CONFIRMED_THRESHOLD, _combined_scorer
 from src.chatbot.exceptions import AIServiceError
 from src.chatbot.internal_schemas import (
+    ClarificationIssue,
     ModifierValidationIssue,
     OrderFollowUpRequirement,
     OrderValidationResult,
+)
+from src.chatbot.cart.side_item_lexicon import (
+    build_side_vs_modifier_prompt,
+    is_side_like_token,
+    match_lexicon_entry,
 )
 from src.menu.loader import get_item_category, get_item_definition
 
@@ -56,6 +62,8 @@ async def validate_order_items(
     return OrderValidationResult(
         items=modifier_validation.items,
         invalid_modifiers=modifier_validation.invalid_modifiers,
+        clarification_issues=modifier_validation.clarification_issues,
+        assumptions_applied=modifier_validation.assumptions_applied,
         follow_up_requirements=follow_up_requirements,
     )
 
@@ -66,6 +74,7 @@ async def validate_order_item_modifiers(
 ) -> OrderValidationResult:
     validated_items: list[dict] = []
     invalid_modifiers: list[ModifierValidationIssue] = []
+    clarification_issues: list[ClarificationIssue] = []
 
     for item in order_items:
         item_copy = dict(item)
@@ -74,18 +83,21 @@ async def validate_order_item_modifiers(
             validated_items.append(item_copy)
             continue
 
-        item_invalid_modifiers = await detect_mods_allowed(
+        item_invalid_modifiers, item_clarification_issues = await detect_mods_allowed(
             item_copy,
             name,
             latest_message=latest_message,
         )
         invalid_modifiers.extend(item_invalid_modifiers)
+        clarification_issues.extend(item_clarification_issues)
 
         validated_items.append(item_copy)
 
     return OrderValidationResult(
         items=validated_items,
         invalid_modifiers=invalid_modifiers,
+        clarification_issues=clarification_issues,
+        assumptions_applied=[],
     )
 
 
@@ -93,7 +105,7 @@ async def detect_mods_allowed(
     order_item: dict,
     item_name: str,
     latest_message: str | None = None,
-) -> list[ModifierValidationIssue]:
+) -> tuple[list[ModifierValidationIssue], list[ClarificationIssue]]:
     users_mods = order_item.get("modifier", "").split(",") if order_item.get("modifier") else []
     return await validate_mod_selections(
         item_name,
@@ -163,7 +175,7 @@ async def validate_mod_selections(
     users_mods: list[str],
     order_item: dict,
     latest_message: str | None = None,
-) -> list[ModifierValidationIssue]:
+) -> tuple[list[ModifierValidationIssue], list[ClarificationIssue]]:
     item_data = get_item_definition(item_name) or {}
     allowed_names: list[str] = []
     for group in item_data.get("modifier_groups", []):
@@ -175,10 +187,11 @@ async def validate_mod_selections(
     allowed_names = _dedupe_preserving_order(allowed_names)
     print(f"allowed_names: {allowed_names}")
     if not allowed_names:
-        return []
+        return [], []
 
     valid_mods: list[str] = []
     invalid_modifiers: list[ModifierValidationIssue] = []
+    clarification_issues: list[ClarificationIssue] = []
 
     for mod_text in users_mods:
         print(f"mod_text: {mod_text}")
@@ -193,6 +206,18 @@ async def validate_mod_selections(
         )
         print(f"canonical_modifier: {canonical_modifier}")
         if canonical_modifier is None:
+            if is_side_like_token(mod_text):
+                entry = match_lexicon_entry(mod_text)
+                token = entry.canonical_name if entry else mod_text
+                clarification_issues.append(
+                    ClarificationIssue(
+                        kind="side_or_modifier",
+                        item_name=item_name,
+                        token=token,
+                        clarification_message=build_side_vs_modifier_prompt(token, item_name),
+                    )
+                )
+                continue
             invalid_modifiers.append(
                 ModifierValidationIssue(
                     item_name=item_name,
@@ -204,7 +229,7 @@ async def validate_mod_selections(
             valid_mods.append(canonical_modifier)
 
     order_item["modifier"] = ", ".join(_dedupe_preserving_order(valid_mods)) or None
-    return invalid_modifiers
+    return invalid_modifiers, clarification_issues
 
 
 async def detect_non_default_items(ordered_item: dict, item_name: str) -> list[OrderFollowUpRequirement]:

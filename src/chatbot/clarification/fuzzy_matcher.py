@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Literal
+import re
 
 from rapidfuzz import fuzz, process, utils
 
@@ -40,15 +41,23 @@ class FuzzyMatcher:
         for name in menu_names:
             if name.lower() == item.name.lower():
                 return _MatchResult(item=item, status="confirmed", canonical_name=name)
-        
-        print(item.name)
+
+        normalized_query = _normalize_item_phrase(item.name)
+        narrowed_menu = _narrow_candidates_by_tokens(normalized_query, menu_names)
+        search_pool = narrowed_menu if narrowed_menu else menu_names
 
         top_matches = process.extract(
-            item.name,
-            menu_names,
+            normalized_query,
+            search_pool,
             scorer=_combined_scorer,
             limit=5,
         )  # [(name, score, index), ...]
+        if top_matches:
+            top_matches = [
+                (name, score + _category_hint_bonus(normalized_query, name), index)
+                for name, score, index in top_matches
+            ]
+            top_matches.sort(key=lambda match: match[1], reverse=True)
         print(f"top_matches: {top_matches}")
 
         if not top_matches or top_matches[0][1] < LOW_MENU_MATCH_THRESHOLD:
@@ -155,3 +164,78 @@ def _combined_scorer(s1: str, s2: str, **kwargs: object) -> float:
         fuzz.token_sort_ratio(s1p, s2p, processor=None),
         fuzz.partial_token_sort_ratio(s1p, s2p, processor=None) * PARTIAL_SCALE,
     )
+
+
+_TOKEN_SYNONYMS = {
+    "sliders": "slider",
+    "tenders": "tender",
+    "burgers": "burger",
+    "fries": "fries",
+    "nash": "nashville",
+    "nashvlle": "nashville",
+    "nashvile": "nashville",
+    "bonelesses": "boneless",
+}
+
+_CATEGORY_HINTS: dict[str, set[str]] = {
+    "burger": {"burger", "smash"},
+    "wing": {"wing", "wings", "boneless", "bone"},
+    "fries": {"fries", "fry"},
+    "slider": {"slider", "sliders"},
+    "tender": {"tender", "tenders"},
+}
+
+
+def _normalize_item_phrase(text: str) -> str:
+    normalized = utils.default_process(text) or ""
+    normalized = re.sub(r"[^a-z0-9\s]+", " ", normalized)
+    tokens = [_normalize_token(token) for token in normalized.split() if token]
+    return " ".join(token for token in tokens if token)
+
+
+def _normalize_token(token: str) -> str:
+    raw = token.strip().lower()
+    if not raw:
+        return ""
+    raw = _TOKEN_SYNONYMS.get(raw, raw)
+    if raw.endswith("s") and len(raw) > 3 and raw not in {"fries"}:
+        raw = raw[:-1]
+    return raw
+
+
+def _token_set(text: str) -> set[str]:
+    return set(_normalize_item_phrase(text).split())
+
+
+def _narrow_candidates_by_tokens(query: str, menu_names: list[str]) -> list[str]:
+    query_tokens = _token_set(query)
+    if not query_tokens:
+        return menu_names
+    candidates: list[str] = []
+    for name in menu_names:
+        name_tokens = _token_set(name)
+        overlap = query_tokens & name_tokens
+        if overlap:
+            candidates.append(name)
+            continue
+        if _shares_category_hint(query_tokens, name_tokens):
+            candidates.append(name)
+    if candidates:
+        return candidates
+    return menu_names
+
+
+def _shares_category_hint(query_tokens: set[str], name_tokens: set[str]) -> bool:
+    for hint_tokens in _CATEGORY_HINTS.values():
+        if query_tokens & hint_tokens and name_tokens & hint_tokens:
+            return True
+    return False
+
+
+def _category_hint_bonus(query: str, candidate_name: str) -> float:
+    query_tokens = _token_set(query)
+    candidate_tokens = _token_set(candidate_name)
+    for hint_tokens in _CATEGORY_HINTS.values():
+        if query_tokens & hint_tokens and candidate_tokens & hint_tokens:
+            return 3.0
+    return 0.0

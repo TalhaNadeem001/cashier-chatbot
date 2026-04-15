@@ -1,8 +1,11 @@
 import asyncio
+from copy import deepcopy
 
 from src.chatbot.cart.ai_client import polish_food_order_reply
 from src.chatbot.cart.combo_service import apply_best_combo
+from src.chatbot.cart.context_notes import extract_context_note_update, merge_order_metadata
 from src.chatbot.cart.item_detection_service import validate_order_item_modifiers, validate_order_items
+from src.chatbot.cart.side_item_lexicon import route_items_with_side_entities
 from src.chatbot.cart.utils import (
     build_order_update_message,
     normalize_order_items,
@@ -11,8 +14,15 @@ from src.chatbot.cart.utils import (
 from src.chatbot.clarification.fuzzy_matcher import FuzzyMatcher, _MatchResult
 from src.chatbot.exceptions import AIServiceError
 from src.chatbot.extraction.extractor import OrderExtractor
-from src.chatbot.internal_schemas import MenuMatchIssue, ModifierValidationIssue, OrderProcessingOutcome
+from src.chatbot.internal_schemas import (
+    AssumptionApplied,
+    ClarificationIssue,
+    MenuMatchIssue,
+    ModifierValidationIssue,
+    OrderProcessingOutcome,
+)
 from src.chatbot.schema import BotInteractionRequest, ChatbotResponse, OrderItem
+from src.chatbot.visibility.utils import _build_order_lines
 from src.menu.loader import (
     get_item_id,
     get_menu_item_names,
@@ -114,6 +124,18 @@ def _dedupe_invalid_modifiers(issues: list[ModifierValidationIssue]) -> list[Mod
     return deduped
 
 
+def _dedupe_clarification_issues(issues: list[ClarificationIssue]) -> list[ClarificationIssue]:
+    deduped: list[ClarificationIssue] = []
+    seen: set[tuple[str, str, str]] = set()
+    for issue in issues:
+        key = (issue.kind, issue.item_name.strip().lower(), issue.token.strip().lower())
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(issue)
+    return deduped
+
+
 def _dedupe_option_names(options: list[str]) -> list[str]:
     seen: set[str] = set()
     deduped: list[str] = []
@@ -201,6 +223,10 @@ def _build_fallback_cashier_reply(order_state: dict, outcome: OrderProcessingOut
         reply_parts.append(f"The {outcome.combo_event.combo_name} combo no longer applies.")
 
     reply_parts.extend(_build_invalid_modifier_messages(outcome.invalid_modifiers))
+    for assumption in outcome.assumptions_applied:
+        reply_parts.append(assumption.explanation)
+    for clarification in outcome.clarification_issues:
+        reply_parts.append(clarification.clarification_message)
 
     for issue in outcome.menu_match_issues:
         if issue.kind == "ambiguous":
@@ -236,6 +262,15 @@ def _build_fallback_cashier_reply(order_state: dict, outcome: OrderProcessingOut
     return " ".join(reply_parts)
 
 
+async def _build_clarification_order_snapshot(order_state: dict) -> str:
+    items = (order_state or {}).get("items", [])
+    if not items:
+        return "Current order:\n- (empty)"
+    lines, total = await _build_order_lines(items)
+    total_line = f"\nRunning total: ${total:.2f}" if total > 0 else ""
+    return f"Current order:\n" + "\n".join(lines) + total_line
+
+
 class OrderStateHandler:
     def __init__(self):
         self._extractor = OrderExtractor()
@@ -245,15 +280,26 @@ class OrderStateHandler:
         print("[order] start.handle latest_message:", request.latest_message)
         print("[order] incoming_order_state:", request.order_state)
 
-        previous_order = strip_order_state_for_delta(request.order_state)
+        previous_order = deepcopy(strip_order_state_for_delta(request.order_state))
         print("[order] stripped_order_state:", previous_order)
+        context_update, context_issues, note_only_context = extract_context_note_update(
+            request.latest_message,
+            existing_order_state=request.order_state,
+        )
+        print("[order] context_update:", context_update)
+        print("[order] context_note_only:", note_only_context)
 
         confirmation_items = await self._try_resolve_confirmation_items(request)
         confirmation_resolved = confirmation_items is not None
+        clarification_issues: list[ClarificationIssue] = [*context_issues]
+        assumptions_applied: list[AssumptionApplied] = []
 
         if confirmation_items is not None:
             print("[order] confirmation_reply_branch_taken")
             proposed_items = confirmation_items
+        elif note_only_context:
+            print("[order] note_only_context_branch_taken")
+            proposed_items = previous_order.get("items", [])
         else:
             delta_result = await self._extractor.apply_order_delta(
                 latest_message=request.latest_message,
@@ -263,6 +309,13 @@ class OrderStateHandler:
             proposed_items = normalize_order_items(
                 [item.model_dump(exclude_none=True) for item in delta_result.items]
             )
+            proposed_items, clarification_issues, assumptions_applied = route_items_with_side_entities(
+                proposed_items,
+                request.latest_message,
+            )
+            proposed_items = normalize_order_items(proposed_items)
+            print("[order] route.clarification_issues:", [issue.model_dump() for issue in clarification_issues])
+            print("[order] route.assumptions_applied:", [value.model_dump() for value in assumptions_applied])
             print("[order] proposed_items_after_delta:", proposed_items)
 
         match_results = await self._match_items_to_menu(proposed_items, request)
@@ -282,7 +335,12 @@ class OrderStateHandler:
                 )
             print("[order] accepted_items_after_confirmation:", accepted_items)
         else:
-            accepted_items = _build_canonical_items(match_results)
+            canonical_items = _build_canonical_items(match_results)
+            # Prevent accidental cart wipe when a metadata-only or low-confidence turn produces no confirmed matches.
+            if menu_match_issues and not canonical_items and previous_order.get("items"):
+                accepted_items = previous_order.get("items", [])
+            else:
+                accepted_items = canonical_items
             print("[order] accepted_items_after_menu_match:", accepted_items)
 
         modifier_validation = await validate_order_item_modifiers(
@@ -303,6 +361,12 @@ class OrderStateHandler:
             menu_match_issues=menu_match_issues,
             confirmation_resolved=confirmation_resolved and not menu_match_issues,
             early_invalid_modifiers=modifier_validation.invalid_modifiers,
+            early_clarification_issues=[
+                *clarification_issues,
+                *modifier_validation.clarification_issues,
+            ],
+            early_assumptions_applied=assumptions_applied,
+            context_update=context_update,
         )
 
         reply = await self._generate_final_reply(
@@ -370,6 +434,9 @@ class OrderStateHandler:
         menu_match_issues: list[MenuMatchIssue],
         confirmation_resolved: bool,
         early_invalid_modifiers: list[ModifierValidationIssue],
+        early_clarification_issues: list[ClarificationIssue],
+        early_assumptions_applied: list[AssumptionApplied],
+        context_update: dict,
     ) -> tuple[dict, OrderProcessingOutcome]:
         print("[order] finalize.start_items:", accepted_items)
 
@@ -396,9 +463,16 @@ class OrderStateHandler:
             "[order] finalize.follow_up_requirements:",
             [requirement.model_dump() for requirement in validation_result.follow_up_requirements],
         )
+        print("[order] finalize.clarification_issues:", [issue.model_dump() for issue in validation_result.clarification_issues])
 
         invalid_modifiers = _dedupe_invalid_modifiers(
             [*early_invalid_modifiers, *validation_result.invalid_modifiers]
+        )
+        combined_clarification_issues = _dedupe_clarification_issues(
+            [
+                *early_clarification_issues,
+                *validation_result.clarification_issues,
+            ]
         )
         print(
             "[order] finalize.combined_invalid_modifiers:",
@@ -412,6 +486,7 @@ class OrderStateHandler:
         working_order_state = {**working_order_state, "items": resolved_items}
 
         enriched_order_state = await _enrich_order_state_with_prices(working_order_state)
+        enriched_order_state = merge_order_metadata(enriched_order_state, context_update)
         print("[order] finalize.enriched_order_state:", enriched_order_state)
 
         outcome = OrderProcessingOutcome(
@@ -419,6 +494,8 @@ class OrderStateHandler:
             accepted_order=strip_order_state_for_delta(enriched_order_state),
             menu_match_issues=menu_match_issues,
             invalid_modifiers=invalid_modifiers,
+            clarification_issues=combined_clarification_issues,
+            assumptions_applied=early_assumptions_applied,
             follow_up_requirements=validation_result.follow_up_requirements,
             combo_event=combo_result.combo_event,
             confirmation_resolved=confirmation_resolved,
@@ -442,7 +519,12 @@ class OrderStateHandler:
             )
         except AIServiceError as exc:
             print("[reply] fallback_due_to_error:", exc)
-            return _build_fallback_cashier_reply(final_order_state, outcome)
+            reply = _build_fallback_cashier_reply(final_order_state, outcome)
+
+        if outcome.clarification_issues:
+            snapshot = await _build_clarification_order_snapshot(final_order_state)
+            if not reply.lower().startswith("current order:"):
+                return f"{snapshot}\n\n{reply}"
 
         return reply
 

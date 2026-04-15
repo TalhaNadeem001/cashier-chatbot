@@ -105,7 +105,7 @@ def build_order_update_message(items: list[dict]) -> str:
             label += f" ({modifier})"
         parts.append(label)
 
-    return f"Got it! Your order is now {', '.join(parts)}. Is that all?"
+    return f"Got it! Your order is now {', '.join(parts)}. Is the order above okay?"
 
 
 def format_money_context_for_prompt(value, parent_key: str | None = None):

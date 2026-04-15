@@ -10,14 +10,26 @@ _QUANTITY_AS_SELECTION_GROUP_NAMES = {"quantity"}
 _items_by_name: dict[str, dict] = {}
 _items_by_id: dict[str, dict] = {}
 _combos: list[dict] = []
+_menu_hours: dict[str, str] = {}
 
 
 async def init_menu() -> None:
-    global _items_by_name, _items_by_id, _combos
+    global _items_by_name, _items_by_id, _combos, _menu_hours
     raw = json.loads(INVENTORY_PATH.read_text())
     by_name: dict[str, dict] = {}
     by_id: dict[str, dict] = {}
+    meta = raw.get("_meta", {}) if isinstance(raw, dict) else {}
+    hours = meta.get("hours", {}) if isinstance(meta, dict) else {}
+    parsed_hours = {
+        str(k).strip(): str(v).strip()
+        for k, v in (hours.items() if isinstance(hours, dict) else [])
+        if str(k).strip() and str(v).strip()
+    }
     for item_data in raw.values():
+        if not isinstance(item_data, dict):
+            continue
+        if "id" not in item_data or "name" not in item_data:
+            continue
         cats = item_data.get("categories", [])
         modifier_groups = [
             {
@@ -46,6 +58,7 @@ async def init_menu() -> None:
     _items_by_name = by_name
     _items_by_id = by_id
     _combos = []
+    _menu_hours = parsed_hours
     print(f"Menu loaded from inventory.json: {len(_items_by_name)} items")
 
 
@@ -373,6 +386,9 @@ def get_menu_context() -> str:
             except (TypeError, ValueError):
                 price_str = "price varies"
             lines.append(f"  - {item['name']} ({price_str})")
+            tags = _build_recommendation_tags(item)
+            if tags:
+                lines.append(f"    recommendation_tags: {', '.join(tags)}")
             if item.get("description"):
                 lines.append(f"    {item['description']}")
             for group in item.get("modifier_groups", []):
@@ -395,4 +411,41 @@ def get_menu_context() -> str:
                 price_str = "price varies"
             lines.append(f"  - {combo['name']} ({price_str})")
 
+    hours_context = get_menu_hours_context()
+    if hours_context:
+        lines.append("\nRestaurant hours")
+        lines.append(hours_context)
+
     return "\n".join(lines).strip()
+
+
+def get_menu_hours_context() -> str:
+    if not _menu_hours:
+        return ""
+    preferred_order = ("today", "general", "lunch", "dinner")
+    ordered_keys = [key for key in preferred_order if key in _menu_hours]
+    ordered_keys.extend(key for key in _menu_hours if key not in ordered_keys)
+    return "\n".join(f"- {key.capitalize()}: {_menu_hours[key]}" for key in ordered_keys)
+
+
+def _build_recommendation_tags(item: dict) -> list[str]:
+    name = str(item.get("name", "")).lower()
+    desc = str(item.get("description", "")).lower()
+    text = f"{name} {desc}"
+    tags: list[str] = []
+    if any(token in text for token in ("spicy", "nashville", "buffalo", "hot", "chili")):
+        tags.append("spicy")
+    if any(token in text for token in ("chicken", "burger", "beef", "wings", "protein", "tender", "bacon")):
+        tags.append("protein")
+
+    for group in item.get("modifier_groups", []):
+        for modifier in group.get("modifiers", []):
+            modifier_name = str(modifier.get("name", "")).lower()
+            if not modifier_name:
+                continue
+            if "spicy" in modifier_name and "spicy" not in tags:
+                tags.append("spicy")
+            if any(token in modifier_name for token in ("chicken", "beef", "bacon", "protein")) and "protein" not in tags:
+                tags.append("protein")
+
+    return tags

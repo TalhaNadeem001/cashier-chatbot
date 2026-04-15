@@ -7,6 +7,7 @@ from src.chatbot.schema import BotInteractionRequest, ChatbotResponse
 from src.chatbot.visibility import ai_client as visibility_ai
 from src.menu.loader import (
     get_menu_context,
+    get_menu_hours_context,
     get_order_item_line_total,
     get_order_item_unit_price,
     order_item_uses_quantity_selection,
@@ -102,6 +103,9 @@ class StateHandlerFactory:
             restaurant_context = await build_restaurant_context(merged_profile)
 
         restaurant_context = restaurant_context or RESTAURANT_CONTEXT_FALLBACK
+        menu_hours = get_menu_hours_context()
+        if menu_hours and "hour" not in restaurant_context.lower():
+            restaurant_context = f"{restaurant_context}\nHours:\n{menu_hours}"
 
         message = await visibility_ai.answer_restaurant_question(
             latest_message=request.latest_message,
@@ -207,6 +211,7 @@ class StateHandlerFactory:
             return await _build_empty_order_response(request)
 
         lines, total = await _build_order_lines(items)
-        message = await _format_order_message(lines, total)
+        customer_label = str((request.order_state or {}).get("customer_label", "")).strip() or None
+        message = await _format_order_message(lines, total, customer_label=customer_label)
 
         return ChatbotResponse(chatbot_message=message, order_state=request.order_state, pickup_ping=True)

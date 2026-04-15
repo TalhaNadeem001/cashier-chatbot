@@ -1,4 +1,11 @@
 {
+  "_meta": {
+    "hours": {
+      "general": "Mon-Sun 11:00 AM - 10:00 PM",
+      "lunch": "Mon-Fri 11:00 AM - 3:00 PM",
+      "dinner": "Mon-Sun 3:00 PM - 10:00 PM"
+    }
+  },
   "14FrWvCVBuzeY3TMHfW9": {
     "name": "Sweet n Spicy",
     "price": 100,
@@ -356,6 +363,11 @@
             "name": "Buffalo",
             "price": 0,
             "id": "VB9QM4AR2C1J8"
+          },
+          {
+            "name": "Ketchup",
+            "price": 0,
+            "id": "KETCHUP_FREE_1"
           },
           {
             "name": "Chili Mango",
@@ -1069,6 +1081,20 @@
     "modifierGroups": [],
     "pos_id": "clover"
   },
+  "ZjIKru6Rq4W3G1rzQ3ad": {
+    "name": "Ketchup",
+    "price": 0,
+    "priceType": "FIXED",
+    "categories": [
+      {
+        "name": "Sauces",
+        "id": "V4SAFRQYA1Q0P"
+      }
+    ],
+    "id": "KETCHUP_FREE_SIDE",
+    "modifierGroups": [],
+    "pos_id": "clover"
+  },
   "k7SLSIe5JVkyrgnPIDsU": {
     "alternateName": "Grilled Hot Dog, Toasted Potato Bun, Ketchup, Mustard, Diced Onion, Chopped Relish, Chips Seasoning.",
     "priceType": "FIXED",
@@ -1732,6 +1758,11 @@
             "name": "Buffalo",
             "price": 0,
             "id": "VB9QM4AR2C1J8"
+          },
+          {
+            "name": "Ketchup",
+            "price": 0,
+            "id": "KETCHUP_FREE_2"
           },
           {
             "name": "Chili Mango",

@@ -80,10 +80,50 @@ async def build_restaurant_context(profile: dict[str, str]) -> str | None:
         lines.append(f"Tagline: {tagline}")
     if greeting:
         lines.append(f"Greeting: {greeting}")
+    lines.extend(_build_hours_lines(profile))
 
     if lines:
         return "\n".join(lines)
     return None
+
+
+def _build_hours_lines(profile: dict[str, str]) -> list[str]:
+    known_hours_keys = (
+        "hours",
+        "openingHours",
+        "openHours",
+        "businessHours",
+        "pickupHours",
+        "lunchHours",
+        "dinnerHours",
+    )
+    lines: list[str] = []
+    for key in known_hours_keys:
+        value = str(profile.get(key, "")).strip()
+        if value:
+            label = key.replace("Hours", " hours")
+            label = label.replace("opening", "opening ").replace("business", "business ").strip()
+            lines.append(f"{label.title()}: {value}")
+
+    for key, raw_value in profile.items():
+        lowered = str(key).lower()
+        if lowered in {k.lower() for k in known_hours_keys}:
+            continue
+        value = str(raw_value).strip()
+        if not value:
+            continue
+        if any(token in lowered for token in ("hour", "open", "close", "pickup time")):
+            lines.append(f"{key}: {value}")
+
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for line in lines:
+        normalized = line.lower()
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        deduped.append(line)
+    return deduped
 
 async def parse_name_location(value: str) -> tuple[str, str | None]:
     parts = value.split(",", 1)
@@ -155,15 +195,20 @@ async def _quantity_prefix(item: dict) -> str:
     return f"{quantity}x "
 
 
-async def _format_order_message(lines: list[str], total: float) -> str:
+async def _format_order_message(
+    lines: list[str],
+    total: float,
+    customer_label: str | None = None,
+) -> str:
     items_text = "\n".join(lines)
     total_line = f"\n\nTotal: ${total:.2f}" if total > 0 else ""
+    name_suffix = f", {customer_label}" if (customer_label or "").strip() else ""
 
     return (
-        f"Great! Your order is:\n"
+        f"Great{name_suffix}! Your order is:\n"
         f"{items_text}"
         f"{total_line}\n\n"
-        f"Thank you for ordering!"
+        f"Your order has been placed successfully{name_suffix}. Hold on tight while we confirm your pickup time."
     )
 
 

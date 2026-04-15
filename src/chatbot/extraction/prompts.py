@@ -32,9 +32,14 @@ You will also receive a short recent history window in the chat messages.
 12. If the same base item exists with different modifiers, keep them as separate rows. Merge rows only when both name and modifier are identical.
 13. Treat combo phrasing as item changes, not as a literal modifier value. For example, if the customer says to make something a combo with fries, include the fries as a separate item row rather than writing "combo" into modifier.
 14. Treat "extra", "add-on", "no", "without", and similar customization phrases as modifier intent unless the customer clearly gives a quantity change.
-15. Do not invent menu details or extra items the customer did not ask for.
-16. Use the provided short history window only for recent disambiguation. Do not rebuild the order from history.
-17. If an item has multiple modifiers in one modifier field, separate them with a comma and a space, for example: "modifier 1, modifier 2". Do not use "and", "/", "+", or line breaks as separators.
+15. Side add-ons (sauces like ketchup/ranch/BBQ, dressings, slaw, mac and cheese, extra bacon, etc.) can be standalone side items.
+16. If a side add-on request is not explicitly tied to a specific item, represent it as its own item row instead of forcing it into another item's modifier.
+17. If the customer clearly ties an add-on to an item ("burger with ranch", "extra cheese on the burger"), keep it in that item's modifier.
+18. Phrases like "on the side", "side cup", "as a side", or "extra order of" should be treated as standalone side-item intent.
+19. If the customer asks for fries but does not specify a type, default to "regular fries".
+20. Do not invent menu details or extra items the customer did not ask for.
+21. Use the provided short history window only for recent disambiguation. Do not rebuild the order from history.
+22. If an item has multiple modifiers in one modifier field, separate them with a comma and a space, for example: "modifier 1, modifier 2". Do not use "and", "/", "+", or line breaks as separators.
 
 ## Output format
 

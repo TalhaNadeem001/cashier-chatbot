@@ -79,6 +79,20 @@ class ModifierValidationIssue(BaseModel):
     allowed_options: list[str] = Field(default_factory=list)
 
 
+class ClarificationIssue(BaseModel):
+    kind: Literal["side_or_modifier", "generic_drink", "context_note"]
+    item_name: str
+    token: str
+    clarification_message: str
+
+
+class AssumptionApplied(BaseModel):
+    kind: Literal["default_fries"]
+    token: str
+    assumed_value: str
+    explanation: str
+
+
 class ClosestModifierResolution(BaseModel):
     status: Literal["match", "no_match"]
     canonical_modifier: str | None = None
@@ -105,6 +119,8 @@ class ComboApplicationResult(BaseModel):
 class OrderValidationResult(BaseModel):
     items: list[dict] = Field(default_factory=list)
     invalid_modifiers: list[ModifierValidationIssue] = Field(default_factory=list)
+    clarification_issues: list[ClarificationIssue] = Field(default_factory=list)
+    assumptions_applied: list[AssumptionApplied] = Field(default_factory=list)
     follow_up_requirements: list[OrderFollowUpRequirement] = Field(default_factory=list)
 
 
@@ -113,6 +129,8 @@ class OrderProcessingOutcome(BaseModel):
     accepted_order: dict = Field(default_factory=dict)
     menu_match_issues: list[MenuMatchIssue] = Field(default_factory=list)
     invalid_modifiers: list[ModifierValidationIssue] = Field(default_factory=list)
+    clarification_issues: list[ClarificationIssue] = Field(default_factory=list)
+    assumptions_applied: list[AssumptionApplied] = Field(default_factory=list)
     follow_up_requirements: list[OrderFollowUpRequirement] = Field(default_factory=list)
     combo_event: ComboEvent | None = None
     confirmation_resolved: bool = False

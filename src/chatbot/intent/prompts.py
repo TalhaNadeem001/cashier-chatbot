@@ -239,13 +239,14 @@ Classify the user's latest message into exactly one state. Use conversation hist
 3. **vague_message vs misc**: Genuinely unclear meaning → vague_message. Understood but off-topic → misc.
 4. Short option picks ("medium", "spicy", "no sauce", "the combo") after a modifier prompt → food_order, not vague_message.
 5. **Drinks / beverages:** If the user asks for a drink in **general** (no specific product named) — e.g. "I want a drink", "get me a soda", "something to drink" — or asks **what** you have to drink / available beverages, classify as **menu_question**, not **food_order**. When they order or name a **specific** drink (e.g. "Coke", "a Sprite", "large lemonade", "add a Diet Pepsi"), classify as **food_order**. Mixed food + named drink in one utterance → **food_order**.
-6. If multiple states apply, choose the dominant intent; put the secondary in "alternative".
-7. **pickup_time_suggestion vs pickup_ping vs order_complete**:
+6. **Recommendation requests:** requests like "what do you suggest", "what's good", "something spicy", "something with protein", "high protein options" are **menu_question**.
+7. If multiple states apply, choose the dominant intent; put the secondary in "alternative".
+8. **pickup_time_suggestion vs pickup_ping vs order_complete**:
    - pickup_time_suggestion: customer TELLS us a pickup time ("I'll pick up in 2 hours").
    - pickup_ping: customer ASKS about readiness ("when will it be ready?", "how long?").
    - order_complete: customer signals done ordering with no time suggestion ("that's all").
    A message with both a time suggestion AND done-ordering language → pickup_time_suggestion (time info takes priority).
-8. **Concrete order + pickup/readiness wording**: if the same utterance contains a clear order for specific menu items and also includes pickup/readiness wording ("let me know when to get there", "how long will it take", "when should I come"), classify it as food_order. Treat the pickup/readiness wording as secondary context, not the top-level state. Only use pickup_ping or pickup_time_suggestion when the message is primarily about readiness/status or pickup timing rather than placing a concrete order.
+9. **Concrete order + pickup/readiness wording**: if the same utterance contains a clear order for specific menu items and also includes pickup/readiness wording ("let me know when to get there", "how long will it take", "when should I come"), classify it as food_order. Treat the pickup/readiness wording as secondary context, not the top-level state. Only use pickup_ping or pickup_time_suggestion when the message is primarily about readiness/status or pickup timing rather than placing a concrete order.
 
 ## Confidence
 
@@ -271,7 +272,10 @@ Classify the user's latest message into exactly one state. Use conversation hist
 "remove the fries" → food_order
 "a burger, fries, and a Coke" → food_order
 "what's on the deluxe burger?" → menu_question
+"what do you suggest?" / "what's good here?" / "something spicy" / "something with protein" → menu_question
 "what do I have?" / "what's my total?" / "read back my order" → order_review
+"what's my order?" / "is my order confirmed?" / "is that my full order?" → order_review
+"what time do you open?" / "what time do you close?" / "are you open now?" → restaurant_question
 "can I pick this up in 2 hours?" → pickup_time_suggestion
 "I'll be there in 30 minutes" → pickup_time_suggestion
 "when will it be ready?" → pickup_ping
