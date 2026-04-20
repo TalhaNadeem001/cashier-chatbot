@@ -193,12 +193,14 @@ class ParsingAgentContext(BaseModel):
     current_order_details: CurrentOrderDetails
     most_recent_message: str
     latest_k_messages_by_customer: list[str]
+    previous_agent_questions: list[str] = []
 
 
 class ParsingAgentPromptContext(BaseModel):
     current_order_details: dict[str, Any]
     most_recent_message_by_customer: str
     latest_k_messages_by_customer: list[str]
+    previous_agent_questions: list[str] = []
 
 
 class ParsingAgentResult(BaseModel):
@@ -243,6 +245,7 @@ class ExecutionAgentResult(BaseModel):
     actions_executed: list[str]
     pending_clarifications: list[str]
     order_updated: bool
+    agent_questions: list[str] = []
 
 
 # Backwards-compat aliases (removed after all callers updated)

@@ -78,7 +78,7 @@ def _mock_save_clarification(monkeypatch):
     monkeypatch.setattr(
         orchestrator_mod,
         "saveClarificationAndIntent",
-        lambda session_id, clarification_questions, parsed_intents: __import__(
+        lambda session_id, clarification_questions, parsed_intents, **kwargs: __import__(
             "asyncio"
         ).sleep(0),
     )

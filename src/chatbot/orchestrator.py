@@ -56,6 +56,7 @@ from datetime import datetime, timezone
 from src.cache import cache_list_append
 from src.chatbot.utils import (
     _session_messages_redis_key,
+    extract_questions_from_reply,
     getClarificationAndIntent,
     saveClarificationAndIntent,
 )
@@ -368,6 +369,8 @@ class Orchestrator:
         latest_k_messages_by_customer = await self._load_latest_k_customer_messages(
             request.session_id
         )
+        raw = await getClarificationAndIntent(request.session_id)
+        previous_agent_questions = raw.get("agent_questions", []) if raw["success"] else []
 
         return ParsingAgentContext(
             session_id=request.session_id,
@@ -375,6 +378,7 @@ class Orchestrator:
             current_order_details=current_order_details,
             most_recent_message=request.user_message,
             latest_k_messages_by_customer=latest_k_messages_by_customer,
+            previous_agent_questions=previous_agent_questions,
         )
 
     async def _load_current_order_details(self, session_id: str, creds: dict | None = None) -> CurrentOrderDetails:
@@ -638,6 +642,7 @@ class ParsingAgent:
             ),
             most_recent_message_by_customer=context.most_recent_message,
             latest_k_messages_by_customer=context.latest_k_messages_by_customer,
+            previous_agent_questions=context.previous_agent_questions,
         )
         rendered = json.dumps(prompt_context.model_dump(mode="json"), indent=2)
         print(
@@ -769,10 +774,12 @@ class ExecutionAgent:
             extra_fields=f"model={self.model!r}",
             call=_call_llm,
         )
+        agent_questions = extract_questions_from_reply(agent_reply)
         await saveClarificationAndIntent(
             context_object.session_id,
             "" if not pending_clarifications else pending_clarifications,
             parsed_requests.model_dump(mode="json", by_alias=True)["Data"],
+            agent_questions=agent_questions,
         )
         reply_one_line = agent_reply.replace("\n", " ")[:400]
         print(
@@ -781,6 +788,7 @@ class ExecutionAgent:
             f"agent_reply_preview={reply_one_line!r}",
             f"actions_executed={tracker.actions_executed!r}",
             f"order_updated={tracker.order_updated}",
+            f"agent_questions={agent_questions!r}",
         )
 
         return ExecutionAgentResult(
@@ -789,6 +797,7 @@ class ExecutionAgent:
             actions_executed=tracker.actions_executed,
             pending_clarifications=pending_clarifications,
             order_updated=tracker.order_updated,
+            agent_questions=agent_questions,
         )
 
     def _build_messages(

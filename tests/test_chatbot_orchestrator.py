@@ -155,7 +155,7 @@ def test_orchestrator_builds_server_side_context_and_calls_agents_in_order(monke
     monkeypatch.setattr(
         orchestrator_mod,
         "saveClarificationAndIntent",
-        lambda session_id, clarification_questions, parsed_intents: asyncio.sleep(0),
+        lambda session_id, clarification_questions, parsed_intents, **kwargs: asyncio.sleep(0),
     )
 
     response = asyncio.run(

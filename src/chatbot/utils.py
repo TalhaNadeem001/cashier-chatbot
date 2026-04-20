@@ -376,6 +376,7 @@ async def saveClarificationAndIntent(
     session_id: str,
     clarification_questions: list[str] | str,
     parsed_intents: list[dict],
+    agent_questions: list[str] | None = None,
 ) -> None:
     """
     Persist the Execution Agent's clarification questions and the Parsing Agent's
@@ -385,6 +386,7 @@ async def saveClarificationAndIntent(
     - clarification_questions: list of free-text questions from pending_clarifications
     - parsed_intents: list of dicts serialized from ParsedRequestsPayload.data
       (each has keys: intent, confidence_level, request_items, request_details)
+    - agent_questions: sentences ending in '?' extracted from the agent reply (optional)
 
     TTL: 3 hours (_SESSION_CLARIFICATION_AND_INTENT_TTL_SECONDS)
     Overwrites any previously saved value for the session.
@@ -395,6 +397,7 @@ async def saveClarificationAndIntent(
     payload = {
         "clarification_questions": clarification_questions,
         "parsed_intents": parsed_intents,
+        "agent_questions": agent_questions or [],
         "saved_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
     }
     key = _session_clarification_and_intent_redis_key(session_id)
@@ -404,6 +407,7 @@ async def saveClarificationAndIntent(
         f"session_id={session_id!r}",
         f"clarification_count={len(clarification_questions)}",
         f"intent_count={len(parsed_intents)}",
+        f"agent_questions_count={len(agent_questions or [])}",
     )
 
 
@@ -453,6 +457,7 @@ async def getClarificationAndIntent(session_id: str) -> dict:
             "success": True,
             "clarification_questions": payload.get("clarification_questions", []),
             "parsed_intents": payload.get("parsed_intents", []),
+            "agent_questions": payload.get("agent_questions", []),
             "saved_at": payload.get("saved_at"),
             "error": None,
         }
@@ -461,9 +466,24 @@ async def getClarificationAndIntent(session_id: str) -> dict:
             "success": False,
             "clarification_questions": [],
             "parsed_intents": [],
+            "agent_questions": [],
             "saved_at": None,
             "error": str(exc),
         }
+
+
+def extract_questions_from_reply(reply: str) -> list[str]:
+    """Split reply on sentence boundaries and return sentences ending with '?'.
+
+    Parameters:
+    - reply: the full text of the agent's reply
+
+    Returns a list of question sentences found in the reply.
+    Returns an empty list if no questions are present.
+    """
+    import re
+    sentences = re.split(r'(?<=[.!?])\s+', reply.strip())
+    return [s.strip() for s in sentences if s.strip().endswith('?')]
 
 
 def _sum_line_item_totals(line_items: list[dict]) -> int:

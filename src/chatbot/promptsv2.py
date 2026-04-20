@@ -20,6 +20,7 @@ DEFAULT_PARSING_AGENT_PROMPTS = ParsingAgentPrompts(
         Current order details
         Most recent message by a customer
         Previous messages by the customer in the same order session
+        Previous questions asked by the agent (previous_agent_questions)
         """
     ).strip(),
     output_format_prompt=dedent(
@@ -83,6 +84,13 @@ DEFAULT_PARSING_AGENT_PROMPTS = ParsingAgentPrompts(
         If an item is mentioned as a side, add it to the details of the main item.
         DO NOT OVER-INFER
         Only extract what is clearly stated.
+        USE PREVIOUS AGENT QUESTIONS FOR CONTEXT
+        If previous_agent_questions is non-empty, interpret the customer's most recent message as a direct response to the last question in that list before assigning intent and request details.
+        NO THANKS / NOTHING ELSE → CONFIRM_ORDER
+        If the customer's message is a direct response to "Do you want to add anything else?"
+        and the customer declines (e.g., "No", "Nope", "That's it", "I'm good", "Nothing else",
+        "No thanks", "All good", "That's all"), classify the intent as confirm_order with high
+        confidence. Do NOT mark it as outside_agent_scope or greeting.
         """
     ).strip(),
     few_shot_examples_prompt=dedent(
