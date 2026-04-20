@@ -895,7 +895,7 @@ class ExecutionAgent:
                     "valid": None,
                     "invalid": None,
                     "asNote": None,
-                    "requireChoice": None,
+                    "missingRequireChoice": None,
                     "allValid": None,
                     "isModifierOrAddon": None,
                     "classification": None,
@@ -1082,8 +1082,9 @@ class ExecutionAgent:
                 name="validateRequestedItem",
                 description=(
                     "Resolve a customer-mentioned item against the live menu, confirm availability, "
-                    "and validate any requested modifiers — all in one call. Use this for ADD_ITEM, "
-                    "MODIFY_ITEM, and REPLACE_ITEM before mutating the order."
+                    "validate any requested modifiers, and identify missing required modifier groups — "
+                    "all in one call. Use this for ADD_ITEM, MODIFY_ITEM, and REPLACE_ITEM before "
+                    "mutating the order."
                 ),
                 parameters_json_schema=_VALIDATE_REQUESTED_ITEM_PARAMETERS_JSON_SCHEMA,
                 handler=_validate_requested_item_tool,

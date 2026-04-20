@@ -1061,12 +1061,12 @@ async def validateRequestedItem(
             notes (checkIfModifierOrAddOn returned isAddon=True and suggestedNote).
             ``None`` when the item is unavailable or matchConfidence is not ``"exact"``.
 
-        requireChoice (list[dict] | None)
-            Required modifier groups that still need a selection from the customer.
+        missingRequireChoice (list[dict] | None)
+            Missing required modifier groups that still need a selection from the customer.
             ``None`` when the item is unavailable or matchConfidence is not ``"exact"``.
 
         allValid (bool | None)
-            ``True`` only when ``invalid`` is empty and ``requireChoice`` is empty.
+            ``True`` only when ``invalid`` is empty and ``missingRequireChoice`` is empty.
             ``None`` when the item is unavailable or matchConfidence is not ``"exact"``.
 
         isModifierOrAddon (bool | None)
@@ -1093,7 +1093,7 @@ async def validateRequestedItem(
         matchConfidence == "exact" and available == False
             Item exists but cannot be ordered. Tell the customer it is
             currently unavailable. ``valid``/``invalid``/``asNote``/
-            ``requireChoice``/``allValid`` are all ``None``.
+            ``missingRequireChoice``/``allValid`` are all ``None``.
 
         matchConfidence == "exact" and available == True and allValid == True
             Safe to add the item. Use ``itemId`` and the ``valid`` modifier
@@ -1104,7 +1104,7 @@ async def validateRequestedItem(
             One or more modifications could not be resolved. Ask the customer
             to clarify what they meant.
 
-        matchConfidence == "exact" and available == True and non-empty requireChoice
+        matchConfidence == "exact" and available == True and non-empty missingRequireChoice
             One or more required modifier groups are missing a selection. Prompt
             the customer to choose from those groups before adding.
 
@@ -1124,7 +1124,7 @@ async def validateRequestedItem(
         "valid": None,
         "invalid": None,
         "asNote": None,
-        "requireChoice": None,
+        "missingRequireChoice": None,
         "allValid": None,
         "isModifierOrAddon": None,
         "classification": None,
@@ -1197,7 +1197,7 @@ async def validateRequestedItem(
                 "valid": None,
                 "invalid": None,
                 "asNote": None,
-                "requireChoice": None,
+                "missingRequireChoice": None,
                 "allValid": None,
                 "isModifierOrAddon": None,
                 "classification": None,
@@ -1212,7 +1212,7 @@ async def validateRequestedItem(
         )
 
         if not details:
-            require_choice = _required_modifier_groups(item_row, set())
+            missing_require_choice = _required_modifier_groups(item_row, set())
             result = {
                 **base,
                 "itemId": item_id,
@@ -1221,8 +1221,8 @@ async def validateRequestedItem(
                 "valid": [],
                 "invalid": [],
                 "asNote": [],
-                "requireChoice": require_choice,
-                "allValid": len(require_choice) == 0,
+                "missingRequireChoice": missing_require_choice,
+                "allValid": len(missing_require_choice) == 0,
                 "isModifierOrAddon": None,
                 "classification": None,
                 "closestModifier": None,
@@ -1271,7 +1271,7 @@ async def validateRequestedItem(
                 }
             )
 
-        require_choice = _required_modifier_groups(item_row, selected_keys)
+        missing_require_choice = _required_modifier_groups(item_row, selected_keys)
 
         # --- classify initially_invalid mods as note or truly invalid ---
         as_note: list[str] = []
@@ -1331,7 +1331,7 @@ async def validateRequestedItem(
             else:
                 truly_invalid.append(raw_mod)
 
-        all_valid = not truly_invalid and not require_choice
+        all_valid = not truly_invalid and not missing_require_choice
         result = {
             **base,
             "itemId": item_id,
@@ -1340,7 +1340,7 @@ async def validateRequestedItem(
             "valid": valid,
             "invalid": truly_invalid,
             "asNote": as_note,
-            "requireChoice": require_choice,
+            "missingRequireChoice": missing_require_choice,
             "allValid": all_valid,
             "isModifierOrAddon": None,
             "classification": None,

@@ -27,19 +27,14 @@ class GeminiFunctionTool:
     handler: Callable[..., Awaitable[dict[str, Any]]]
 
 
-def _resolve_api_key() -> str:
-    api_key = settings.GEMINI_API_KEY or settings.OPENAI_API_KEY
-    if api_key:
-        return api_key
-    raise AIServiceError(
-        "Gemini API key is not configured. Set GEMINI_API_KEY or OPENAI_API_KEY."
-    )
-
-
 def _get_client() -> genai.Client:
     global _client
     if _client is None:
-        _client = genai.Client(api_key=_resolve_api_key())
+        _client = genai.Client(
+            vertexai=True,
+            project=settings.GCP_PROJECT_ID,
+            location=settings.GCP_LOCATION,
+        )
     return _client
 
 
@@ -239,7 +234,6 @@ def _build_config(
 ) -> types.GenerateContentConfig:
     config: dict[str, object] = {
         "temperature": temperature,
-        "service_tier": "priority",
     }
     if max_output_tokens is not None:
         config["max_output_tokens"] = max_output_tokens

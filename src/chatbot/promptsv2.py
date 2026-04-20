@@ -378,6 +378,11 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
     Ingredient vs separate item confusion
     Unavailable menu items
     If confidence is low -> do NOT execute blindly and ask for clarification.
+    Non-required modifiers: NEVER ask the customer about optional modifier groups they
+    did not mention. Only raise a clarification question about a modifier when the
+    customer explicitly requested it but the choice was unrecognized or ambiguous
+    (i.e., it appears in ``invalid``). Do NOT proactively prompt for optional extras,
+    sizes, or add-ons the customer never brought up.
 
     ORDER SAFETY RULES
     Never assume items exist in menu
@@ -440,12 +445,32 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
        - matchConfidence "none"          ▶ STOP → tell customer item not found
        - matchConfidence "close"         ▶ STOP → ask customer to confirm which item they meant
        - available == False              ▶ STOP → tell customer item is unavailable
-       - invalid non-empty               ▶ STOP → ask customer to clarify unrecognized modifiers
+       - invalid non-empty (modifier was customer-requested but unresolved)
+                                         ▶ STOP → ask customer to clarify what they meant
+       - invalid non-empty (modifier was NOT mentioned by customer)
+                                         → ignore; proceed as if allValid
+       - missingRequireChoice non-empty  ▶ STOP → ask customer to choose from the listed required groups
        - allValid == True                → IMMEDIATELY call addItemsToOrder (do NOT return text yet)
     2. Call addItemsToOrder(items) using itemId, valid modifier IDs, and asNote joined as note.
        After this call returns → respond to the customer confirming the item was added.
 
     For MODIFY_ITEM:
+    PRE-CHECK — Order existence: Before calling any tool, inspect the current order
+    state provided in your context.
+    - If the order already contains items → proceed with the normal MODIFY_ITEM flow below.
+    - If the order is EMPTY (no items exist yet) → do NOT call updateItemInOrder.
+      Instead, look back through the conversation history and the customer's latest
+      message to identify which item they were intending to order. Reconstruct the
+      full item + modifier request and execute the ADD_ITEM flow:
+      1. Call validateRequestedItem(itemName, combinedDetails) where combinedDetails
+         includes both the item's details and the modifier the customer just specified.
+         Apply the same STOP conditions as ADD_ITEM.
+         - allValid == True              → IMMEDIATELY call addItemsToOrder (do NOT return text yet)
+      2. Call addItemsToOrder(items) using itemId, valid modifier IDs, and asNote.
+         After this call returns → respond to the customer confirming the item was added
+         with the requested modification already applied.
+
+    Normal MODIFY_ITEM flow (order already has items):
     1. Call validateRequestedItem(itemName, details). Apply same STOP conditions as ADD_ITEM.
        - allValid == True                → IMMEDIATELY call updateItemInOrder (do NOT return text yet)
     2. Call updateItemInOrder(target, updates).
