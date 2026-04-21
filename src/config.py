@@ -1,5 +1,8 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Literal
+
 from pydantic import RedisDsn
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
 from src.constants import Environment
 
 
@@ -11,9 +14,14 @@ class Config(BaseSettings):
     )
 
     ENVIRONMENT: Environment = Environment.DEVELOPMENT
+    LLM_PROVIDER: Literal["gemini", "openai"] = "gemini"
     GEMINI_MODEL: str = "gemini-2.5-flash"
     PARSING_AGENT_GEMINI_MODEL: str = "gemini-2.5-flash"
     EXECUTION_AGENT_GEMINI_MODEL: str = "gemini-2.5-flash"
+    OPENAI_API_KEY: str | None = None
+    OPENAI_MODEL: str = "gpt-4o-mini"
+    PARSING_AGENT_OPENAI_MODEL: str = "gpt-4o-mini"
+    EXECUTION_AGENT_OPENAI_MODEL: str = "gpt-4o-mini"
     EXECUTION_AGENT_MAX_TOOL_CALLS: int = 12
     REDIS_URL: RedisDsn
     FIREBASE_PROJECT_ID: str

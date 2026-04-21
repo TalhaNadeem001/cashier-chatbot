@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
 from copy import deepcopy
 from collections.abc import Awaitable, Callable, Sequence
 from typing import Any, TypeVar
@@ -12,19 +11,12 @@ from pydantic import BaseModel
 
 from src.chatbot.exceptions import AIServiceError
 from src.chatbot.llm_messages import LLMMessage, split_system_instruction
+from src.chatbot.llm_tools import GeminiFunctionTool
 from src.config import settings
 
 _ModelT = TypeVar("_ModelT", bound=BaseModel)
 _client: genai.Client | None = None
 _SCHEMA_PREVIEW_LIMIT = 200
-
-
-@dataclass(frozen=True, slots=True)
-class GeminiFunctionTool:
-    name: str
-    description: str
-    parameters_json_schema: dict[str, Any]
-    handler: Callable[..., Awaitable[dict[str, Any]]]
 
 
 def _get_client() -> genai.Client:
@@ -414,6 +406,16 @@ async def generate_text(
     max_output_tokens: int | None = None,
     model: str | None = None,
 ) -> str:
+    if settings.LLM_PROVIDER == "openai":
+        from src.chatbot import openai_client as _openai_client
+
+        return await _openai_client.generate_text(
+            messages,
+            temperature=temperature,
+            max_output_tokens=max_output_tokens,
+            model=model,
+        )
+
     system_instruction, contents = _build_contents(messages)
     resolved_model = model or settings.GEMINI_MODEL
     print(
@@ -452,6 +454,18 @@ async def generate_text_with_tools(
     max_output_tokens: int | None = None,
     model: str | None = None,
 ) -> str:
+    if settings.LLM_PROVIDER == "openai":
+        from src.chatbot import openai_client as _openai_client
+
+        return await _openai_client.generate_text_with_tools(
+            messages,
+            function_tools=function_tools,
+            temperature=temperature,
+            max_tool_calls=max_tool_calls,
+            max_output_tokens=max_output_tokens,
+            model=model,
+        )
+
     if not function_tools:
         return await generate_text(
             messages,
@@ -535,6 +549,19 @@ async def generate_model_with_tools(
     max_output_tokens: int | None = None,
     model: str | None = None,
 ) -> _ModelT:
+    if settings.LLM_PROVIDER == "openai":
+        from src.chatbot import openai_client as _openai_client
+
+        return await _openai_client.generate_model_with_tools(
+            messages,
+            response_model,
+            function_tools=function_tools,
+            temperature=temperature,
+            max_tool_calls=max_tool_calls,
+            max_output_tokens=max_output_tokens,
+            model=model,
+        )
+
     if not function_tools:
         return await generate_model(
             messages,
@@ -632,6 +659,17 @@ async def generate_model(
     max_output_tokens: int | None = None,
     model: str | None = None,
 ) -> _ModelT:
+    if settings.LLM_PROVIDER == "openai":
+        from src.chatbot import openai_client as _openai_client
+
+        return await _openai_client.generate_model(
+            messages,
+            response_model,
+            temperature=temperature,
+            max_output_tokens=max_output_tokens,
+            model=model,
+        )
+
     system_instruction, contents = _build_contents(messages)
     response_schema = normalize_json_schema(response_model.model_json_schema())
     resolved_model = model or settings.GEMINI_MODEL

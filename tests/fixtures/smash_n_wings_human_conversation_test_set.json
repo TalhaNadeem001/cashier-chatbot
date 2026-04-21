@@ -1,0 +1,804 @@
+{
+  "schema_version": 1,
+  "source_menu": "tests/smash_n_wings_menu.json",
+  "description": "Human-style multi-turn dialogs for eval or gold data. Assistant lines are plausible bot replies (not from production). expected_end_order_state uses the cart shape {\"items\": [{\"name\", \"quantity\", \"modifier\"}]} consistent with BotInteractionRequest.order_state in this repo. Item display names follow data/inventory.json where they differ from tests/smash_n_wings_menu.json (e.g. Jalapeno Poppers). Modifier strings are human-readable targets — your pipeline may normalize combo and radio labels.",
+  "intent_taxonomy": [
+    "add_item",
+    "modify_item",
+    "replace_item",
+    "remove_item",
+    "change_item_number",
+    "confirm_order",
+    "cancel_order",
+    "menu_question",
+    "restaurant_question",
+    "escalation",
+    "pickuptime_question",
+    "greeting",
+    "outside_agent_scope"
+  ],
+  "intent_coverage_index": {
+    "add_item": ["snw-002", "snw-004", "snw-005", "snw-006", "snw-007", "snw-008", "snw-009", "snw-010", "snw-012", "snw-014", "snw-016"],
+    "modify_item": ["snw-005", "snw-010"],
+    "replace_item": ["snw-006"],
+    "remove_item": ["snw-007"],
+    "change_item_number": ["snw-008"],
+    "confirm_order": ["snw-009"],
+    "cancel_order": ["snw-011"],
+    "menu_question": ["snw-003"],
+    "restaurant_question": ["snw-013"],
+    "escalation": ["snw-015"],
+    "pickuptime_question": ["snw-014"],
+    "greeting": ["snw-001", "snw-002", "snw-012", "snw-016"],
+    "outside_agent_scope": ["snw-012"]
+  },
+  "cases": [
+    {
+      "id": "snw-001",
+      "title": "Friendly hello before ordering",
+      "conversation": [
+        {
+          "role": "user",
+          "content": "Heyy good afternoon"
+        },
+        {
+          "role": "assistant",
+          "content": "Hey there! Welcome to Smash n Wings. What can I get started for you today?"
+        }
+      ],
+      "intents_present": ["greeting"],
+      "intents_by_user_turn": [
+        {
+          "turn": 1,
+          "intents": ["greeting"]
+        }
+      ],
+      "expected_end_order_state": {
+        "items": []
+      }
+    },
+    {
+      "id": "snw-002",
+      "title": "Greeting plus first burger order",
+      "conversation": [
+        {
+          "role": "user",
+          "content": "Hi! Sorry I'm running late — can I still order for pickup?"
+        },
+        {
+          "role": "assistant",
+          "content": "No worries, we can take a pickup order. What would you like?"
+        },
+        {
+          "role": "user",
+          "content": "Awesome. One Hot Honey Burger, double patty please, and no lettuce bun — regular bun is fine."
+        },
+        {
+          "role": "assistant",
+          "content": "Got it: one Hot Honey Burger, Double, lettuce bun declined. Want fries as a combo or no thanks on the combo side?"
+        },
+        {
+          "role": "user",
+          "content": "Plain fries with the combo, thanks."
+        },
+        {
+          "role": "assistant",
+          "content": "Added. I've got your burger with Double patties, combo with Plain Fries. Anything else?"
+        }
+      ],
+      "intents_present": ["greeting", "add_item", "restaurant_question"],
+      "intents_by_user_turn": [
+        {
+          "turn": 1,
+          "intents": ["greeting", "restaurant_question"]
+        },
+        {
+          "turn": 2,
+          "intents": ["add_item"]
+        },
+        {
+          "turn": 3,
+          "intents": ["add_item"]
+        }
+      ],
+      "expected_end_order_state": {
+        "items": [
+          {
+            "name": "Hot Honey Burger",
+            "quantity": 1,
+            "modifier": "Double, Plain Fries, No Thanks"
+          }
+        ]
+      },
+      "notes": "Combo and lettuce-bun choices are required groups on the fixture menu; modifier string is illustrative — your matcher may normalize wording."
+    },
+    {
+      "id": "snw-003",
+      "title": "Menu question then continue ordering",
+      "conversation": [
+        {
+          "role": "user",
+          "content": "Quick question — what's the difference between the Classic and the Hot Honey burger? I'm torn."
+        },
+        {
+          "role": "assistant",
+          "content": "Classic is more of a straight-up smash build; Hot Honey adds the sweet heat profile (hot honey, jalapeños, that vibe). Want me to read toppings for either one?"
+        },
+        {
+          "role": "user",
+          "content": "Hot honey sounds perfect. One of those, single patty, no combo."
+        },
+        {
+          "role": "assistant",
+          "content": "One Hot Honey Burger, Single, no combo on the fries add-on. Anything else tonight?"
+        }
+      ],
+      "intents_present": ["menu_question", "add_item"],
+      "intents_by_user_turn": [
+        {
+          "turn": 1,
+          "intents": ["menu_question"]
+        },
+        {
+          "turn": 2,
+          "intents": ["add_item"]
+        }
+      ],
+      "expected_end_order_state": {
+        "items": [
+          {
+            "name": "Hot Honey Burger",
+            "quantity": 1,
+            "modifier": "Single, No Thanks, No Thanks"
+          }
+        ]
+      }
+    },
+    {
+      "id": "snw-004",
+      "title": "Straight add: wings + side",
+      "conversation": [
+        {
+          "role": "user",
+          "content": "Can I do a 12 piece boneless, hot honey flavor, and an order of jalapeno poppers?"
+        },
+        {
+          "role": "assistant",
+          "content": "12 boneless with Hot Honey, plus Jalapeno Poppers. Want those wings as a combo with fries or keep them as-is?"
+        },
+        {
+          "role": "user",
+          "content": "No combo on the wings, I'm good."
+        },
+        {
+          "role": "assistant",
+          "content": "Perfect, added both items."
+        }
+      ],
+      "intents_present": ["add_item"],
+      "intents_by_user_turn": [
+        {
+          "turn": 1,
+          "intents": ["add_item"]
+        },
+        {
+          "turn": 2,
+          "intents": ["add_item"]
+        }
+      ],
+      "expected_end_order_state": {
+        "items": [
+          {
+            "name": "Boneless Wings",
+            "quantity": 12,
+            "modifier": "Hot Honey, 12"
+          },
+          {
+            "name": "Jalapeno Poppers",
+            "quantity": 1,
+            "modifier": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "snw-005",
+      "title": "Modify item after it is in the cart",
+      "conversation": [
+        {
+          "role": "user",
+          "content": "I'll take an All American, double, combo with cajun fries."
+        },
+        {
+          "role": "assistant",
+          "content": "Locked in: All American, Double, combo with Cajun Fries. Lettuce bun preference?"
+        },
+        {
+          "role": "user",
+          "content": "No thanks on lettuce bun."
+        },
+        {
+          "role": "assistant",
+          "content": "Thanks — noted No Thanks on lettuce bun."
+        },
+        {
+          "role": "user",
+          "content": "Actually can you throw beef bacon on that burger if it's not too late?"
+        },
+        {
+          "role": "assistant",
+          "content": "Yep, I added Beef Bacon as an add-on on your All American."
+        }
+      ],
+      "intents_present": ["add_item", "modify_item"],
+      "intents_by_user_turn": [
+        {
+          "turn": 1,
+          "intents": ["add_item"]
+        },
+        {
+          "turn": 2,
+          "intents": ["add_item"]
+        },
+        {
+          "turn": 3,
+          "intents": ["modify_item"]
+        }
+      ],
+      "expected_end_order_state": {
+        "items": [
+          {
+            "name": "All American",
+            "quantity": 1,
+            "modifier": "Double, Cajun Fries, No Thanks, Beef Bacon"
+          }
+        ]
+      }
+    },
+    {
+      "id": "snw-006",
+      "title": "Replace one burger with another",
+      "conversation": [
+        {
+          "role": "user",
+          "content": "One Classic burger, single patty, plain fries combo, no lettuce bun."
+        },
+        {
+          "role": "assistant",
+          "content": "Classic, Single, Plain Fries combo, lettuce bun no thanks. Want anything else?"
+        },
+        {
+          "role": "user",
+          "content": "You know what, scratch the Classic — swap it for a Hot Honey Burger same build (single, same fries, same lettuce bun choice)."
+        },
+        {
+          "role": "assistant",
+          "content": "Swapped: removed Classic and added Hot Honey Burger with the same selections."
+        }
+      ],
+      "intents_present": ["add_item", "replace_item"],
+      "intents_by_user_turn": [
+        {
+          "turn": 1,
+          "intents": ["add_item"]
+        },
+        {
+          "turn": 2,
+          "intents": ["replace_item"]
+        }
+      ],
+      "expected_end_order_state": {
+        "items": [
+          {
+            "name": "Hot Honey Burger",
+            "quantity": 1,
+            "modifier": "Single, Plain Fries, No Thanks"
+          }
+        ]
+      }
+    },
+    {
+      "id": "snw-007",
+      "title": "Remove an add-on item",
+      "conversation": [
+        {
+          "role": "user",
+          "content": "Double Hot Honey burger, no combo, and mozzarella sticks."
+        },
+        {
+          "role": "assistant",
+          "content": "Added both. Lettuce bun — lettuce wrap or no thanks?"
+        },
+        {
+          "role": "user",
+          "content": "No thanks."
+        },
+        {
+          "role": "assistant",
+          "content": "Got it."
+        },
+        {
+          "role": "user",
+          "content": "On second thought drop the mozzarella sticks, we're trying not to over-order."
+        },
+        {
+          "role": "assistant",
+          "content": "Removed Mozzarella Sticks. Your order is just the Double Hot Honey Burger with no combo."
+        }
+      ],
+      "intents_present": ["add_item", "remove_item"],
+      "intents_by_user_turn": [
+        {
+          "turn": 1,
+          "intents": ["add_item"]
+        },
+        {
+          "turn": 2,
+          "intents": ["add_item"]
+        },
+        {
+          "turn": 3,
+          "intents": ["remove_item"]
+        }
+      ],
+      "expected_end_order_state": {
+        "items": [
+          {
+            "name": "Hot Honey Burger",
+            "quantity": 1,
+            "modifier": "Double, No Thanks, No Thanks"
+          }
+        ]
+      }
+    },
+    {
+      "id": "snw-008",
+      "title": "Change quantity on wings",
+      "conversation": [
+        {
+          "role": "user",
+          "content": "Boneless wings, lemon pepper, 6 pieces please."
+        },
+        {
+          "role": "assistant",
+          "content": "6 boneless with Lemon Pepper Seasoning. Combo fries with that?"
+        },
+        {
+          "role": "user",
+          "content": "No thanks on combo."
+        },
+        {
+          "role": "assistant",
+          "content": "Sounds good."
+        },
+        {
+          "role": "user",
+          "content": "Wait we're hungrier — bump those wings to 12 pieces, same flavor."
+        },
+        {
+          "role": "assistant",
+          "content": "Updated to 12 boneless wings, Lemon Pepper Seasoning, still no combo."
+        }
+      ],
+      "intents_present": ["add_item", "change_item_number"],
+      "intents_by_user_turn": [
+        {
+          "turn": 1,
+          "intents": ["add_item"]
+        },
+        {
+          "turn": 2,
+          "intents": ["add_item"]
+        },
+        {
+          "turn": 3,
+          "intents": ["change_item_number"]
+        }
+      ],
+      "expected_end_order_state": {
+        "items": [
+          {
+            "name": "Boneless Wings",
+            "quantity": 12,
+            "modifier": "Lemon Pepper Seasoning, 12"
+          }
+        ]
+      }
+    },
+    {
+      "id": "snw-009",
+      "title": "Review then confirm order",
+      "conversation": [
+        {
+          "role": "user",
+          "content": "Chicken Shawarma - Smash Way, one, and a can coke."
+        },
+        {
+          "role": "assistant",
+          "content": "Added Chicken Shawarma - Smash Way and Can Coke. Want to review?"
+        },
+        {
+          "role": "user",
+          "content": "Yeah read it back."
+        },
+        {
+          "role": "assistant",
+          "content": "You have 1x Chicken Shawarma - Smash Way and 1x Can Coke."
+        },
+        {
+          "role": "user",
+          "content": "Perfect — that's exactly right, go ahead and place it."
+        },
+        {
+          "role": "assistant",
+          "content": "Confirmed. I'll send that through for pickup prep. Name for the order?"
+        }
+      ],
+      "intents_present": ["add_item", "confirm_order"],
+      "intents_by_user_turn": [
+        {
+          "turn": 1,
+          "intents": ["add_item"]
+        },
+        {
+          "turn": 2,
+          "intents": []
+        },
+        {
+          "turn": 3,
+          "intents": ["confirm_order"]
+        }
+      ],
+      "expected_end_order_state": {
+        "items": [
+          {
+            "name": "Chicken Shawarma - Smash Way",
+            "quantity": 1,
+            "modifier": null
+          },
+          {
+            "name": "Can Coke",
+            "quantity": 1,
+            "modifier": null
+          }
+        ]
+      },
+      "notes": "confirm_order does not clear items in this gold snapshot; cart stays as confirmed contents."
+    },
+    {
+      "id": "snw-010",
+      "title": "Chicken sub combo then modify modifier choice",
+      "conversation": [
+        {
+          "role": "user",
+          "content": "Chicken Sub (throwback to 2008), extra chicken yes, combo with lemon pepper fries."
+        },
+        {
+          "role": "assistant",
+          "content": "Chicken Sub with Extra Chicken and Lemon Pepper Fries combo. Optional apps or drinks?"
+        },
+        {
+          "role": "user",
+          "content": "Just the sub combo, thanks."
+        },
+        {
+          "role": "assistant",
+          "content": "Got it, nothing optional added."
+        },
+        {
+          "role": "user",
+          "content": "Sorry — change the fries to plain fries instead of lemon pepper."
+        },
+        {
+          "role": "assistant",
+          "content": "Updated combo fries to Plain Fries."
+        }
+      ],
+      "intents_present": ["add_item", "modify_item"],
+      "intents_by_user_turn": [
+        {
+          "turn": 1,
+          "intents": ["add_item"]
+        },
+        {
+          "turn": 2,
+          "intents": ["add_item"]
+        },
+        {
+          "turn": 3,
+          "intents": ["modify_item"]
+        }
+      ],
+      "expected_end_order_state": {
+        "items": [
+          {
+            "name": "Chicken Sub (throwback to 2008)",
+            "quantity": 1,
+            "modifier": "Extra Chicken, Plain Fries"
+          }
+        ]
+      }
+    },
+    {
+      "id": "snw-011",
+      "title": "Cancel entire order after building a cart",
+      "conversation": [
+        {
+          "role": "user",
+          "content": "Triple All American, nashville seasoning fries combo, lettuce bun no thanks."
+        },
+        {
+          "role": "assistant",
+          "content": "Triple All American with Nashville Seasoning Fries combo, no lettuce bun. Anything else?"
+        },
+        {
+          "role": "user",
+          "content": "Add bone-in breaded wings, 12 piece, buffalo."
+        },
+        {
+          "role": "assistant",
+          "content": "12 bone-in breaded wings Buffalo flavor added."
+        },
+        {
+          "role": "user",
+          "content": "Ugh we have to leave — cancel the whole order please."
+        },
+        {
+          "role": "assistant",
+          "content": "No problem, I've cleared your cart. Hope to catch you next time!"
+        }
+      ],
+      "intents_present": ["add_item", "cancel_order"],
+      "intents_by_user_turn": [
+        {
+          "turn": 1,
+          "intents": ["add_item"]
+        },
+        {
+          "turn": 2,
+          "intents": ["add_item"]
+        },
+        {
+          "turn": 3,
+          "intents": ["cancel_order"]
+        }
+      ],
+      "expected_end_order_state": {
+        "items": []
+      }
+    },
+    {
+      "id": "snw-012",
+      "title": "Off-topic chatter then back to food",
+      "conversation": [
+        {
+          "role": "user",
+          "content": "Hey! Lions game was wild last night lol"
+        },
+        {
+          "role": "assistant",
+          "content": "Haha fair — I'm here for food orders though. Want to grab anything from the menu?"
+        },
+        {
+          "role": "user",
+          "content": "Right sorry — 2 chicken sandos and fries, the meal with Nashville seasoning on the fries, spicy on the chicken."
+        },
+        {
+          "role": "assistant",
+          "content": "Two Chicken Sandos & Fries with Nashville on fries and Spicy heat level. Want add-ons?"
+        },
+        {
+          "role": "user",
+          "content": "Nope that's it."
+        },
+        {
+          "role": "assistant",
+          "content": "You're all set with that item."
+        }
+      ],
+      "intents_present": ["greeting", "outside_agent_scope", "add_item"],
+      "intents_by_user_turn": [
+        {
+          "turn": 1,
+          "intents": ["greeting", "outside_agent_scope"]
+        },
+        {
+          "turn": 2,
+          "intents": ["add_item"]
+        },
+        {
+          "turn": 3,
+          "intents": []
+        }
+      ],
+      "expected_end_order_state": {
+        "items": [
+          {
+            "name": "2 Chicken Sandos & Fries",
+            "quantity": 1,
+            "modifier": "Nashville Seasoning, Spicy"
+          }
+        ]
+      },
+      "notes": "Fixture item name is '2 Chicken Sandos & Fries' in tests/smash_n_wings_menu.json; Clover inventory may label differently — adjust gold if your loader canonicalizes another string."
+    },
+    {
+      "id": "snw-013",
+      "title": "Restaurant info only",
+      "conversation": [
+        {
+          "role": "user",
+          "content": "Are you guys open late tonight? And is everything halal?"
+        },
+        {
+          "role": "assistant",
+          "content": "We can share store hours and halal info from the restaurant profile. Want to place an order too?"
+        },
+        {
+          "role": "user",
+          "content": "Not yet, just checking — thanks!"
+        },
+        {
+          "role": "assistant",
+          "content": "Anytime. Ping us when you're ready."
+        }
+      ],
+      "intents_present": ["restaurant_question"],
+      "intents_by_user_turn": [
+        {
+          "turn": 1,
+          "intents": ["restaurant_question"]
+        },
+        {
+          "turn": 2,
+          "intents": ["restaurant_question"]
+        }
+      ],
+      "expected_end_order_state": {
+        "items": []
+      }
+    },
+    {
+      "id": "snw-014",
+      "title": "Pickup time question with food",
+      "conversation": [
+        {
+          "role": "user",
+          "content": "Can I get a hot dog and regular fries — and is 6:45 pickup realistic if I order now?"
+        },
+        {
+          "role": "assistant",
+          "content": "Added Hot Dog and Regular Fries. Pickup timing depends on the kitchen queue; I can note 6:45 as your goal if the store allows."
+        }
+      ],
+      "intents_present": ["add_item", "pickuptime_question"],
+      "intents_by_user_turn": [
+        {
+          "turn": 1,
+          "intents": ["add_item", "pickuptime_question"]
+        }
+      ],
+      "expected_end_order_state": {
+        "items": [
+          {
+            "name": "Hot Dog",
+            "quantity": 1,
+            "modifier": null
+          },
+          {
+            "name": "Regular Fries",
+            "quantity": 1,
+            "modifier": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "snw-015",
+      "title": "Human escalation",
+      "conversation": [
+        {
+          "role": "user",
+          "content": "I was charged twice last week and I'm not doing this over text with a bot — get me a real person."
+        },
+        {
+          "role": "assistant",
+          "content": "I'm really sorry that happened. I'll flag a teammate to reach out about billing. If you still want food, tell me what to add."
+        }
+      ],
+      "intents_present": ["escalation"],
+      "intents_by_user_turn": [
+        {
+          "turn": 1,
+          "intents": ["escalation"]
+        }
+      ],
+      "expected_end_order_state": {
+        "items": []
+      }
+    },
+    {
+      "id": "snw-016",
+      "title": "Busy family order: multiple intents in one thread",
+      "conversation": [
+        {
+          "role": "user",
+          "content": "Morning! Feeding teenagers — need bone-in breaded wings 18pc, garlic parm, no combo."
+        },
+        {
+          "role": "assistant",
+          "content": "18 bone-in breaded wings, Garlic Parm, no combo. Second flavor slot opens at 18pc — want a second flavor or keep it single-flavor?"
+        },
+        {
+          "role": "user",
+          "content": "Single flavor is fine. Also does the Hot Honey burger come really spicy or more sweet?"
+        },
+        {
+          "role": "assistant",
+          "content": "It's more sweet-heat than blow-your-head-off spicy, unless you add extra heat elsewhere."
+        },
+        {
+          "role": "user",
+          "content": "Good — add one single Hot Honey burger, no combo, no lettuce bun."
+        },
+        {
+          "role": "assistant",
+          "content": "Added the burger. Your cart has the wings and the Hot Honey Burger."
+        },
+        {
+          "role": "user",
+          "content": "Make the wings 24 pieces instead, same flavor setup if that's allowed."
+        },
+        {
+          "role": "assistant",
+          "content": "Updated wings to 24 pieces, Garlic Parm."
+        },
+        {
+          "role": "user",
+          "content": "Looks good — confirm it please."
+        },
+        {
+          "role": "assistant",
+          "content": "Confirmed for the kitchen: 24pc bone-in Garlic Parm + Hot Honey Burger Single."
+        }
+      ],
+      "intents_present": ["greeting", "add_item", "menu_question", "change_item_number", "confirm_order"],
+      "intents_by_user_turn": [
+        {
+          "turn": 1,
+          "intents": ["greeting", "add_item"]
+        },
+        {
+          "turn": 2,
+          "intents": ["menu_question"]
+        },
+        {
+          "turn": 3,
+          "intents": ["add_item"]
+        },
+        {
+          "turn": 4,
+          "intents": ["change_item_number"]
+        },
+        {
+          "turn": 5,
+          "intents": ["confirm_order"]
+        }
+      ],
+      "expected_end_order_state": {
+        "items": [
+          {
+            "name": "Bone-In Breaded Wings",
+            "quantity": 24,
+            "modifier": "Garlic Parm, 24"
+          },
+          {
+            "name": "Hot Honey Burger",
+            "quantity": 1,
+            "modifier": "Single, No Thanks, No Thanks"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -489,7 +489,11 @@ class ParsingAgent:
         model: str | None = None,
         prompts: ParsingAgentPrompts | None = None,
     ) -> None:
-        self.model = model or settings.PARSING_AGENT_GEMINI_MODEL
+        self.model = model or (
+            settings.PARSING_AGENT_OPENAI_MODEL
+            if settings.LLM_PROVIDER == "openai"
+            else settings.PARSING_AGENT_GEMINI_MODEL
+        )
         self.prompts = prompts or DEFAULT_PARSING_AGENT_PROMPTS
         print(
             "[ParsingAgent] init",
@@ -678,7 +682,11 @@ class ExecutionAgent:
         max_tool_calls: int | None = None,
         system_prompt: str | None = None,
     ) -> None:
-        self.model = model or settings.EXECUTION_AGENT_GEMINI_MODEL
+        self.model = model or (
+            settings.EXECUTION_AGENT_OPENAI_MODEL
+            if settings.LLM_PROVIDER == "openai"
+            else settings.EXECUTION_AGENT_GEMINI_MODEL
+        )
         self.max_tool_calls = (
             max_tool_calls
             if max_tool_calls is not None
