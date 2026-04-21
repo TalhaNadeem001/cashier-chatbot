@@ -34,6 +34,18 @@ _BURGER_PATTY_OPTIONS = [
     {"label": "Quadruple", "price": 16.99},
 ]
 
+# Minimum score gap between the top and second fuzzy match for the top match
+# to be accepted as a "dominant" winner below MODS_CONFIRMED_THRESHOLD. Picked
+# empirically: a gap of 12 keeps genuinely ambiguous cases (which cluster
+# within AMBIGUITY_GAP=6) safely on the AI fallback path while promoting
+# clearly-dominant matches (gap >= ~20 observed for "lettuce wrap" etc.).
+_DOMINANT_MATCH_GAP = 2 * AMBIGUITY_GAP
+
+# Score floor for the dominant-match shortcut. Low-confidence leaders (e.g.
+# "1 pattie" -> "Triple" at 60) must still go through the AI resolver even
+# when they beat the runner-up by a wide margin.
+_DOMINANT_MATCH_MIN_SCORE = 70
+
 
 async def validate_order_items(
     order_items: list[dict],
@@ -138,6 +150,22 @@ async def _resolve_allowed_modifier(
         close_matches = [match for match in top_matches if best_score - match[1] <= AMBIGUITY_GAP]
         if len(close_matches) == 1:
             return top_matches[0][0]
+
+    # Dominant-match fallback (ZAP-85): phrases like "lettuce wrap", "lettuce leaf",
+    # or "make it a lettuce bun" score 70-79 against "Lettuce Bun" (below
+    # MODS_CONFIRMED_THRESHOLD) yet dwarf the runner-up by a wide margin. When
+    # the top match clearly dominates the second candidate AND carries enough
+    # absolute confidence, treat it as confirmed locally instead of spending
+    # an AI round-trip. Low-confidence leaders (e.g. "1 pattie" -> Triple @60)
+    # stay on the AI path so the resolver can reject or re-interpret them.
+    if (
+        top_matches[0][1] >= _DOMINANT_MATCH_MIN_SCORE
+        and (
+            len(top_matches) < 2
+            or (top_matches[0][1] - top_matches[1][1]) >= _DOMINANT_MATCH_GAP
+        )
+    ):
+        return top_matches[0][0]
 
     try:
         resolution = await resolve_closest_modifier_match(
