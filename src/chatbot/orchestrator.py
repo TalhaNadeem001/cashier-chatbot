@@ -53,9 +53,10 @@ from src.chatbot.tools import (
 )
 from datetime import datetime, timezone
 
-from src.cache import cache_list_append
+from src.cache import cache_get, cache_list_append
 from src.chatbot.utils import (
     _session_messages_redis_key,
+    _session_status_redis_key,
     extract_questions_from_reply,
     getClarificationAndIntent,
     saveClarificationAndIntent,
@@ -332,9 +333,12 @@ class Orchestrator:
         execution_context = await self._build_execution_context(request)
         context = await self._build_parsing_context(request, clover_creds=execution_context.clover_creds)
         parsed_input = await self.parsing_agent.run(context=context)
+        session_status = await cache_get(_session_status_redis_key(request.session_id))
+        is_order_confirmed = session_status == "confirmed"
         prepared_context = self.prepare_agent_context(
             parsed_input=parsed_input,
             execution_context=execution_context,
+            is_order_confirmed=is_order_confirmed,
         )
         execution_result = await self.execution_agent.run(
             parsed_requests=parsed_input.parsed_requests,
@@ -451,10 +455,12 @@ class Orchestrator:
         *,
         parsed_input: ParsingAgentResult,
         execution_context: ExecutionAgentContext,
+        is_order_confirmed: bool = False,
     ) -> PreparedExecutionContext:
         return self.prepare_agent_context(
             parsed_input=parsed_input,
             execution_context=execution_context,
+            is_order_confirmed=is_order_confirmed,
         )
 
     def prepare_agent_context(
@@ -462,6 +468,7 @@ class Orchestrator:
         *,
         parsed_input: ParsingAgentResult,
         execution_context: ExecutionAgentContext,
+        is_order_confirmed: bool = False,
     ) -> PreparedExecutionContext:
         return PreparedExecutionContext(
             session_id=execution_context.session_id,
@@ -471,6 +478,7 @@ class Orchestrator:
             latest_k_messages_by_customer=parsed_input.context.latest_k_messages_by_customer,
             clover_creds=execution_context.clover_creds,
             clover_error=execution_context.clover_error,
+            is_order_confirmed=is_order_confirmed,
         )
 
 

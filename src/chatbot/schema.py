@@ -223,6 +223,7 @@ class PreparedExecutionContext(BaseModel):
     latest_k_messages_by_customer: list[str]
     clover_creds: dict[str, Any] | None = None
     clover_error: str | None = None
+    is_order_confirmed: bool = False
 
 
 class ExecutionAgentToolDescriptor(BaseModel):

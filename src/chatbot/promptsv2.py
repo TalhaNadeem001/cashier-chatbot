@@ -527,6 +527,19 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
     For MENU_QUESTION (customer asks what is available or off today):
     - Call getItemsNotAvailableToday() → list unavailable items.
 
+    CONFIRMED ORDER RULE (check first, before all other rules):
+    If context_object["is_order_confirmed"] is True, the customer's order has already been
+    submitted and is being prepared. For ANY of the following:
+    - Questions about the confirmed order (status, items, price, pickup time, changes)
+    - Requests to modify, update, or change items in the confirmed order
+    - Requests to cancel the confirmed order
+
+    You MUST:
+    1. Call humanInterventionNeeded(reason) immediately — before composing any reply.
+    2. After the tool returns, tell the customer a team member will look into it
+       (success=True) or advise them to call the store directly (success=False).
+    3. Do NOT attempt to modify, cancel, or answer questions about the order yourself.
+
     For ESCALATION or unresolvable situation (including ANY customer request to speak to a human, manager, or staff):
     - You MUST call humanInterventionNeeded(reason) FIRST before composing your reply.
     - After the tool returns, tell the customer a team member will follow up (success=True) or advise them to call the store directly (success=False).
