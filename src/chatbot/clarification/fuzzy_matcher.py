@@ -29,26 +29,42 @@ class FuzzyMatcher:
     async def match_item(
         self,
         item: OrderItem,
-        menu_names: list[str],
+        menu_aliases: list[tuple[str, str]],
         message_history: list[Message] | None = None,
         latest_message: str = "",
     ) -> _MatchResult:
-        if not menu_names:
+        if not menu_aliases:
             return _MatchResult(item=item, status="not_found")
 
+        canonical_names: list[str] = list(dict.fromkeys(c for _, c in menu_aliases))
+
         # Exact case-insensitive match always wins — skip fuzzy ambiguity checks
-        for name in menu_names:
+        for name in canonical_names:
             if name.lower() == item.name.lower():
                 return _MatchResult(item=item, status="confirmed", canonical_name=name)
-        
+
         print(item.name)
 
-        top_matches = process.extract(
+        alias_texts = [a for a, _ in menu_aliases]
+        raw_matches = process.extract(
             item.name,
-            menu_names,
+            alias_texts,
             scorer=_combined_scorer,
-            limit=5,
-        )  # [(name, score, index), ...]
+            limit=len(alias_texts),
+        )  # [(alias_text, score, index), ...]
+
+        # Collapse to best score per canonical name (a name-hit and a description-hit
+        # both map to the same item; keep whichever scored higher).
+        best_by_canonical: dict[str, float] = {}
+        for _, score, idx in raw_matches:
+            canonical = menu_aliases[idx][1]
+            prev = best_by_canonical.get(canonical)
+            if prev is None or score > prev:
+                best_by_canonical[canonical] = score
+
+        top_matches: list[tuple[str, float]] = sorted(
+            best_by_canonical.items(), key=lambda kv: kv[1], reverse=True
+        )[:5]
         print(f"top_matches: {top_matches}")
 
         if not top_matches or top_matches[0][1] < LOW_MENU_MATCH_THRESHOLD:
