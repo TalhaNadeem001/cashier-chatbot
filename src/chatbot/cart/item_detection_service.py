@@ -34,6 +34,67 @@ _BURGER_PATTY_OPTIONS = [
     {"label": "Quadruple", "price": 16.99},
 ]
 
+# Phrases that should resolve to the canonical patty option label. Keeps
+# user-facing variants ("double patty", "2 patties", "two patty") from being
+# forwarded to the LLM re-canonicalization step where they can be mangled
+# into typos (e.g. "Dsouble Patty" seen in ZAP-88).
+_PATTY_PHRASE_TO_LABEL: dict[str, str] = {
+    "1 patty": "Single",
+    "1 pattie": "Single",
+    "1 patties": "Single",
+    "one patty": "Single",
+    "one pattie": "Single",
+    "one patties": "Single",
+    "single patty": "Single",
+    "single pattie": "Single",
+    "2 patty": "Double",
+    "2 patties": "Double",
+    "2 pattie": "Double",
+    "two patty": "Double",
+    "two patties": "Double",
+    "two pattie": "Double",
+    "double patty": "Double",
+    "double patties": "Double",
+    "double pattie": "Double",
+    "3 patty": "Triple",
+    "3 patties": "Triple",
+    "3 pattie": "Triple",
+    "three patty": "Triple",
+    "three patties": "Triple",
+    "three pattie": "Triple",
+    "triple patty": "Triple",
+    "triple patties": "Triple",
+    "triple pattie": "Triple",
+    "4 patty": "Quadruple",
+    "4 patties": "Quadruple",
+    "4 pattie": "Quadruple",
+    "four patty": "Quadruple",
+    "four patties": "Quadruple",
+    "four pattie": "Quadruple",
+    "quad patty": "Quadruple",
+    "quadruple patty": "Quadruple",
+    "quadruple patties": "Quadruple",
+    "quadruple pattie": "Quadruple",
+}
+
+
+def _normalize_patty_phrase(mod_text: str, allowed_names: list[str]) -> str | None:
+    """Return the canonical patty option label for common phrasings, or None.
+
+    Only applies when the burger's modifier option list actually offers the
+    patty option, so non-burger items are untouched.
+    """
+    key = " ".join(mod_text.lower().strip().split())
+    if not key:
+        return None
+    label = _PATTY_PHRASE_TO_LABEL.get(key)
+    if label is None:
+        return None
+    allowed_lower = {name.lower() for name in allowed_names}
+    if label.lower() not in allowed_lower:
+        return None
+    return label
+
 
 async def validate_order_items(
     order_items: list[dict],
@@ -184,6 +245,13 @@ async def validate_mod_selections(
         print(f"mod_text: {mod_text}")
         mod_text = mod_text.strip()
         if not mod_text:
+            continue
+        # ZAP-88: canonicalize patty phrasings up-front so "double patty" does
+        # not reach the LLM re-canonicalization step (where it has been
+        # observed mutating into "Dsouble Patty").
+        patty_canonical = _normalize_patty_phrase(mod_text, allowed_names)
+        if patty_canonical is not None:
+            valid_mods.append(patty_canonical)
             continue
         canonical_modifier = await _resolve_allowed_modifier(
             item_name=item_name,
