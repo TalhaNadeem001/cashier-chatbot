@@ -24,7 +24,7 @@ class Config(BaseSettings):
     CLOVER_APP_ID: str | None = None
     RESTAURANT_ID: str
     GCP_PROJECT_ID: str
-    GCP_LOCATION: str = "us-central1"
+    GCP_LOCATION: str = "global"
     ESCALATION_URL: str | None = None
 
 

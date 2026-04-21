@@ -65,6 +65,8 @@ from src.config import settings
 
 _GEMINI_503_MAX_ATTEMPTS = 10
 _GEMINI_503_BACKOFF_SEC = 2.0
+_GEMINI_429_MAX_ATTEMPTS = 6
+_GEMINI_429_BACKOFF_SEC = 5.0
 
 _T = TypeVar("_T")
 
@@ -89,33 +91,63 @@ def _is_gemini_http_503(exc: AIServiceError) -> bool:
     return False
 
 
-async def _gemini_service_call_with_503_retries(
+def _is_gemini_http_429(exc: AIServiceError) -> bool:
+    """True when ``exc`` wraps a Gemini/API HTTP 429 (rate limit / resource exhausted)."""
+    err: BaseException | None = exc
+    seen: set[int] = set()
+    while err is not None and id(err) not in seen:
+        seen.add(id(err))
+        status = getattr(err, "code", None)
+        if status is None:
+            status = getattr(err, "status_code", None)
+        if status == 429:
+            return True
+        response = getattr(err, "response", None)
+        if response is not None:
+            resp_status = getattr(response, "status_code", None)
+            if resp_status == 429:
+                return True
+        err = err.__cause__
+    return False
+
+
+async def _gemini_service_call_with_retries(
     *,
     log_label: str,
     extra_fields: str,
     call: Callable[[], Awaitable[_T]],
 ) -> _T:
-    for attempt in range(1, _GEMINI_503_MAX_ATTEMPTS + 1):
+    attempt = 0
+    while True:
+        attempt += 1
         try:
             return await call()
         except AIServiceError as exc:
             is_503 = _is_gemini_http_503(exc)
-            will_retry = is_503 and attempt < _GEMINI_503_MAX_ATTEMPTS
+            is_429 = _is_gemini_http_429(exc)
             print(
                 f"{log_label} Gemini call failed",
-                f"trial={attempt}/{_GEMINI_503_MAX_ATTEMPTS}",
+                f"trial={attempt}",
                 f"http_503={is_503}",
-                f"will_retry={will_retry}",
+                f"http_429={is_429}",
                 extra_fields,
                 f"error={exc!r}",
             )
-            if will_retry:
+            if is_503 and attempt < _GEMINI_503_MAX_ATTEMPTS:
                 print(
-                    f"{log_label} backing off before retry",
+                    f"{log_label} backing off before retry (503)",
                     f"sleep_s={_GEMINI_503_BACKOFF_SEC}",
                     f"next_trial={attempt + 1}",
                 )
                 await asyncio.sleep(_GEMINI_503_BACKOFF_SEC)
+                continue
+            elif is_429 and attempt < _GEMINI_429_MAX_ATTEMPTS:
+                print(
+                    f"{log_label} backing off before retry (429)",
+                    f"sleep_s={_GEMINI_429_BACKOFF_SEC}",
+                    f"next_trial={attempt + 1}",
+                )
+                await asyncio.sleep(_GEMINI_429_BACKOFF_SEC)
                 continue
             raise
 
@@ -572,7 +604,7 @@ class ParsingAgent:
                 strict_retry=strict_retry,
             )
 
-        return await _gemini_service_call_with_503_retries(
+        return await _gemini_service_call_with_retries(
             log_label="[ParsingAgent]",
             extra_fields=f"strict_retry={strict_retry}",
             call=_call,
@@ -777,7 +809,7 @@ class ExecutionAgent:
                 model=self.model,
             )
 
-        agent_reply = await _gemini_service_call_with_503_retries(
+        agent_reply = await _gemini_service_call_with_retries(
             log_label="[ExecutionAgent]",
             extra_fields=f"model={self.model!r}",
             call=_call_llm,
