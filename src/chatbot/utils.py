@@ -4,6 +4,7 @@ from src.chatbot.constants import _MENU_CACHE_VERSION
 from src.chatbot.promptsv2 import _SUMMARIZE_HISTORY_SYSTEM_PROMPT
 from src.cache import cache_get, cache_set
 import json
+import re
 import time
 from src.menu.loader import build_normalized_items
 
@@ -195,6 +196,27 @@ def _collect_modifier_ids_from_item(item_row: dict) -> set[str]:
 
     return ids
 
+# Names matching this pattern are combo items (e.g. "Sandos & Fries") — skip entirely
+_COMBO_NAME_RE = re.compile(r'&')
+
+def _normalize_item_name(name: str) -> str | None:
+    """Return a cleaned name for menu indexing, or None to skip the item.
+
+    Rules applied in order:
+    - Skip combo names that contain '&' (e.g. "Sandos & Fries", "Tenders & Fries").
+    - Remove standalone numeric tokens (e.g. "5", "10").
+    - Remove the standalone word "pc" (case-insensitive).
+    - Collapse extra whitespace.
+    Returns None when the result is empty or the item should be excluded.
+    """
+    if _COMBO_NAME_RE.search(name):
+        return None
+    cleaned = re.sub(r'\b\d+\b', '', name)
+    cleaned = re.sub(r'\bpc\b', '', cleaned, flags=re.IGNORECASE)
+    cleaned = ' '.join(cleaned.split())
+    return cleaned if cleaned else None
+
+
 async def _normalize_menu(raw: dict) -> dict:
     """Normalize raw Clover menu data into multiple fast-access indexes.
 
@@ -215,10 +237,15 @@ async def _normalize_menu(raw: dict) -> dict:
         if item.get("deleted"):
             continue
 
+        normalized_name = _normalize_item_name(item.get("name", ""))
+        if normalized_name is None:
+            continue
+
+        item["name"] = normalized_name
         item_id = item["id"]
         by_id[item_id] = item
 
-        by_name.setdefault(item["name"].lower(), []).append(item)
+        by_name.setdefault(normalized_name.lower(), []).append(item)
 
         category_name = str(item.get("category_name", "")).strip()
         if category_name:

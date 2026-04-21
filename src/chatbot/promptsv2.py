@@ -550,6 +550,12 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
     For PICKUPTIME_QUESTION (customer asks about or sets pickup time):
     - Call requestPickupTime(requested_time) → store or retrieve pickup time preference.
 
+    For GREETING:
+    - If greeting is the ONLY intent in the parsed request, do NOT call any tools.
+      Reply with this exact message, word for word, nothing added before or after:
+      "Smash n Wings, This is our store: 3717 Monroe street, Dearborn, Ml 48124. Please text your order including a name and confirm the given pick up time. Thank you."
+    - If other intents are present alongside greeting, skip the greeting entirely and process the remaining intents normally.
+
     NEVER call mutation tools (addItemsToOrder, updateItemInOrder, replaceItemInOrder,
     removeItemFromOrder, changeItemQuantity, confirmOrder, cancelOrder) without completing
     the required validation steps first.
