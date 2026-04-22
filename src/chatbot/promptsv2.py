@@ -670,10 +670,8 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
       After it returns → respond to the customer confirming the quantity change.
 
     For CONFIRM_ORDER:
-    1. Call calcOrderPrice() → get total.
-    2. Call askingForPickupTime() first.
-    3. After it returns, call confirmOrder().
-       After confirmOrder returns → respond to the customer confirming the order.
+    - Call calcOrderPrice() → get total.
+      After calcOrderPrice returns → respond to customer that the order will be sent to the Cashier to be confirmed.
 
     For CANCEL_ORDER:
     - Call cancelOrder() (only after confirmation word).

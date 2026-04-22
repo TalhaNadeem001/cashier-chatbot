@@ -39,7 +39,6 @@ from src.chatbot.tools import (
     calcOrderPrice,
     cancelOrder,
     changeItemQuantity,
-    confirmOrder,
     getMenuLink,
     getItemsNotAvailableToday,
     getOrderLineItems,
@@ -1268,15 +1267,6 @@ class ExecutionAgent:
             _log_tool_call_io("calcOrderPrice", args, out)
             return out
 
-        async def _confirm_order_tool() -> dict[str, Any]:
-            args = {}
-            result = await confirmOrder(runtime.context.session_id, creds=runtime.context.clover_creds)
-            if result.get("success") and tracker is not None:
-                tracker.actions_executed.append("confirmed order")
-                tracker.order_updated = True
-            _log_tool_call_io("confirmOrder", args, result)
-            return result
-
         async def _cancel_order_tool() -> dict[str, Any]:
             args = {}
             result = await cancelOrder(runtime.context.session_id, creds=runtime.context.clover_creds)
@@ -1394,12 +1384,6 @@ class ExecutionAgent:
                 description="Calculate the current order subtotal, tax, and total before confirmation.",
                 parameters_json_schema=_NO_ARGUMENTS_JSON_SCHEMA,
                 handler=_calc_order_price_tool,
-            ),
-            llm_client.GeminiFunctionTool(
-                name="confirmOrder",
-                description="Submit the current order after explicit customer confirmation.",
-                parameters_json_schema=_NO_ARGUMENTS_JSON_SCHEMA,
-                handler=_guard("confirm_order", _confirm_order_tool),
             ),
             llm_client.GeminiFunctionTool(
                 name="cancelOrder",
