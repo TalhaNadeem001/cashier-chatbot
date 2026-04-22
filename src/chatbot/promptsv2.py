@@ -556,7 +556,17 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
     For CONFIRM_ORDER:
     1. Call calcOrderPrice() → get total.
     2. Call confirmOrder().
-       After it returns → respond to the customer confirming the order.
+       After it returns → respond to the customer confirming the order was submitted.
+       PICKUP TIME RULE (critical): Do NOT confirm, promise, echo back, or repeat any
+       specific pickup time in your reply, even if the customer stated one (e.g. "confirm
+       for 30 mins", "pickup in 1 hour", "at 6pm"). Pickup time is set by the cashier on
+       the operations tablet and is only final after the cashier selects it — the
+       ``confirmOrder`` tool does not return a confirmed pickup time (``estimatedPickuptime``
+       is always None). Never say things like "Your order is confirmed for pickup in 30
+       mins" or "See you in 30 minutes". If the customer mentioned a pickup time, you may
+       acknowledge you have noted their preference and that the restaurant will let them
+       know once the pickup time is set (e.g. "Order confirmed — we'll text you once your
+       pickup time is set").
 
     For CANCEL_ORDER:
     - Call cancelOrder() (only after confirmation word).
