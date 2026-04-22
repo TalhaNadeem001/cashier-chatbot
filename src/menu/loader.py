@@ -315,6 +315,24 @@ async def get_menu_item_names() -> list[str]:
     return [item["name"] for item in _items_by_name.values()]
 
 
+async def get_menu_item_name_aliases() -> list[tuple[str, str]]:
+    """Return (alias_text, canonical_name) pairs for fuzzy item matching.
+
+    Emits the name itself plus the description as an alternate alias mapping back
+    to the same canonical name, so queries like "chicken strips" can match items
+    whose display name uses a synonym ("2 Chicken Tenders & Fries") when the
+    description contains the customer's wording.
+    """
+    aliases: list[tuple[str, str]] = []
+    for item in _items_by_name.values():
+        name = item["name"]
+        aliases.append((name, name))
+        description = item.get("description")
+        if description and str(description).strip():
+            aliases.append((str(description).strip(), name))
+    return aliases
+
+
 async def get_menu_item_names_set() -> set[str]:
     """Return the set of all menu item display names for O(1) membership tests.
 

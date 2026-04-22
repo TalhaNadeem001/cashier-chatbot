@@ -15,7 +15,7 @@ from src.chatbot.internal_schemas import MenuMatchIssue, ModifierValidationIssue
 from src.chatbot.schema import BotInteractionRequest, ChatbotResponse, OrderItem
 from src.menu.loader import (
     get_item_id,
-    get_menu_item_names,
+    get_menu_item_name_aliases,
     get_order_item_line_total,
     get_order_item_unit_price,
     resolve_mod_ids_from_string,
@@ -346,14 +346,14 @@ class OrderStateHandler:
             return []
 
         order_items = [OrderItem(**item) for item in items]
-        menu_names = await get_menu_item_names()
+        menu_aliases = await get_menu_item_name_aliases()
         print("[order] matching_item_count:", len(order_items))
         return list(
             await asyncio.gather(
                 *[
                     self._matcher.match_item(
                         item,
-                        menu_names,
+                        menu_aliases,
                         message_history=request.message_history,
                         latest_message=request.latest_message,
                     )
