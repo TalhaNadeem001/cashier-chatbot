@@ -84,6 +84,15 @@ DEFAULT_PARSING_AGENT_PROMPTS = ParsingAgentPrompts(
         "Pickup", "to go", etc. are context, not separate intents.
         QUANTITY DEFAULT = 1
         Use 0 only when not applicable (questions, confirmations, etc.).
+        PORTION-SIZE PREFIX IS PART OF THE ITEM NAME
+        When a number is immediately followed by "pc", "pcs", "piece", or "pieces"
+        (case-insensitive), the entire "N pc/piece" phrase is part of the item name —
+        NOT the order quantity. The order quantity defaults to 1 unless a separate
+        explicit count precedes the item family name.
+        Examples:
+          "12 pc boneless wings"         → name="12 pc boneless wings", quantity=1
+          "2 orders of 12 pc wings"      → name="12 pc wings", quantity=2
+          "12 boneless wings"            → name="boneless wings", quantity=12  (no "pc" → quantity)
         WHEN TO USE LOW CONFIDENCE
         - Ambiguous intent
         - Unclear item
@@ -314,6 +323,34 @@ DEFAULT_PARSING_AGENT_PROMPTS = ParsingAgentPrompts(
             "Request_details": "Yes."
           }
         ]
+        --- Example 10 ---
+        Transcript:
+        C: 12 pc boneless wings please
+        {
+          "Data": [
+            {
+              "Intent": "add_item",
+              "Confidence_level": "high",
+              "Request_items": {"name": "12 pc boneless wings", "quantity": 1, "details": ""},
+              "Request_details": "12 pc boneless wings please"
+            }
+          ],
+          "ModifiedEntries": []
+        }
+        --- Example 11 ---
+        Transcript:
+        C: 2 orders of 12 pc boneless wings
+        {
+          "Data": [
+            {
+              "Intent": "add_item",
+              "Confidence_level": "high",
+              "Request_items": {"name": "12 pc boneless wings", "quantity": 2, "details": ""},
+              "Request_details": "2 orders of 12 pc boneless wings"
+            }
+          ],
+          "ModifiedEntries": []
+        }
         --- Example 7 ---
         unfulfilled_queue: [
           {
@@ -560,6 +597,19 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
     For ADD_ITEM:
     1. Call validateRequestedItem(itemName, details). Then check the result:
        - matchConfidence "none"          ▶ STOP → tell customer item not found
+       - matchConfidence "size_variant"  ▶ FIRST check whether the customer's original item name
+         already contains a number that matches one of the size_options entries (e.g. customer
+         said "30 piece boneless wings" and size_options contains "30 Pc"). Compare the leading
+         number in each size_options entry against any number present in the customer's phrasing.
+         If exactly one size_options entry matches, treat it as the confirmed size — re-call
+         validateRequestedItem immediately with the full reconstructed name
+         (size_options entry + " " + size_family_base) as itemName. Do NOT ask for clarification.
+         If no entry matches (customer gave no number, or the number is ambiguous), STOP → list
+         ALL entries from size_options and ask which size the customer wants for size_family_base.
+         (e.g. "What size Boneless Wings would you like — 6 Pc, 12 Pc, 18 Pc, 24 Pc, or 30 Pc?")
+         When they answer, match their reply to the closest entry in size_options (use that exact
+         label, not the customer's raw wording) and re-call validateRequestedItem with the
+         full reconstructed name (size_options entry + " " + size_family_base) as itemName.
        - matchConfidence "close"         ▶ STOP → ask customer to confirm which item they meant
        - available == False              ▶ STOP → tell customer item is unavailable
        - invalid non-empty (modifier was customer-requested but unresolved)

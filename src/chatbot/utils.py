@@ -227,8 +227,6 @@ def _collect_modifier_ids_from_item(item_row: dict) -> set[str]:
 
     return ids
 
-# Names matching this pattern are combo items (e.g. "Sandos & Fries") — skip entirely
-_COMBO_NAME_RE = re.compile(r'&')
 
 def _merge_numeric_name_variants(norm_name: str, items: list[dict]) -> list[dict]:
     """Collapse numeric variants into one item with a synthetic 'Quantity' modifier group.
@@ -274,25 +272,25 @@ def _merge_numeric_name_variants(norm_name: str, items: list[dict]) -> list[dict
     return [base]
 
 
-def _normalize_item_name(name: str) -> str | None:
-    """Return a cleaned name for menu indexing, or None to skip the item.
-
-    Rules applied in order:
-    - Skip combo names that contain '&' (e.g. "Sandos & Fries", "Tenders & Fries").
-    - Skip items whose raw name is exactly "wings" (case-insensitive) — Clover placeholder with price 0.
-    - Remove standalone numeric tokens (e.g. "5", "10").
-    - Remove the standalone word "pc" (case-insensitive).
-    - Collapse extra whitespace.
-    Returns None when the result is empty or the item should be excluded.
-    """
-    if _COMBO_NAME_RE.search(name):
-        return None
-    if name.strip().lower() == "wings":
-        return None
-    cleaned = re.sub(r'\b\d+\b', '', name)
-    cleaned = re.sub(r'\bpc\b', '', cleaned, flags=re.IGNORECASE)
-    cleaned = ' '.join(cleaned.split())
-    return cleaned if cleaned else None
+# def _normalize_item_name(name: str) -> str | None:
+#     """Return a cleaned name for menu indexing, or None to skip the item.
+#
+#     Rules applied in order:
+#     - Skip combo names that contain '&' (e.g. "Sandos & Fries", "Tenders & Fries").
+#     - Skip items whose raw name is exactly "wings" (case-insensitive) — Clover placeholder with price 0.
+#     - Remove standalone numeric tokens (e.g. "5", "10").
+#     - Remove the standalone word "pc" (case-insensitive).
+#     - Collapse extra whitespace.
+#     Returns None when the result is empty or the item should be excluded.
+#     """
+#     if _COMBO_NAME_RE.search(name):
+#         return None
+#     if name.strip().lower() == "wings":
+#         return None
+#     cleaned = re.sub(r'\b\d+\b', '', name)
+#     cleaned = re.sub(r'\bpc\b', '', cleaned, flags=re.IGNORECASE)
+#     cleaned = ' '.join(cleaned.split())
+#     return cleaned if cleaned else None
 
 
 async def _normalize_menu(raw: dict) -> dict:
@@ -315,16 +313,14 @@ async def _normalize_menu(raw: dict) -> dict:
         if item.get("deleted"):
             continue
 
-        normalized_name = _normalize_item_name(item.get("name", ""))
-        if normalized_name is None:
+        raw_name = item.get("name", "").strip()
+        if not raw_name:
             continue
 
-        item["_original_name"] = item.get("name", "")
-        item["name"] = normalized_name
         item_id = item["id"]
         by_id[item_id] = item
 
-        by_name.setdefault(normalized_name.lower(), []).append(item)
+        by_name.setdefault(raw_name.lower(), []).append(item)
 
         category_name = str(item.get("category_name", "")).strip()
         if category_name:

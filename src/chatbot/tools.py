@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import datetime, timezone
 
 import httpx
@@ -213,6 +214,51 @@ async def findClosestMenuItems(
         )
         return _no_match
 
+_SODA_ALIASES: frozenset[str] = frozenset({
+    # Coca-Cola family
+    "coke", "coca cola", "coca-cola", "coke classic",
+    "diet coke", "coke zero", "coke zero sugar",
+    "cherry coke", "cherry coca cola",
+    "vanilla coke", "vanilla coca cola",
+    "mexican coke", "mexico coke", "glass bottle coke",
+    "coke with lemon", "coke with lime",
+    # Pepsi family
+    "pepsi", "pepsi cola", "diet pepsi",
+    "pepsi zero", "pepsi max", "pepsi zero sugar",
+    "wild cherry pepsi",
+    # Sprite / 7UP / lemon-lime
+    "sprite", "sprite zero", "sprite zero sugar",
+    "7up", "7 up", "seven up", "diet 7up", "diet 7 up",
+    "sierra mist",
+    # Dr Pepper
+    "dr pepper", "dr. pepper", "doctor pepper",
+    "diet dr pepper", "dr pepper zero",
+    # Root beer
+    "root beer", "a&w", "a&w root beer", "a and w", "a and w root beer",
+    "mug root beer", "barqs", "barq's", "barqs root beer", "barq's root beer",
+    "diet root beer",
+    # Mountain Dew
+    "mountain dew", "mtn dew", "mtn. dew", "mt dew", "dew",
+    "diet mountain dew", "diet dew",
+    # Fanta / Crush / orange soda
+    "fanta", "fanta orange", "fanta grape", "fanta strawberry", "fanta pineapple",
+    "orange soda", "crush", "orange crush", "grape crush",
+    "grape soda", "strawberry soda",
+    # Ginger ale
+    "ginger ale", "canada dry", "schweppes ginger ale",
+    "diet ginger ale",
+    # Other common sodas
+    "fresca", "mello yello", "big red", "sunkist", "squirt",
+    "jarritos", "jarritos tamarind", "jarritos lime", "jarritos mandarin",
+    "rc cola", "rc", "cheerwine",
+    # Generic terms
+    "soda", "pop", "soft drink", "cola", "cold drink",
+    "fountain drink", "carbonated drink", "fizzy drink",
+})
+
+_SODA_CANONICAL = "can of pop"
+
+
 def _find_closest_menu_items_from_menu(
     *,
     item_name: str,
@@ -226,6 +272,22 @@ def _find_closest_menu_items_from_menu(
         "[findClosestMenuItems] menu loaded "
         f"distinct_names={len(items_name_set)} by_id_keys={len(menu_items.get('by_id', {}))}"
     )
+
+    # Soda alias pre-processing: if the customer named a soda variant and the menu
+    # has no exact match for it but does have the canonical "can of pop" item,
+    # rewrite item_name so fuzzy matching resolves correctly.
+    normalized_input = item_name.lower().strip()
+    can_of_pop_in_menu = _SODA_CANONICAL in items_by_name
+    if (
+        normalized_input in _SODA_ALIASES
+        and _get_local_item(item_name, items_by_name) is None
+        and can_of_pop_in_menu
+    ):
+        print(
+            f"[findClosestMenuItems] soda alias matched "
+            f"original={item_name!r} → rewriting to {_SODA_CANONICAL!r}"
+        )
+        item_name = _SODA_CANONICAL
 
     exact_match = _get_local_item(item_name, items_by_name)
     top_matches = process.extract(
@@ -280,6 +342,38 @@ def _find_closest_menu_items_from_menu(
                 "candidates": candidates,
                 "match_confidence": "exact",
             }
+
+    # Size-family detection: if 2+ top candidates share the same base name after
+    # stripping a leading "N Pc/pc/piece/pieces" prefix, return size_variant so the
+    # agent asks which size rather than asking "did you mean X?".
+    _SIZE_PREFIX_RE = re.compile(r'^\d+\s*(?:pc|pcs|piece|pieces)\s+', re.IGNORECASE)
+    stripped_names = {_SIZE_PREFIX_RE.sub('', c.get('name', '')).strip().lower(): c for c in candidates}
+    base_groups: dict[str, list[dict]] = {}
+    for c in candidates:
+        base = _SIZE_PREFIX_RE.sub('', c.get('name', '')).strip().lower()
+        base_groups.setdefault(base, []).append(c)
+    size_family_base = next((base for base, members in base_groups.items() if len(members) >= 2), None)
+    if size_family_base is not None:
+        family_members = base_groups[size_family_base]
+        size_options = []
+        for c in family_members:
+            full = c.get('name', '')
+            label = _SIZE_PREFIX_RE.match(full)
+            if label:
+                size_options.append(label.group(0).strip())
+        display_base = family_members[0].get('name', '')
+        display_base = _SIZE_PREFIX_RE.sub('', display_base).strip()
+        print(
+            "[findClosestMenuItems] return size_variant "
+            f"base={display_base!r} options={size_options!r}"
+        )
+        return {
+            "exact_match": None,
+            "candidates": family_members,
+            "match_confidence": "size_variant",
+            "size_family_base": display_base,
+            "size_options": size_options,
+        }
 
     print(
         "[findClosestMenuItems] return close "
@@ -1113,6 +1207,18 @@ async def validateRequestedItem(
             Ambiguous match. Show ``candidates[0]`` (and optionally
             ``candidates[1]``) and ask "Did you mean X?" before adding.
             All downstream fields are ``None``.
+
+        matchConfidence == "size_variant"
+            The customer named a size family without specifying a size (e.g.
+            "boneless wings" when the menu has "6 Pc", "12 Pc", etc.).
+            Extra fields populated: ``size_family_base`` (str) and
+            ``size_options`` (list[str]) — the label for each size variant.
+            Do NOT call any mutation tools. List ALL size_options and ask the
+            customer which size they want. When they answer, match their reply
+            to the closest entry in size_options and re-call
+            validateRequestedItem with the full reconstructed name
+            (e.g. ``"12 Pc Boneless Wings"``) as itemName.
+            All downstream fields (itemId, available, valid, …) are ``None``.
 
         matchConfidence == "exact" and available == False
             Item exists but cannot be ordered. Tell the customer it is
