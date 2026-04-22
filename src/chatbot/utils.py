@@ -37,6 +37,33 @@ def _session_clarification_and_intent_redis_key(session_id: str) -> str:
     return f"clarification_and_intent:{session_id}"
 
 
+def _session_intent_queue_redis_key(session_id: str) -> str:
+    return f"intent_queue:{session_id}"
+
+
+def _session_ordering_stage_redis_key(session_id: str) -> str:
+    return f"ordering_stage:{session_id}"
+
+
+async def get_ordering_stage(session_id: str) -> str:
+    """Return the current ordering stage for a session.
+
+    Possible values: 'ordering' (default), 'awaiting_anything_else',
+    'awaiting_order_confirm'.
+    """
+    key = _session_ordering_stage_redis_key(session_id)
+    raw = await cache_get(key)
+    return raw or "ordering"
+
+
+async def set_ordering_stage(session_id: str, stage: str) -> None:
+    """Persist the ordering stage for a session."""
+    from src.chatbot.constants import _SESSION_CLARIFICATION_AND_INTENT_TTL_SECONDS
+    key = _session_ordering_stage_redis_key(session_id)
+    await cache_set(key, stage, ttl=_SESSION_CLARIFICATION_AND_INTENT_TTL_SECONDS)
+    print(f"[set_ordering_stage] session_id={session_id!r} stage={stage!r}")
+
+
 def _session_clover_order_redis_key(session_id: str) -> str:
     """Build the Redis key used to store the Clover order id for a chat session.
 
@@ -527,6 +554,48 @@ def extract_questions_from_reply(reply: str) -> list[str]:
     import re
     sentences = re.split(r'(?<=[.!?])\s+', reply.strip())
     return [s.strip() for s in sentences if s.strip().endswith('?')]
+
+
+async def get_intent_queue(session_id: str) -> list[dict]:
+    """Load the intent queue for a session from Redis.
+
+    Returns an empty list when the key does not exist or has expired.
+    Each entry is a dict serialized from IntentQueueEntry.
+    """
+    key = _session_intent_queue_redis_key(session_id)
+    raw = await cache_get(key)
+    if not raw:
+        return []
+    try:
+        return json.loads(raw)
+    except Exception as exc:
+        print(f"[get_intent_queue] failed to parse queue session_id={session_id!r} error={exc!r}")
+        return []
+
+
+async def save_intent_queue(session_id: str, queue: list[dict]) -> None:
+    """Persist the intent queue to Redis.
+
+    Entries with status 'done' should be removed before calling this.
+    TTL matches the clarification-and-intent TTL (3 hours).
+    """
+    from src.chatbot.constants import _SESSION_CLARIFICATION_AND_INTENT_TTL_SECONDS
+    key = _session_intent_queue_redis_key(session_id)
+    await cache_set(key, json.dumps(queue), ttl=_SESSION_CLARIFICATION_AND_INTENT_TTL_SECONDS)
+    print(
+        "[save_intent_queue]",
+        f"session_id={session_id!r}",
+        f"entry_count={len(queue)}",
+        f"statuses={[e.get('status') for e in queue]}",
+    )
+
+
+async def clear_intent_queue(session_id: str) -> None:
+    """Delete the intent queue for a session from Redis."""
+    from src.cache import cache_delete
+    key = _session_intent_queue_redis_key(session_id)
+    await cache_delete(key)
+    print(f"[clear_intent_queue] session_id={session_id!r}")
 
 
 def _sum_line_item_totals(line_items: list[dict]) -> int:

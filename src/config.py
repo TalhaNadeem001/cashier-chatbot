@@ -16,6 +16,7 @@ class Config(BaseSettings):
     PARSING_AGENT_GEMINI_MODEL: str = "gemini-2.5-flash"
     EXECUTION_AGENT_GEMINI_MODEL: str = "gemini-2.5-flash"
     EXECUTION_AGENT_MAX_TOOL_CALLS: int = 12
+    MAX_CLARIFICATION_QUESTIONS: int = 2
     OPENAI_API_KEY: str | None = None
     OPENAI_MODEL: str = "gpt-5.4"
     PARSING_AGENT_OPENAI_MODEL: str = "gpt-5.4"

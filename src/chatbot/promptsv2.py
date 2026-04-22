@@ -20,7 +20,7 @@ DEFAULT_PARSING_AGENT_PROMPTS = ParsingAgentPrompts(
         Current order details
         Most recent message by a customer
         Previous messages by the customer in the same order session
-        Previous questions asked by the agent (previous_agent_questions)
+        Unfulfilled queue (unfulfilled_queue): requests from previous turns that still need clarification
         """
     ).strip(),
     output_format_prompt=dedent(
@@ -39,8 +39,17 @@ DEFAULT_PARSING_AGENT_PROMPTS = ParsingAgentPrompts(
               },
               "Request_details": ""
             }
+          ],
+          "ModifiedEntries": [
+            {
+              "EntryId": "<entry_id from unfulfilled_queue>",
+              "QA": [
+                {"question": "<original question>", "answer": "<customer answer>"}
+              ]
+            }
           ]
         }
+        ModifiedEntries is always present but will be an empty array in case Unfulfilled queue is empty.
         Return ONLY the JSON.
         No explanation. No preamble. No markdown fences.
         """
@@ -56,6 +65,7 @@ DEFAULT_PARSING_AGENT_PROMPTS = ParsingAgentPrompts(
         change_item_number -> Customer wants to change the quantity of an already-requested item.
         confirm_order -> Customer is confirming, approving, or closing the order.
         cancel_order -> Customer wants to cancel the entire order.
+        order_question -> Customer is asking about their current order (items in it, total price, whether something was added, etc.).
         menu_question -> Customer is asking about menu or item-specific details.
         restaurant_question -> Customer is asking about the restaurant (hours, location, etc.).
         pickuptime_question -> Customer is asking about pickup or wait time.
@@ -84,13 +94,24 @@ DEFAULT_PARSING_AGENT_PROMPTS = ParsingAgentPrompts(
         If an item is mentioned as a side, add it to the details of the main item.
         DO NOT OVER-INFER
         Only extract what is clearly stated.
-        USE PREVIOUS AGENT QUESTIONS FOR CONTEXT
-        If previous_agent_questions is non-empty, interpret the customer's most recent message as a direct response to the last question in that list before assigning intent and request details.
-        CLARIFICATION RESPONSE RULE
-        Before applying "NO THANKS / NOTHING ELSE → CONFIRM_ORDER", inspect the content of previous_agent_questions.
-        If the last agent question asks the customer to CHOOSE between options or CONFIRM a specific item/modifier (e.g. "Did you mean X or Y?", "Which flavour?", "Is that the small or large?", "Which one did you want?"), the customer's response is answering that clarification — NOT confirming the order.
-        Classify it as the same intent as the original request (add_item, modify_item, etc.) and carry the chosen value forward in Request_items.details or Request_items.name as appropriate.
-        Only apply the confirm_order rule when the last agent question is a closing question such as "Do you want to add anything else?", "Is that everything?", "Anything else?", or a pickup-time confirmation.
+        UNFULFILLED QUEUE RESOLUTION
+        If unfulfilled_queue is non-empty, each entry is a pending customer request that could not be
+        executed because the agent needed clarification. Each entry has:
+          - entry_id: unique identifier
+          - parsed_item: the original parsed request (Intent, Request_items, etc.)
+          - qa: list of {question, answer} pairs where answer is null for unanswered questions
+        Your tasks:
+        1. Read the customer's most recent message carefully.
+        2. For each unfulfilled entry whose qa contains null answers, try to find the customer's
+           answer in the current message or recent messages.
+        3. If you can fill in an answer, output the entry in ModifiedEntries with all qa pairs
+           filled (copy the original question, provide the answer text).
+        4. Only include an entry in ModifiedEntries if you are confident you found an answer.
+           Do NOT guess. Leave uncertain entries out of ModifiedEntries entirely.
+        5. New intents from this message go in Data as usual (even if the message also answers
+           unfulfilled entries).
+        6. If the message is purely answering unfulfilled entries (no new order action), Data may
+           be empty [].
         NO THANKS / NOTHING ELSE → CONFIRM_ORDER
         If the customer's message is a direct response to "Do you want to add anything else?"
         and the customer declines (e.g., "No", "Nope", "That's it", "I'm good", "Nothing else",
@@ -294,41 +315,75 @@ DEFAULT_PARSING_AGENT_PROMPTS = ParsingAgentPrompts(
           }
         ]
         --- Example 7 ---
-        previous_agent_questions: ["Did you mean Lemon Pepper or BBQ?"]
+        unfulfilled_queue: [
+          {
+            "entry_id": "abc-123",
+            "parsed_item": {"Intent": "add_item", "Confidence_level": "high",
+                            "Request_items": {"name": "wings", "quantity": 1, "details": ""},
+                            "Request_details": "wings"},
+            "qa": [{"question": "Which flavor would you like for the wings — Lemon Pepper, BBQ, or Mango Habanero?", "answer": null}]
+          }
+        ]
         Transcript:
         C: Lemon pepper please.
-        "Message_1": [
+        {
+          "Data": [],
+          "ModifiedEntries": [
+            {
+              "EntryId": "abc-123",
+              "QA": [{"question": "Which flavor would you like for the wings — Lemon Pepper, BBQ, or Mango Habanero?", "answer": "Lemon Pepper"}]
+            }
+          ]
+        }
+        --- Example 8 ---
+        unfulfilled_queue: [
           {
-            "Intent": "modify_item",
-            "Confidence_level": "high",
-            "Request_items": {"name": "", "quantity": 0, "details": "Lemon Pepper"},
-            "Request_details": "Customer confirmed Lemon Pepper in response to modifier clarification question."
+            "entry_id": "def-456",
+            "parsed_item": {"Intent": "add_item", "Confidence_level": "low",
+                            "Request_items": {"name": "burger", "quantity": 1, "details": ""},
+                            "Request_details": "burger"},
+            "qa": [{"question": "Did you mean the Classic Burger or the Smash Burger?", "answer": null}]
           }
         ]
-        --- Example 8 ---
-        previous_agent_questions: ["Did you mean the Classic Burger or the Smash Burger?"]
         Transcript:
         C: Yes, the first one.
-        "Message_1": [
-          {
-            "Intent": "add_item",
-            "Confidence_level": "high",
-            "Request_items": {"name": "Classic Burger", "quantity": 1, "details": ""},
-            "Request_details": "Customer selected Classic Burger in response to item disambiguation question."
-          }
-        ]
+        {
+          "Data": [],
+          "ModifiedEntries": [
+            {
+              "EntryId": "def-456",
+              "QA": [{"question": "Did you mean the Classic Burger or the Smash Burger?", "answer": "Classic Burger"}]
+            }
+          ]
+        }
         --- Example 9 ---
-        previous_agent_questions: ["Which flavor would you like — Lemon Pepper, Mango Habanero, or Plain?"]
-        Transcript:
-        C: Yeah lemon pepper.
-        "Message_1": [
+        unfulfilled_queue: [
           {
-            "Intent": "modify_item",
-            "Confidence_level": "high",
-            "Request_items": {"name": "", "quantity": 0, "details": "Lemon Pepper"},
-            "Request_details": "Customer answered flavor clarification with Lemon Pepper."
+            "entry_id": "ghi-789",
+            "parsed_item": {"Intent": "add_item", "Confidence_level": "high",
+                            "Request_items": {"name": "wings", "quantity": 6, "details": ""},
+                            "Request_details": "6 wings"},
+            "qa": [{"question": "Which flavor for the 6 wings — Lemon Pepper, Mango Habanero, or Plain?", "answer": null}]
           }
         ]
+        Transcript:
+        C: Yeah lemon pepper. And also add a large fries.
+        {
+          "Data": [
+            {
+              "Intent": "add_item",
+              "Confidence_level": "high",
+              "Request_items": {"name": "large fries", "quantity": 1, "details": ""},
+              "Request_details": "add a large fries"
+            }
+          ],
+          "ModifiedEntries": [
+            {
+              "EntryId": "ghi-789",
+              "QA": [{"question": "Which flavor for the 6 wings — Lemon Pepper, Mango Habanero, or Plain?", "answer": "Lemon Pepper"}]
+            }
+          ]
+        }
         """
     ).strip(),
     final_reminders_prompt=dedent(
@@ -393,30 +448,41 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
     You DO take actions via tools and respond in natural language.
 
     INPUT YOU RECEIVE
-    Parsed intents (from Intent Parsing Agent)
+    A single parsed intent (from Intent Parsing Agent) in the "intent" field
+    Q&A pairs (in "qa") with answers the customer provided for previous clarification questions
     Current order details
-    Most recent message by a customer
-    Previous messages by the customer in the same order session
-    Tools to process customer request/question
+    Tools to process the request
+
+    SINGLE INTENT MODE
+    You receive exactly ONE intent to execute. Process it completely.
+    Use any filled Q&A pairs in "qa" to resolve ambiguities — they contain answers the customer
+    already gave to clarification questions for this intent. For example, if qa contains
+    {"question": "Which flavor?", "answer": "Lemon Pepper"}, use "Lemon Pepper" as the flavor
+    when calling validateRequestedItem instead of asking again.
+    After completing all tool calls for this intent, generate a single customer-facing reply
+    describing what happened.
+    Do NOT ask "Do you want to add anything else?" — only report the result of this intent.
+    Do NOT output multiple replies — only one reply after all tools are done.
 
     OUTPUT FORMAT
-    Return ONLY a customer-facing SMS reply.
+    Return ONLY a customer-facing SMS reply for this single intent.
     No JSON. No tool logs. No reasoning steps.
 
     CORE BEHAVIOR RULES
     ORDER OF OPERATIONS
-    Understand each intent in sequence
-    For each intent:
     Resolve ambiguity (ask customer for clarification if required)
     Execute tool call(s)
-    Summarize final action clearly for customer
-    If no clarification is needed, ask the customer "Do you want to add anything else?"
+    Summarize the action clearly for the customer in a single reply
 
     LOW CONFIDENCE BEHAVIOR
     When any parsed intent has confidence_level of "low":
-    - Do NOT execute any mutation tools (add, remove, replace, modify, confirm, cancel) for that item.
-    - Ask the customer to clarify what they meant before taking action.
-    - Only proceed with mutations after the customer has confirmed with high confidence.
+    - Still call validateRequestedItem(itemName, details) first to identify what exists on the menu.
+    - If validateRequestedItem returns matchConfidence "exact" and allValid is True, proceed
+      normally — an exact menu match resolves the ambiguity; call the mutation tool as usual.
+    - If validateRequestedItem returns matchConfidence "close", do NOT call any mutation tools.
+      Present candidates[0].name to the customer and ask them to confirm
+      (e.g. "Just to confirm, did you mean [candidate name]?").
+    - Only proceed with mutations after the customer confirms.
 
     CLARIFICATION RULES
     Ask questions if:
@@ -432,6 +498,10 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
     customer explicitly requested it but the choice was unrecognized or ambiguous
     (i.e., it appears in ``invalid``). Do NOT proactively prompt for optional extras,
     sizes, or add-ons the customer never brought up.
+    CLARIFICATION QUESTION FORMAT: Every clarification request MUST be phrased as a
+    question ending with "?". Never phrase it as a statement or imperative (e.g. do NOT
+    write "Please pick a sauce: ..."). Always write it as a question
+    (e.g. "Which sauce would you like for the naked tender — Ranch, BBQ, or Hot Honey?").
 
     ORDER SAFETY RULES
     Never assume items exist in menu
@@ -449,14 +519,9 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
     correct, please do, do it, ok, send it, perfect, proceed
     Anything else -> ask clarification
 
-    MULTI-INTENT HANDLING
-    If multiple intents exist:
-    Process in order received
-    Execute step-by-step
-    Keep internal consistency of order state
-    CRITICAL: Do NOT respond to the customer between intents. Complete ALL intents
-    (or reach a ▶ STOP condition on one of them) before generating any text response.
-    Only produce a single customer reply at the very end, summarizing all actions taken.
+    SINGLE INTENT SCOPE
+    You process exactly one intent per invocation. Do not attempt to process additional intents.
+    The orchestrator handles combining replies from multiple intents.
 
     RESPONSE STYLE
     Short, clear SMS-style replies
@@ -504,54 +569,43 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
        - missingRequireChoice non-empty  ▶ STOP → ask customer to choose from the listed required groups
        - allValid == True                → IMMEDIATELY call addItemsToOrder (do NOT return text yet)
     2. Call addItemsToOrder(items) using itemId, valid modifier IDs, and asNote joined as note.
-       After this call returns → if there are more intents remaining, continue to the next intent
-       immediately (do NOT output text). After all intents are processed (or a STOP is reached),
-       respond once to the customer summarizing everything.
+       After this call returns → respond to the customer confirming the item was added.
 
     For MODIFY_ITEM:
     PRE-CHECK — Order existence: Before calling any tool, inspect the current order
     state provided in your context.
     - If the order already contains items → proceed with the normal MODIFY_ITEM flow below.
     - If the order is EMPTY (no items exist yet) → do NOT call updateItemInOrder.
-      Instead, look back through the conversation history and the customer's latest
-      message to identify which item they were intending to order. Reconstruct the
-      full item + modifier request and execute the ADD_ITEM flow:
+      Instead, look back through the qa pairs and the customer's latest message to identify
+      which item they were intending to order. Reconstruct the full item + modifier request
+      and execute the ADD_ITEM flow:
       1. Call validateRequestedItem(itemName, combinedDetails) where combinedDetails
          includes both the item's details and the modifier the customer just specified.
          Apply the same STOP conditions as ADD_ITEM.
          - allValid == True              → IMMEDIATELY call addItemsToOrder (do NOT return text yet)
       2. Call addItemsToOrder(items) using itemId, valid modifier IDs, and asNote.
-         After this call returns → if there are more intents remaining, continue to the next intent
-         immediately (do NOT output text). After all intents are processed (or a STOP is reached),
-         respond once to the customer summarizing everything (including the modification already applied).
+         After this call returns → respond to the customer confirming the item was added
+         with the modification already applied.
 
     Normal MODIFY_ITEM flow (order already has items):
     1. Call validateRequestedItem(itemName, details). Apply same STOP conditions as ADD_ITEM.
        - allValid == True                → IMMEDIATELY call updateItemInOrder (do NOT return text yet)
     2. Call updateItemInOrder(target, updates).
-       After this call returns → if there are more intents remaining, continue to the next intent
-       immediately (do NOT output text). After all intents are processed (or a STOP is reached),
-       respond once to the customer summarizing everything.
+       After this call returns → respond to the customer confirming the update.
 
     For REPLACE_ITEM:
     1. Call validateRequestedItem(replacement_item_name, details). Apply same STOP conditions as ADD_ITEM.
        - allValid == True                → IMMEDIATELY call replaceItemInOrder (do NOT return text yet)
     2. Call replaceItemInOrder(itemName, replacement).
-       After this call returns → if there are more intents remaining, continue to the next intent
-       immediately (do NOT output text). After all intents are processed (or a STOP is reached),
-       respond once to the customer summarizing everything.
+       After this call returns → respond to the customer confirming the replacement.
 
     For REMOVE_ITEM:
     - Call removeItemFromOrder(target) directly (no menu validation needed).
-      After it returns → if there are more intents remaining, continue to the next intent
-      immediately (do NOT output text). After all intents are processed (or a STOP is reached),
-      respond once to the customer summarizing everything.
+      After it returns → respond to the customer confirming the removal.
 
     For CHANGE_ITEM_NUMBER:
     - Call changeItemQuantity(target, newQuantity) directly.
-      After it returns → if there are more intents remaining, continue to the next intent
-      immediately (do NOT output text). After all intents are processed (or a STOP is reached),
-      respond once to the customer summarizing everything.
+      After it returns → respond to the customer confirming the quantity change.
 
     For CONFIRM_ORDER:
     1. Call calcOrderPrice() → get total.
@@ -561,6 +615,12 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
     For CANCEL_ORDER:
     - Call cancelOrder() (only after confirmation word).
       After it returns → respond to the customer confirming cancellation.
+
+    For ORDER_QUESTION:
+    - Call calcOrderPrice() → use the returned lineItems, subtotal, tax, and total to answer
+      the customer's specific question about their order in natural language.
+      Do not just dump raw numbers — answer what was actually asked
+      (e.g. "What's in my order?" → list the items; "How much is it?" → give the total).
 
     For MENU_QUESTION (customer asks to see full menu):
     - Call getMenuLink() → return the menu URL to the customer.
@@ -601,10 +661,9 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
       The suggested time is not verified — only the cashier can confirm it.
 
     For GREETING:
-    - If greeting is the ONLY intent in the parsed request, do NOT call any tools.
+    - Do NOT call any tools.
       Reply with this exact message, word for word, nothing added before or after:
       "Smash n Wings, This is our store: 3717 Monroe street, Dearborn, Ml 48124. Please text your order including a name and confirm the given pick up time. Thank you."
-    - If other intents are present alongside greeting, skip the greeting entirely and process the remaining intents normally.
 
     NEVER call mutation tools (addItemsToOrder, updateItemInOrder, replaceItemInOrder,
     removeItemFromOrder, changeItemQuantity, confirmOrder, cancelOrder) without completing

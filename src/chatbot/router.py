@@ -21,6 +21,8 @@ from src.chatbot.utils import (
     _session_order_state_redis_key,
     _session_status_redis_key,
     _session_clarification_and_intent_redis_key,
+    _session_intent_queue_redis_key,
+    _session_ordering_stage_redis_key,
 )
 
 router = APIRouter(prefix="/api/bot", tags=["chatbot"])
@@ -51,6 +53,8 @@ async def clear_session(body: ClearSessionRequest) -> dict:
     await cache_delete(_session_order_state_redis_key(session_id))
     await cache_delete(_session_status_redis_key(session_id))
     await cache_delete(_session_clarification_and_intent_redis_key(session_id))
+    await cache_delete(_session_intent_queue_redis_key(session_id))
+    await cache_delete(_session_ordering_stage_redis_key(session_id))
     await cache_delete_pattern(f"summary:{session_id}:*")
     await cache_delete(_buffer_messages_redis_key(session_id))
     await cache_delete(_buffer_timer_redis_key(session_id))

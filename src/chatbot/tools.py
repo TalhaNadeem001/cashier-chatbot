@@ -244,13 +244,16 @@ def _find_closest_menu_items_from_menu(
     # If the top fuzzy match is high-confidence with no close competitor, auto-confirm
     # it as exact — mirrors FuzzyMatcher.match_item which confirms at CONFIRMED_THRESHOLD.
     # This handles plurals/typos like "chicken sandos" → "Chicken Sando".
+    top_name = top_matches[0][0]
     close_competitors = [m for m in top_matches[1:] if best_score - m[1] <= AMBIGUITY_GAP]
-    if best_score >= CONFIRMED_THRESHOLD and not close_competitors:
-        auto_exact = _get_local_item(top_matches[0][0], items_by_name)
+    verbatim_match = top_name.lower() == item_name.lower().strip()
+    if best_score >= CONFIRMED_THRESHOLD and (not close_competitors or verbatim_match):
+        auto_exact = _get_local_item(top_name, items_by_name)
         if auto_exact is not None:
+            reason = "verbatim" if verbatim_match else "auto-confirmed"
             print(
-                "[findClosestMenuItems] return exact (auto-confirmed) "
-                f"score={best_score!r} top_name={top_matches[0][0]!r}"
+                f"[findClosestMenuItems] return exact ({reason}) "
+                f"score={best_score!r} top_name={top_name!r}"
             )
             return {
                 "exact_match": auto_exact,

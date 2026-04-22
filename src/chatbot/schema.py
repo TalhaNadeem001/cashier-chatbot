@@ -137,6 +137,7 @@ class ParsedRequestIntent(str, Enum):
     CHANGE_ITEM_NUMBER = "change_item_number"
     CONFIRM_ORDER = "confirm_order"
     CANCEL_ORDER = "cancel_order"
+    ORDER_QUESTION = "order_question"
     MENU_QUESTION = "menu_question"
     RESTAURANT_QUESTION = "restaurant_question"
     ESCALATION = "escalation"
@@ -148,6 +149,13 @@ class ParsedRequestIntent(str, Enum):
 class ParsedRequestConfidenceLevel(str, Enum):
     HIGH = "high"
     LOW = "low"
+
+
+class QAPair(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    question: str
+    answer: str | None
 
 
 class ParsedRequestItems(BaseModel):
@@ -167,10 +175,25 @@ class ParsedRequestItem(BaseModel):
     request_details: str = Field(alias="Request_details")
 
 
+class ModifiedQueueEntry(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+
+    entry_id: str = Field(alias="EntryId")
+    qa: list[QAPair] = Field(alias="QA")
+
+
 class ParsedRequestsPayload(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
     data: list[ParsedRequestItem] = Field(alias="Data")
+    modified_entries: list[ModifiedQueueEntry] = Field(alias="ModifiedEntries")
+
+
+class IntentQueueEntry(BaseModel):
+    entry_id: str
+    status: Literal["pending", "need_clarification"] = "pending"
+    parsed_item: dict[str, Any]
+    qa: list[QAPair] = Field(default_factory=list)
 
 
 class CurrentOrderLineItem(BaseModel):
@@ -193,14 +216,14 @@ class ParsingAgentContext(BaseModel):
     current_order_details: CurrentOrderDetails
     most_recent_message: str
     latest_k_messages_by_customer: list[str]
-    previous_agent_questions: list[str] = []
+    unfulfilled_queue: list[dict[str, Any]] = []
 
 
 class ParsingAgentPromptContext(BaseModel):
     current_order_details: dict[str, Any]
     most_recent_message_by_customer: str
     latest_k_messages_by_customer: list[str]
-    previous_agent_questions: list[str] = []
+    unfulfilled_queue: list[dict[str, Any]] = []
 
 
 class ParsingAgentResult(BaseModel):
@@ -233,20 +256,17 @@ class ExecutionAgentToolDescriptor(BaseModel):
 
 class ExecutionAgentPromptContext(BaseModel):
     context_object: dict[str, Any]
-    parsed_requests: list[dict[str, Any]]
+    intent: dict[str, Any]
+    qa: list[dict[str, Any]]
     tools: list[dict[str, Any]]
-    previous_clarification_and_intent: dict[str, Any] | None = None
 
 
-class ExecutionAgentResult(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    agent_reply: str
-    session_id: str
-    actions_executed: list[str]
-    pending_clarifications: list[str]
-    order_updated: bool
-    agent_questions: list[str] = []
+class ExecutionAgentSingleResult(BaseModel):
+    success: bool
+    reply: str
+    clarification_questions: list[str] = Field(default_factory=list)
+    actions_executed: list[str] = Field(default_factory=list)
+    order_updated: bool = False
 
 
 # Backwards-compat aliases (removed after all callers updated)

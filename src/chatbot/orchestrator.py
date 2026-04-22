@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import asyncio
 import json
+import uuid
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any, TypeVar
 
 from src import firebase as _firebase
-from src.chatbot import llm_client as gemini_client
+from src.chatbot import llm_client
 from src.chatbot.constants import _PARSE_VALIDATION_ERROR_PREFIX
 from src.chatbot.exceptions import AIServiceError
 from src.chatbot.llm_messages import LLMMessage
@@ -22,15 +23,16 @@ from src.chatbot.schema import (
     CurrentOrderLineItem,
     ExecutionAgentContext,
     ExecutionAgentPromptContext,
-    ExecutionAgentResult,
+    ExecutionAgentSingleResult,
     ExecutionAgentToolDescriptor,
-    ParsedRequestConfidenceLevel,
+    IntentQueueEntry,
     ParsedRequestsPayload,
     PreparedExecutionContext,
     ParsingAgentContext,
     ParsingAgentPromptContext,
     ParsingAgentResult,
     ParsingAgentPrompts,
+    QAPair,
 )
 from src.chatbot.tools import (
     addItemsToOrder,
@@ -58,8 +60,10 @@ from src.chatbot.utils import (
     _session_messages_redis_key,
     _session_status_redis_key,
     extract_questions_from_reply,
-    getClarificationAndIntent,
-    saveClarificationAndIntent,
+    get_intent_queue,
+    save_intent_queue,
+    get_ordering_stage,
+    set_ordering_stage,
 )
 from src.config import settings
 
@@ -365,8 +369,79 @@ class Orchestrator:
         )
 
         execution_context = await self._build_execution_context(request)
-        context = await self._build_parsing_context(request, clover_creds=execution_context.clover_creds)
+
+        queue = await get_intent_queue(request.session_id)
+        stage = await get_ordering_stage(request.session_id)
+        unfulfilled = [e for e in queue if e.get("status") == "need_clarification"]
+        print(
+            "[Orchestrator] queue loaded",
+            f"session_id={request.session_id!r}",
+            f"total={len(queue)}",
+            f"unfulfilled={len(unfulfilled)}",
+            f"stage={stage!r}",
+        )
+
+        context = await self._build_parsing_context(
+            request,
+            clover_creds=execution_context.clover_creds,
+            unfulfilled_queue=unfulfilled,
+        )
         parsed_input = await self.parsing_agent.run(context=context)
+
+        parsed_data = parsed_input.parsed_requests.data
+        non_confirm_intents = [i for i in parsed_data if i.intent.value != "confirm_order"]
+        only_confirm = bool(parsed_data) and not non_confirm_intents
+
+        # BRANCH A: customer says "nothing else" → show order summary and ask to confirm
+        if stage == "awaiting_anything_else" and only_confirm:
+            summary = await self._get_order_summary(
+                request.session_id, execution_context.clover_creds
+            )
+            await set_ordering_stage(request.session_id, "awaiting_order_confirm")
+            final_reply = f"{summary}\n\nWould you like to confirm your order?"
+            ai_now = datetime.now(timezone.utc).isoformat()
+            await cache_list_append(
+                redis_key,
+                json.dumps({"role": "assistant", "content": final_reply, "timestamp": ai_now}),
+            )
+            print("[Orchestrator] branch A: showed summary, stage → awaiting_order_confirm")
+            return ChatbotV2MessageResponse(
+                system_response=final_reply,
+                session_id=request.session_id,
+            )
+
+        # Apply answers from parsing agent to existing unfulfilled entries
+        for mod in parsed_input.parsed_requests.modified_entries:
+            for entry in queue:
+                if entry.get("entry_id") == mod.entry_id:
+                    filled_qa = [qa.model_dump() for qa in mod.qa]
+                    entry["qa"] = filled_qa
+                    all_answered = all(p.get("answer") is not None for p in filled_qa)
+                    if all_answered:
+                        entry["status"] = "pending"
+                    print(
+                        "[Orchestrator] applied modified_entry",
+                        f"entry_id={mod.entry_id!r}",
+                        f"qa_count={len(filled_qa)}",
+                        f"all_answered={all_answered}",
+                    )
+
+        # Add new entries; in awaiting_anything_else skip lone confirm (already handled above)
+        items_to_queue = non_confirm_intents if stage == "awaiting_anything_else" else parsed_data
+        for item in items_to_queue:
+            new_entry = {
+                "entry_id": str(uuid.uuid4()),
+                "status": "pending",
+                "parsed_item": item.model_dump(by_alias=True, mode="json"),
+                "qa": [],
+            }
+            queue.append(new_entry)
+            print(
+                "[Orchestrator] new queue entry",
+                f"entry_id={new_entry['entry_id']!r}",
+                f"intent={item.intent.value!r}",
+            )
+
         session_status = await cache_get(_session_status_redis_key(request.session_id))
         is_order_confirmed = session_status == "confirmed"
         prepared_context = self.prepare_agent_context(
@@ -374,10 +449,73 @@ class Orchestrator:
             execution_context=execution_context,
             is_order_confirmed=is_order_confirmed,
         )
-        execution_result = await self.execution_agent.run(
-            parsed_requests=parsed_input.parsed_requests,
-            context_object=prepared_context,
-        )
+
+        # Execute all pending entries in order
+        replies: list[str] = []
+        entries_processed = 0
+        all_succeeded = True
+        order_confirmed_this_turn = False
+
+        for entry in queue:
+            if entry.get("status") != "pending":
+                continue
+            entries_processed += 1
+            result = await self.execution_agent.run_single(
+                entry=entry,
+                context_object=prepared_context,
+            )
+            escalated = False
+            if result.success:
+                entry["status"] = "done"
+                if entry.get("parsed_item", {}).get("Intent") == "confirm_order":
+                    order_confirmed_this_turn = True
+            else:
+                entry["status"] = "need_clarification"
+                all_succeeded = False
+                for q in result.clarification_questions:
+                    entry["qa"].append({"question": q, "answer": None})
+                if len(entry["qa"]) > settings.MAX_CLARIFICATION_QUESTIONS:
+                    item_name = entry.get("parsed_item", {}).get("Request_items", {}).get("name", "unknown item")
+                    await humanInterventionNeeded(
+                        session_id=prepared_context.session_id,
+                        reason=f"Could not resolve item after {len(entry['qa'])} clarification attempts: {item_name}",
+                        merchant_id=prepared_context.merchant_id or "",
+                    )
+                    entry["status"] = "done"
+                    escalated = True
+                    replies.append("I'm having trouble processing that item — a team member will follow up with you shortly.")
+                    print(
+                        "[Orchestrator] escalated after max clarification attempts",
+                        f"entry_id={entry.get('entry_id')!r}",
+                        f"qa_count={len(entry['qa'])}",
+                        f"item_name={item_name!r}",
+                    )
+            if result.reply and not escalated:
+                replies.append(result.reply)
+            print(
+                "[Orchestrator] entry executed",
+                f"entry_id={entry.get('entry_id')!r}",
+                f"success={result.success}",
+                f"clarification_q_count={len(result.clarification_questions)}",
+            )
+
+        queue = [e for e in queue if e.get("status") != "done"]
+        await save_intent_queue(request.session_id, queue)
+
+        final_reply = "\n".join(r.strip() for r in replies if r.strip()) or "Got it!"
+
+        # Update ordering stage
+        if order_confirmed_this_turn:
+            await set_ordering_stage(request.session_id, "ordering")
+            print("[Orchestrator] order confirmed, stage → ordering")
+        elif stage == "awaiting_order_confirm" and non_confirm_intents:
+            # Customer changed their mind and added items instead of confirming
+            await set_ordering_stage(request.session_id, "ordering")
+            print("[Orchestrator] customer changed mind, stage → ordering")
+        elif entries_processed > 0 and not queue and all_succeeded:
+            final_reply += "\nWould you like to add anything else?"
+            await set_ordering_stage(request.session_id, "awaiting_anything_else")
+            print("[Orchestrator] all done, stage → awaiting_anything_else")
 
         ai_now = datetime.now(timezone.utc).isoformat()
         await cache_list_append(
@@ -385,21 +523,41 @@ class Orchestrator:
             json.dumps(
                 {
                     "role": "assistant",
-                    "content": execution_result.agent_reply,
+                    "content": final_reply,
                     "timestamp": ai_now,
                 }
             ),
         )
 
         return ChatbotV2MessageResponse(
-            system_response=execution_result.agent_reply,
-            session_id=execution_result.session_id,
+            system_response=final_reply,
+            session_id=request.session_id,
         )
+
+    async def _get_order_summary(self, session_id: str, creds: dict | None) -> str:
+        result = await calcOrderPrice(session_id, creds=creds)
+        line_items = result.get("lineItems", [])
+        if not line_items:
+            return "Here's your order:"
+        lines = []
+        for item in line_items:
+            name = item.get("name", "")
+            qty = item.get("quantity", 1)
+            line_total = item.get("lineTotal", 0)
+            lines.append(f"{qty}x {name} — ${line_total / 100:.2f}")
+        subtotal = result.get("subtotal", 0)
+        tax = result.get("tax", 0)
+        total = result.get("total", 0)
+        lines.append(f"\nSubtotal: ${subtotal / 100:.2f}")
+        lines.append(f"Tax: ${tax / 100:.2f}")
+        lines.append(f"Total: ${total / 100:.2f}")
+        return "\n".join(lines)
 
     async def _build_parsing_context(
         self,
         request: ChatbotV2MessageRequest,
         clover_creds: dict | None = None,
+        unfulfilled_queue: list[dict] | None = None,
     ) -> ParsingAgentContext:
         current_order_details = await self._load_current_order_details(
             request.session_id, creds=clover_creds
@@ -407,16 +565,13 @@ class Orchestrator:
         latest_k_messages_by_customer = await self._load_latest_k_customer_messages(
             request.session_id
         )
-        raw = await getClarificationAndIntent(request.session_id)
-        previous_agent_questions = raw.get("agent_questions", []) if raw["success"] else []
-
         return ParsingAgentContext(
             session_id=request.session_id,
             merchant_id=request.merchant_id,
             current_order_details=current_order_details,
             most_recent_message=request.user_message,
             latest_k_messages_by_customer=latest_k_messages_by_customer,
-            previous_agent_questions=previous_agent_questions,
+            unfulfilled_queue=unfulfilled_queue or [],
         )
 
     async def _load_current_order_details(self, session_id: str, creds: dict | None = None) -> CurrentOrderDetails:
@@ -523,7 +678,11 @@ class ParsingAgent:
         model: str | None = None,
         prompts: ParsingAgentPrompts | None = None,
     ) -> None:
-        self.model = model or settings.PARSING_AGENT_GEMINI_MODEL
+        self.model = model or (
+            settings.PARSING_AGENT_OPENAI_MODEL
+            if settings.AI_MODE.lower() == "chatgpt"
+            else settings.PARSING_AGENT_GEMINI_MODEL
+        )
         self.prompts = prompts or DEFAULT_PARSING_AGENT_PROMPTS
         print(
             "[ParsingAgent] init",
@@ -629,7 +788,7 @@ class ParsingAgent:
             prompts=prompts,
             strict_retry=strict_retry,
         )
-        result = await gemini_client.generate_model(
+        result = await llm_client.generate_model(
             messages,
             ParsedRequestsPayload,
             temperature=0,
@@ -684,12 +843,13 @@ class ParsingAgent:
             ),
             most_recent_message_by_customer=context.most_recent_message,
             latest_k_messages_by_customer=context.latest_k_messages_by_customer,
-            previous_agent_questions=context.previous_agent_questions,
+            unfulfilled_queue=context.unfulfilled_queue,
         )
         rendered = json.dumps(prompt_context.model_dump(mode="json"), indent=2)
         print(
             "[ParsingAgent] _render_context",
             f"k_tail_messages={len(context.latest_k_messages_by_customer)}",
+            f"unfulfilled_count={len(context.unfulfilled_queue)}",
             f"json_chars={len(rendered)}",
         )
         return rendered
@@ -712,7 +872,11 @@ class ExecutionAgent:
         max_tool_calls: int | None = None,
         system_prompt: str | None = None,
     ) -> None:
-        self.model = model or settings.EXECUTION_AGENT_GEMINI_MODEL
+        self.model = model or (
+            settings.EXECUTION_AGENT_OPENAI_MODEL
+            if settings.AI_MODE.lower() == "chatgpt"
+            else settings.EXECUTION_AGENT_GEMINI_MODEL
+        )
         self.max_tool_calls = (
             max_tool_calls
             if max_tool_calls is not None
@@ -729,12 +893,17 @@ class ExecutionAgent:
             f"system_prompt_chars={len(self.system_prompt)}",
         )
 
-    async def run(
+    async def run_single(
         self,
         *,
-        parsed_requests: ParsedRequestsPayload,
+        entry: dict,
         context_object: PreparedExecutionContext,
-    ) -> ExecutionAgentResult:
+    ) -> ExecutionAgentSingleResult:
+        """Execute a single IntentQueueEntry and return the result.
+
+        entry: a dict matching IntentQueueEntry shape (entry_id, status, parsed_item, qa)
+        context_object: prepared execution context with Clover creds, order state, etc.
+        """
         tracker = ExecutionTracker()
         runtime = ExecutionToolRuntime(
             context=ExecutionAgentContext(
@@ -747,64 +916,30 @@ class ExecutionAgent:
         )
         active_tools = self._build_tools(runtime, tracker=tracker)
 
-        pending_clarifications = [
-            item.request_details.strip()
-            for item in parsed_requests.data
-            if item.confidence_level == ParsedRequestConfidenceLevel.LOW
-            and item.request_details.strip()
-        ]
+        entry_id = entry.get("entry_id", "")
+        parsed_item = entry.get("parsed_item", {})
+        qa = entry.get("qa", [])
 
-        parsed_summary = [
-            f"{item.intent.value}/{item.confidence_level.value}:"
-            f"{item.request_items.name!r}x{item.request_items.quantity}"
-            for item in parsed_requests.data
-        ]
+        intent_label = parsed_item.get("Intent", "unknown")
+        item_name = (parsed_item.get("Request_items") or {}).get("name", "")
         print(
-            "[ExecutionAgent] run start",
+            "[ExecutionAgent] run_single start",
             f"session_id={context_object.session_id!r}",
-            f"merchant_id={context_object.merchant_id!r}",
-            f"has_clover_creds={context_object.clover_creds is not None}",
-            f"clover_error={context_object.clover_error!r}",
-            f"parsed_request_count={len(parsed_requests.data)}",
-            f"parsed_summary={parsed_summary}",
-            f"pending_clarification_count={len(pending_clarifications)}",
-            f"pending_clarifications={pending_clarifications!r}",
-        )
-        print(
-            "[ExecutionAgent] run tools",
-            f"tool_count={len(active_tools)}",
-            f"tool_names={[t.name for t in active_tools]}",
-            f"max_tool_calls_for_llm={self.max_tool_calls}",
+            f"entry_id={entry_id!r}",
+            f"intent={intent_label!r}",
+            f"item_name={item_name!r}",
+            f"qa_count={len(qa)}",
         )
 
-        raw_clarification_and_intent = await getClarificationAndIntent(
-            context_object.session_id
-        )
-        clarification_and_intent = (
-            raw_clarification_and_intent
-            if raw_clarification_and_intent["success"]
-            else None
-        )
-        print(
-            "[ExecutionAgent] run clarification_and_intent",
-            f"success={raw_clarification_and_intent['success']}",
-            f"found={clarification_and_intent is not None}",
-        )
-
-        messages = self._build_messages(
-            parsed_requests=parsed_requests,
+        messages = self._build_single_intent_messages(
+            parsed_item=parsed_item,
+            qa=qa,
             context_object=context_object,
             tools=active_tools,
-            clarification_and_intent=clarification_and_intent,
-        )
-        print(
-            "[ExecutionAgent] run calling generate_text_with_tools",
-            f"message_count={len(messages)}",
-            f"model={self.model}",
         )
 
         async def _call_llm() -> str:
-            return await gemini_client.generate_text_with_tools(
+            return await llm_client.generate_text_with_tools(
                 messages,
                 function_tools=active_tools,
                 temperature=0,
@@ -813,49 +948,45 @@ class ExecutionAgent:
             )
 
         agent_reply = await _gemini_service_call_with_retries(
-            log_label="[ExecutionAgent]",
-            extra_fields=f"model={self.model!r}",
+            log_label="[ExecutionAgent.run_single]",
+            extra_fields=f"entry_id={entry_id!r} intent={intent_label!r}",
             call=_call_llm,
         )
-        agent_questions = extract_questions_from_reply(agent_reply)
-        await saveClarificationAndIntent(
-            context_object.session_id,
-            "" if not pending_clarifications else pending_clarifications,
-            parsed_requests.model_dump(mode="json", by_alias=True)["Data"],
-            agent_questions=agent_questions,
-        )
-        reply_one_line = agent_reply.replace("\n", " ")[:400]
+
+        clarification_questions = extract_questions_from_reply(agent_reply)
+        success = not bool(clarification_questions)
+
+        reply_preview = agent_reply.replace("\n", " ")[:300]
         print(
-            "[ExecutionAgent] run done",
-            f"agent_reply_chars={len(agent_reply)}",
-            f"agent_reply_preview={reply_one_line!r}",
+            "[ExecutionAgent] run_single done",
+            f"entry_id={entry_id!r}",
+            f"success={success}",
+            f"clarification_q_count={len(clarification_questions)}",
             f"actions_executed={tracker.actions_executed!r}",
             f"order_updated={tracker.order_updated}",
-            f"agent_questions={agent_questions!r}",
+            f"reply_preview={reply_preview!r}",
         )
 
-        return ExecutionAgentResult(
-            agent_reply=agent_reply,
-            session_id=context_object.session_id,
+        return ExecutionAgentSingleResult(
+            success=success,
+            reply=agent_reply,
+            clarification_questions=clarification_questions,
             actions_executed=tracker.actions_executed,
-            pending_clarifications=pending_clarifications,
             order_updated=tracker.order_updated,
-            agent_questions=agent_questions,
         )
 
-    def _build_messages(
+    def _build_single_intent_messages(
         self,
         *,
-        parsed_requests: ParsedRequestsPayload,
+        parsed_item: dict,
+        qa: list[dict],
         context_object: PreparedExecutionContext,
-        tools: Sequence[gemini_client.GeminiFunctionTool],
-        clarification_and_intent: dict | None = None,
+        tools: Sequence[llm_client.GeminiFunctionTool],
     ) -> list[LLMMessage]:
         prompt_context = ExecutionAgentPromptContext(
             context_object=context_object.model_dump(mode="json"),
-            parsed_requests=parsed_requests.model_dump(mode="json", by_alias=True)[
-                "Data"
-            ],
+            intent=parsed_item,
+            qa=qa,
             tools=[
                 ExecutionAgentToolDescriptor(
                     name=tool.name,
@@ -863,7 +994,6 @@ class ExecutionAgent:
                 ).model_dump(mode="json")
                 for tool in tools
             ],
-            previous_clarification_and_intent=clarification_and_intent,
         )
         user_content = json.dumps(prompt_context.model_dump(mode="json"), indent=2)
         messages: list[LLMMessage] = [
@@ -877,18 +1007,18 @@ class ExecutionAgent:
         system_chars = sum(len(m["content"]) for m in messages if m["role"] == "system")
         user_chars = sum(len(m["content"]) for m in messages if m["role"] == "user")
         print(
-            "[ExecutionAgent] _build_messages",
-            f"roles={[m['role'] for m in messages]}",
+            "[ExecutionAgent] _build_single_intent_messages",
+            f"intent={parsed_item.get('Intent')!r}",
+            f"qa_count={len(qa)}",
             f"system_chars={system_chars}",
             f"user_json_chars={user_chars}",
-            f"tool_descriptors_embedded={len(tools)}",
         )
         return messages
 
     def build_tools(
         self,
         runtime: ExecutionToolRuntime | None = None,
-    ) -> list[gemini_client.GeminiFunctionTool]:
+    ) -> list[llm_client.GeminiFunctionTool]:
         runtime = runtime or ExecutionToolRuntime(
             context=ExecutionAgentContext(session_id="", merchant_id="")
         )
@@ -899,11 +1029,51 @@ class ExecutionAgent:
         )
         return self._build_tools(runtime)
 
+    # ------------------------------------------------------------------
+    # Legacy alias kept for external callers / tests
+    # ------------------------------------------------------------------
+    async def run(
+        self,
+        *,
+        parsed_requests: ParsedRequestsPayload,
+        context_object: PreparedExecutionContext,
+    ) -> ExecutionAgentSingleResult:
+        """Backward-compat shim: executes all parsed intents sequentially."""
+        combined_replies: list[str] = []
+        combined_actions: list[str] = []
+        order_updated = False
+        last_success = True
+        all_questions: list[str] = []
+
+        for item in parsed_requests.data:
+            entry = {
+                "entry_id": str(uuid.uuid4()),
+                "status": "pending",
+                "parsed_item": item.model_dump(by_alias=True, mode="json"),
+                "qa": [],
+            }
+            result = await self.run_single(entry=entry, context_object=context_object)
+            if result.reply:
+                combined_replies.append(result.reply)
+            combined_actions.extend(result.actions_executed)
+            order_updated = order_updated or result.order_updated
+            if not result.success:
+                last_success = False
+                all_questions.extend(result.clarification_questions)
+
+        return ExecutionAgentSingleResult(
+            success=last_success,
+            reply="\n".join(r.strip() for r in combined_replies if r.strip()),
+            clarification_questions=all_questions,
+            actions_executed=combined_actions,
+            order_updated=order_updated,
+        )
+
     def _build_tools(
         self,
         runtime: ExecutionToolRuntime,
         tracker: ExecutionTracker | None = None,
-    ) -> list[gemini_client.GeminiFunctionTool]:
+    ) -> list[llm_client.GeminiFunctionTool]:
         print(
             "[ExecutionAgent] _build_tools",
             f"session_id={runtime.context.session_id!r}",
@@ -1151,7 +1321,7 @@ class ExecutionAgent:
             return out
 
         tools_list = [
-            gemini_client.GeminiFunctionTool(
+            llm_client.GeminiFunctionTool(
                 name="validateRequestedItem",
                 description=(
                     "Resolve a customer-mentioned item against the live menu, confirm availability, "
@@ -1162,67 +1332,67 @@ class ExecutionAgent:
                 parameters_json_schema=_VALIDATE_REQUESTED_ITEM_PARAMETERS_JSON_SCHEMA,
                 handler=_validate_requested_item_tool,
             ),
-            gemini_client.GeminiFunctionTool(
+            llm_client.GeminiFunctionTool(
                 name="addItemsToOrder",
                 description="Add one or more resolved menu items to the current order.",
                 parameters_json_schema=_ADD_ITEMS_TO_ORDER_PARAMETERS_JSON_SCHEMA,
                 handler=_guard("add_item", _add_items_to_order_tool),
             ),
-            gemini_client.GeminiFunctionTool(
+            llm_client.GeminiFunctionTool(
                 name="replaceItemInOrder",
                 description="Replace one existing order item with another resolved menu item.",
                 parameters_json_schema=_REPLACE_ITEM_IN_ORDER_PARAMETERS_JSON_SCHEMA,
                 handler=_guard("replace_item", _replace_item_in_order_tool),
             ),
-            gemini_client.GeminiFunctionTool(
+            llm_client.GeminiFunctionTool(
                 name="removeItemFromOrder",
                 description="Remove an existing item from the current order.",
                 parameters_json_schema=_REMOVE_ITEM_FROM_ORDER_PARAMETERS_JSON_SCHEMA,
                 handler=_guard("remove_item", _remove_item_from_order_tool),
             ),
-            gemini_client.GeminiFunctionTool(
+            llm_client.GeminiFunctionTool(
                 name="changeItemQuantity",
                 description="Change the quantity of an item already in the current order.",
                 parameters_json_schema=_CHANGE_ITEM_QUANTITY_PARAMETERS_JSON_SCHEMA,
                 handler=_guard("change_item_quantity", _change_item_quantity_tool),
             ),
-            gemini_client.GeminiFunctionTool(
+            llm_client.GeminiFunctionTool(
                 name="updateItemInOrder",
                 description="Update modifiers and notes for an existing line item in the current order.",
                 parameters_json_schema=_UPDATE_ITEM_IN_ORDER_PARAMETERS_JSON_SCHEMA,
                 handler=_guard("update_item", _update_item_in_order_tool),
             ),
-            gemini_client.GeminiFunctionTool(
+            llm_client.GeminiFunctionTool(
                 name="calcOrderPrice",
                 description="Calculate the current order subtotal, tax, and total before confirmation.",
                 parameters_json_schema=_NO_ARGUMENTS_JSON_SCHEMA,
                 handler=_calc_order_price_tool,
             ),
-            gemini_client.GeminiFunctionTool(
+            llm_client.GeminiFunctionTool(
                 name="confirmOrder",
                 description="Submit the current order after explicit customer confirmation.",
                 parameters_json_schema=_NO_ARGUMENTS_JSON_SCHEMA,
                 handler=_guard("confirm_order", _confirm_order_tool),
             ),
-            gemini_client.GeminiFunctionTool(
+            llm_client.GeminiFunctionTool(
                 name="cancelOrder",
                 description="Cancel the current order after explicit customer confirmation.",
                 parameters_json_schema=_NO_ARGUMENTS_JSON_SCHEMA,
                 handler=_guard("cancel_order", _cancel_order_tool),
             ),
-            gemini_client.GeminiFunctionTool(
+            llm_client.GeminiFunctionTool(
                 name="getMenuLink",
                 description="Return a shareable URL for the full menu. Use when customer asks to see the menu.",
                 parameters_json_schema=_GET_MENU_LINK_PARAMETERS_JSON_SCHEMA,
                 handler=_get_menu_link_tool,
             ),
-            gemini_client.GeminiFunctionTool(
+            llm_client.GeminiFunctionTool(
                 name="getItemsNotAvailableToday",
                 description="Return a list of menu items that are currently unavailable.",
                 parameters_json_schema=_GET_ITEMS_NOT_AVAILABLE_TODAY_PARAMETERS_JSON_SCHEMA,
                 handler=_get_items_not_available_today_tool,
             ),
-            gemini_client.GeminiFunctionTool(
+            llm_client.GeminiFunctionTool(
                 name="humanInterventionNeeded",
                 description=(
                     "MUST be called whenever the customer asks to speak to a human, manager, or staff member, "
@@ -1232,22 +1402,17 @@ class ExecutionAgent:
                 parameters_json_schema=_HUMAN_INTERVENTION_NEEDED_PARAMETERS_JSON_SCHEMA,
                 handler=_human_intervention_needed_tool,
             ),
-            gemini_client.GeminiFunctionTool(
+            llm_client.GeminiFunctionTool(
                 name="getPreviousOrdersDetails",
                 description="Retrieve order history for the session. Use when customer asks about past orders.",
                 parameters_json_schema=_GET_PREVIOUS_ORDERS_DETAILS_PARAMETERS_JSON_SCHEMA,
                 handler=_get_previous_orders_details_tool,
             ),
-            gemini_client.GeminiFunctionTool(
-                name="suggestedPickupTime",
-                description=(
-                    "MUST be called when the customer suggests a pickup time "
-                    "(e.g., 'I'll be there in 30 minutes', 'can I pick up in an hour?'). "
-                    "Convert the time to whole minutes and pass as pickup_time_minutes. "
-                    "Do NOT call for any other intent."
-                ),
-                parameters_json_schema=_SUGGESTED_PICKUP_TIME_PARAMETERS_JSON_SCHEMA,
-                handler=_guard("suggested_pickup_time", _suggested_pickup_time_tool),
+            llm_client.GeminiFunctionTool(
+                name="requestPickupTime",
+                description="Store or retrieve a pickup time preference for the session.",
+                parameters_json_schema=_REQUEST_PICKUP_TIME_PARAMETERS_JSON_SCHEMA,
+                handler=_request_pickup_time_tool,
             ),
         ]
         print(
