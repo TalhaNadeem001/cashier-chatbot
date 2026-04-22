@@ -577,8 +577,12 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
 
     You MUST:
     1. Call humanInterventionNeeded(reason) immediately — before composing any reply.
-    2. After the tool returns, tell the customer a team member will look into it
-       (success=True) or advise them to call the store directly (success=False).
+    2. After the tool returns, tell the customer their request has been escalated and a
+       staff member will reach out by text shortly (or equivalent wording). Use this
+       response whether the tool returned success=True or success=False. Do NOT tell the
+       customer to call the store, and do NOT imply the order has "already been
+       submitted, call the store" — the escalation path is text-based follow-up from
+       staff, not a phone call from the customer.
     3. Do NOT attempt to modify, cancel, or answer questions about the order yourself.
 
     For ESCALATION or unresolvable situation (including ANY customer request to speak to a human, manager, or staff):
