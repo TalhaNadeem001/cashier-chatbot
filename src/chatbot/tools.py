@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import datetime, timezone
 
 import httpx
@@ -213,6 +214,51 @@ async def findClosestMenuItems(
         )
         return _no_match
 
+_SODA_ALIASES: frozenset[str] = frozenset({
+    # Coca-Cola family
+    "coke", "coca cola", "coca-cola", "coke classic",
+    "diet coke", "coke zero", "coke zero sugar",
+    "cherry coke", "cherry coca cola",
+    "vanilla coke", "vanilla coca cola",
+    "mexican coke", "mexico coke", "glass bottle coke",
+    "coke with lemon", "coke with lime",
+    # Pepsi family
+    "pepsi", "pepsi cola", "diet pepsi",
+    "pepsi zero", "pepsi max", "pepsi zero sugar",
+    "wild cherry pepsi",
+    # Sprite / 7UP / lemon-lime
+    "sprite", "sprite zero", "sprite zero sugar",
+    "7up", "7 up", "seven up", "diet 7up", "diet 7 up",
+    "sierra mist",
+    # Dr Pepper
+    "dr pepper", "dr. pepper", "doctor pepper",
+    "diet dr pepper", "dr pepper zero",
+    # Root beer
+    "root beer", "a&w", "a&w root beer", "a and w", "a and w root beer",
+    "mug root beer", "barqs", "barq's", "barqs root beer", "barq's root beer",
+    "diet root beer",
+    # Mountain Dew
+    "mountain dew", "mtn dew", "mtn. dew", "mt dew", "dew",
+    "diet mountain dew", "diet dew",
+    # Fanta / Crush / orange soda
+    "fanta", "fanta orange", "fanta grape", "fanta strawberry", "fanta pineapple",
+    "orange soda", "crush", "orange crush", "grape crush",
+    "grape soda", "strawberry soda",
+    # Ginger ale
+    "ginger ale", "canada dry", "schweppes ginger ale",
+    "diet ginger ale",
+    # Other common sodas
+    "fresca", "mello yello", "big red", "sunkist", "squirt",
+    "jarritos", "jarritos tamarind", "jarritos lime", "jarritos mandarin",
+    "rc cola", "rc", "cheerwine",
+    # Generic terms
+    "soda", "pop", "soft drink", "cola", "cold drink",
+    "fountain drink", "carbonated drink", "fizzy drink",
+})
+
+_SODA_CANONICAL = "can of pop"
+
+
 def _find_closest_menu_items_from_menu(
     *,
     item_name: str,
@@ -226,6 +272,22 @@ def _find_closest_menu_items_from_menu(
         "[findClosestMenuItems] menu loaded "
         f"distinct_names={len(items_name_set)} by_id_keys={len(menu_items.get('by_id', {}))}"
     )
+
+    # Soda alias pre-processing: if the customer named a soda variant and the menu
+    # has no exact match for it but does have the canonical "can of pop" item,
+    # rewrite item_name so fuzzy matching resolves correctly.
+    normalized_input = item_name.lower().strip()
+    can_of_pop_in_menu = _SODA_CANONICAL in items_by_name
+    if (
+        normalized_input in _SODA_ALIASES
+        and _get_local_item(item_name, items_by_name) is None
+        and can_of_pop_in_menu
+    ):
+        print(
+            f"[findClosestMenuItems] soda alias matched "
+            f"original={item_name!r} → rewriting to {_SODA_CANONICAL!r}"
+        )
+        item_name = _SODA_CANONICAL
 
     exact_match = _get_local_item(item_name, items_by_name)
     top_matches = process.extract(

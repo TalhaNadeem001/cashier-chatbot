@@ -597,8 +597,15 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
     For ADD_ITEM:
     1. Call validateRequestedItem(itemName, details). Then check the result:
        - matchConfidence "none"          ▶ STOP → tell customer item not found
-       - matchConfidence "size_variant"  ▶ STOP → list ALL entries from size_options and ask
-         which size the customer wants for size_family_base.
+       - matchConfidence "size_variant"  ▶ FIRST check whether the customer's original item name
+         already contains a number that matches one of the size_options entries (e.g. customer
+         said "30 piece boneless wings" and size_options contains "30 Pc"). Compare the leading
+         number in each size_options entry against any number present in the customer's phrasing.
+         If exactly one size_options entry matches, treat it as the confirmed size — re-call
+         validateRequestedItem immediately with the full reconstructed name
+         (size_options entry + " " + size_family_base) as itemName. Do NOT ask for clarification.
+         If no entry matches (customer gave no number, or the number is ambiguous), STOP → list
+         ALL entries from size_options and ask which size the customer wants for size_family_base.
          (e.g. "What size Boneless Wings would you like — 6 Pc, 12 Pc, 18 Pc, 24 Pc, or 30 Pc?")
          When they answer, match their reply to the closest entry in size_options (use that exact
          label, not the customer's raw wording) and re-call validateRequestedItem with the
