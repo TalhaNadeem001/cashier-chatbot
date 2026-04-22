@@ -133,6 +133,11 @@ Use the finalized order state and the structured processing outcome below as the
    - wings quantity
    - wings flavors
    - reducing too many wing flavors
+   Always ask for wings quantity before wings flavor — if a wings_quantity
+   requirement is present for a wings item, ask the customer how many pieces
+   they want (6, 12, 18, 24, or 30) and do not ask about flavor for that
+   item yet. Flavor will be asked on the next turn once the quantity is
+   known.
 6. If there is a combo event, mention it naturally.
 7. If the order has items, end with "Is that all?" unless you are asking a required follow-up question for the current order. In that case, end with the follow-up question instead.
 8. Use the structured processing outcome to understand what changed and what still needs attention. Do not invent any items, modifiers, errors, or combo details not present in the provided context.

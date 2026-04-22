@@ -11,7 +11,12 @@ from src.chatbot.cart.utils import (
 from src.chatbot.clarification.fuzzy_matcher import FuzzyMatcher, _MatchResult
 from src.chatbot.exceptions import AIServiceError
 from src.chatbot.extraction.extractor import OrderExtractor
-from src.chatbot.internal_schemas import MenuMatchIssue, ModifierValidationIssue, OrderProcessingOutcome
+from src.chatbot.internal_schemas import (
+    MenuMatchIssue,
+    ModifierValidationIssue,
+    OrderFollowUpRequirement,
+    OrderProcessingOutcome,
+)
 from src.chatbot.schema import BotInteractionRequest, ChatbotResponse, OrderItem
 from src.menu.loader import (
     get_item_id,
@@ -156,6 +161,27 @@ def _group_invalid_modifier_issues(issues: list[ModifierValidationIssue]) -> lis
             group["invalid_modifiers"].append(invalid_modifier)
 
     return groups
+
+
+_FOLLOW_UP_PRIORITY = {
+    "wings_quantity": 0,
+    "burger_patties": 1,
+    "wings_flavor": 2,
+    "wings_flavor_limit": 3,
+}
+
+
+def _prioritize_follow_up_requirements(
+    requirements: list[OrderFollowUpRequirement],
+) -> list[OrderFollowUpRequirement]:
+    """Sort follow-ups so wings_quantity is surfaced before wings_flavor.
+
+    Preserves original ordering within the same priority bucket.
+    """
+    return sorted(
+        requirements,
+        key=lambda req: _FOLLOW_UP_PRIORITY.get(req.kind, 99),
+    )
 
 
 def _format_modifier_list(values: list[str]) -> str:
@@ -405,6 +431,13 @@ class OrderStateHandler:
             [issue.model_dump() for issue in invalid_modifiers],
         )
 
+        # Surface wings_quantity before anything else so the polish reply asks
+        # for piece count before flavor on the same wings item. Without this,
+        # the LLM has a tendency to skip straight to the flavor prompt.
+        ordered_follow_ups = _prioritize_follow_up_requirements(
+            validation_result.follow_up_requirements
+        )
+
         working_order_state = {**combo_result.order_state, "items": validation_result.items}
 
         resolved_items = await _enrich_items_with_resolved_mods(working_order_state.get("items", []))
@@ -419,7 +452,7 @@ class OrderStateHandler:
             accepted_order=strip_order_state_for_delta(enriched_order_state),
             menu_match_issues=menu_match_issues,
             invalid_modifiers=invalid_modifiers,
-            follow_up_requirements=validation_result.follow_up_requirements,
+            follow_up_requirements=ordered_follow_ups,
             combo_event=combo_result.combo_event,
             confirmation_resolved=confirmation_resolved,
             order_empty=not bool(strip_order_state_for_delta(enriched_order_state).get("items")),
