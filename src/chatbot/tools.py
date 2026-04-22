@@ -281,6 +281,38 @@ def _find_closest_menu_items_from_menu(
                 "match_confidence": "exact",
             }
 
+    # Size-family detection: if 2+ top candidates share the same base name after
+    # stripping a leading "N Pc/pc/piece/pieces" prefix, return size_variant so the
+    # agent asks which size rather than asking "did you mean X?".
+    _SIZE_PREFIX_RE = re.compile(r'^\d+\s*(?:pc|pcs|piece|pieces)\s+', re.IGNORECASE)
+    stripped_names = {_SIZE_PREFIX_RE.sub('', c.get('name', '')).strip().lower(): c for c in candidates}
+    base_groups: dict[str, list[dict]] = {}
+    for c in candidates:
+        base = _SIZE_PREFIX_RE.sub('', c.get('name', '')).strip().lower()
+        base_groups.setdefault(base, []).append(c)
+    size_family_base = next((base for base, members in base_groups.items() if len(members) >= 2), None)
+    if size_family_base is not None:
+        family_members = base_groups[size_family_base]
+        size_options = []
+        for c in family_members:
+            full = c.get('name', '')
+            label = _SIZE_PREFIX_RE.match(full)
+            if label:
+                size_options.append(label.group(0).strip())
+        display_base = family_members[0].get('name', '')
+        display_base = _SIZE_PREFIX_RE.sub('', display_base).strip()
+        print(
+            "[findClosestMenuItems] return size_variant "
+            f"base={display_base!r} options={size_options!r}"
+        )
+        return {
+            "exact_match": None,
+            "candidates": family_members,
+            "match_confidence": "size_variant",
+            "size_family_base": display_base,
+            "size_options": size_options,
+        }
+
     print(
         "[findClosestMenuItems] return close "
         f"candidate_count={len(candidates)} top_name={top_matches[0][0]!r}"
@@ -1113,6 +1145,18 @@ async def validateRequestedItem(
             Ambiguous match. Show ``candidates[0]`` (and optionally
             ``candidates[1]``) and ask "Did you mean X?" before adding.
             All downstream fields are ``None``.
+
+        matchConfidence == "size_variant"
+            The customer named a size family without specifying a size (e.g.
+            "boneless wings" when the menu has "6 Pc", "12 Pc", etc.).
+            Extra fields populated: ``size_family_base`` (str) and
+            ``size_options`` (list[str]) — the label for each size variant.
+            Do NOT call any mutation tools. List ALL size_options and ask the
+            customer which size they want. When they answer, match their reply
+            to the closest entry in size_options and re-call
+            validateRequestedItem with the full reconstructed name
+            (e.g. ``"12 Pc Boneless Wings"``) as itemName.
+            All downstream fields (itemId, available, valid, …) are ``None``.
 
         matchConfidence == "exact" and available == False
             Item exists but cannot be ordered. Tell the customer it is
