@@ -1470,54 +1470,55 @@ async def addItemsToOrder(session_id: str, items: list[dict] | None = None, cred
             f"[addItemsToOrder] NORMAL PATH: adding {item_id!r} qty={quantity} price={item_price} to order {order_id!r}"
         )
         try:
-            for _ in range(quantity):
-                response = await add_clover_line_item(
-                    creds["token"],
-                    creds["merchant_id"],
-                    creds["base_url"],
-                    order_id,
-                    item_id,
-                    1,
-                    note,
-                    item_price,
-                )
-                line_item_id = response["id"]
-                print(
-                    f"[addItemsToOrder] line item created: line_item_id={line_item_id!r} price={response.get('price')}"
-                )
-                modifiers_applied: list[str] = []
+            # Create a single line item with the full quantity so Clover shows
+            # one batched row (e.g. "6x Wings") instead of N duplicate rows.
+            response = await add_clover_line_item(
+                creds["token"],
+                creds["merchant_id"],
+                creds["base_url"],
+                order_id,
+                item_id,
+                quantity,
+                note,
+                item_price,
+            )
+            line_item_id = response["id"]
+            print(
+                f"[addItemsToOrder] line item created: line_item_id={line_item_id!r} qty={quantity} price={response.get('price')}"
+            )
+            modifiers_applied: list[str] = []
 
-                for mod_id in modifiers:
-                    try:
-                        await add_clover_modification(
-                            creds["token"],
-                            creds["merchant_id"],
-                            creds["base_url"],
-                            order_id,
-                            line_item_id,
-                            mod_id,
-                        )
-                        print(
-                            f"[addItemsToOrder] modifier {mod_id!r} applied to line {line_item_id!r}"
-                        )
-                        modifiers_applied.append(mod_id)
-                    except Exception as exc:
-                        print(
-                            f"[addItemsToOrder] modifier {mod_id!r} on line {line_item_id!r} failed: {exc!r}"
-                        )
-                        failed_items.append({"itemId": mod_id, "reason": str(exc)})
+            for mod_id in modifiers:
+                try:
+                    await add_clover_modification(
+                        creds["token"],
+                        creds["merchant_id"],
+                        creds["base_url"],
+                        order_id,
+                        line_item_id,
+                        mod_id,
+                    )
+                    print(
+                        f"[addItemsToOrder] modifier {mod_id!r} applied to line {line_item_id!r}"
+                    )
+                    modifiers_applied.append(mod_id)
+                except Exception as exc:
+                    print(
+                        f"[addItemsToOrder] modifier {mod_id!r} on line {line_item_id!r} failed: {exc!r}"
+                    )
+                    failed_items.append({"itemId": mod_id, "reason": str(exc)})
 
-                added_items.append(
-                    {
-                        "lineItemId": line_item_id,
-                        "itemId": item_id,
-                        "name": item_row.get("name", ""),
-                        "quantity": 1,
-                        "modifiersApplied": modifiers_applied,
-                        "lineTotal": response.get("price", 0),
-                    }
-                )
-                last_added_line_item_id = line_item_id
+            added_items.append(
+                {
+                    "lineItemId": line_item_id,
+                    "itemId": item_id,
+                    "name": item_row.get("name", ""),
+                    "quantity": quantity,
+                    "modifiersApplied": modifiers_applied,
+                    "lineTotal": response.get("price", 0),
+                }
+            )
+            last_added_line_item_id = line_item_id
 
         except Exception as exc:
             print(f"[addItemsToOrder] item {item_id!r} failed: {exc!r}")
