@@ -85,3 +85,36 @@ Functions in this file are called directly by the AI agent. Follow these rules w
   - Each return field: type, meaning, and when it is/isn't populated
   - A short "decision guide" showing the agent exactly what action to take for each possible output value
 - **Use `print` for debug output** (not `logging`) so output is visible during development.
+
+# Documentation Rule
+
+**Always read `.docs/` before making changes or searching the codebase.** The docs folder contains context summaries organized by feature/functionality — reading them first saves you from unnecessary codebase searches.
+
+## When to write docs
+
+After every meaningful code change, create or update a doc in `.docs/` describing what was implemented. The goal is to give future Claude sessions instant context so they don't have to re-discover things from scratch.
+
+## How to structure docs
+
+- **One doc per feature/area** — do not create one giant doc. Split by functionality (e.g. `.docs/chatbot-tools.md`, `.docs/auth.md`, `.docs/order-flow.md`).
+- **Keep docs focused**: what exists, where it lives (file paths + function names), key decisions made, and gotchas to be aware of.
+- **Update, don't duplicate** — if a doc already covers the area you changed, update it rather than creating a new one.
+- **Append to existing docs** at the bottom under a `## [date] - [change summary]` heading so history is preserved.
+
+## Doc format
+
+```markdown
+# [Feature Name]
+
+## Overview
+Brief description of what this feature does and why it exists.
+
+## Key Files
+- `src/path/to/file.py` — what it contains
+
+## How It Works
+Short explanation of the flow / key logic.
+
+## Gotchas / Decisions
+- Any non-obvious decisions, constraints, or things that tripped you up.
+```

@@ -229,6 +229,10 @@ _REMOVE_ITEM_FROM_ORDER_PARAMETERS_JSON_SCHEMA: dict[str, Any] = {
             "properties": {
                 "orderPosition": {"type": "integer", "minimum": 1},
                 "itemName": {"type": "string"},
+                "details": {
+                    "type": "string",
+                    "description": "Modifier or qualifier the customer used to identify a specific variant (e.g. 'spicy', 'lemon pepper'). Omit when no modifier was mentioned — omitting causes ALL items with that name to be removed.",
+                },
             },
             "additionalProperties": False,
         }
@@ -1357,13 +1361,13 @@ class ExecutionAgent:
             ),
             llm_client.GeminiFunctionTool(
                 name="removeItemFromOrder",
-                description="Remove an existing item from the current order.",
+                description="Remove an existing item entirely from the current order. Use this when the customer wants ALL of a named item removed, or when no specific quantity was mentioned. When a customer mentions a specific quantity to remove (e.g. 'remove 2'), prefer changeItemQuantity instead. When the customer names a plain item (e.g. 'remove the chicken sando') ALL line items with that name are removed. When the customer references a specific variant with a modifier (e.g. 'remove the spicy chicken sando'), pass that modifier as target.details to remove only that one.",
                 parameters_json_schema=_REMOVE_ITEM_FROM_ORDER_PARAMETERS_JSON_SCHEMA,
                 handler=_guard("remove_item", _remove_item_from_order_tool),
             ),
             llm_client.GeminiFunctionTool(
                 name="changeItemQuantity",
-                description="Change the quantity of an item already in the current order.",
+                description="Change the quantity of an item already in the current order. Use this when the customer specifies a partial quantity change — including when they say 'remove N [items]' and N is less than the current quantity in the order (set newQuantity = currentQuantity - N).",
                 parameters_json_schema=_CHANGE_ITEM_QUANTITY_PARAMETERS_JSON_SCHEMA,
                 handler=_guard("change_item_quantity", _change_item_quantity_tool),
             ),

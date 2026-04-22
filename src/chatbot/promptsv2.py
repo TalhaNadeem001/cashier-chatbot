@@ -600,7 +600,16 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
        After this call returns → respond to the customer confirming the replacement.
 
     For REMOVE_ITEM:
-    - Call removeItemFromOrder(target) directly (no menu validation needed).
+    PRE-CHECK — Quantity disambiguation:
+    Before calling any tool, check whether the customer specified a specific quantity to remove.
+    - If a quantity was specified (e.g. "remove 2 chicken sandos"):
+      1. Check the current order (context_object current_order_details) for that item's line quantity.
+      2. If requestedQty < currentQty → call changeItemQuantity(target, newQuantity=currentQty - requestedQty)
+         After it returns → respond to the customer confirming the quantity was reduced.
+      3. If requestedQty >= currentQty (or currentQty is unknown) → call removeItemFromOrder(target) to remove the item entirely.
+         After it returns → respond to the customer confirming the removal.
+    - If NO specific quantity was mentioned (e.g. "remove the chicken sando", "remove all chicken sandos"):
+      → Call removeItemFromOrder(target) directly.
       After it returns → respond to the customer confirming the removal.
 
     For CHANGE_ITEM_NUMBER:

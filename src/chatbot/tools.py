@@ -1,10 +1,5 @@
-import argparse
-import asyncio
 import json
-import sys
-from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
-from pathlib import Path
 
 import httpx
 from rapidfuzz import process
@@ -15,8 +10,6 @@ from src.cache import (
     cache_list_length,
     cache_list_range,
     cache_set,
-    close_redis,
-    init_redis,
 )
 from src.chatbot.cart.ai_client import classify_modifier_or_addon_request
 from src.chatbot.clarification.ai_resolver import resolve_modifiers_for_item
@@ -30,7 +23,6 @@ from src.chatbot.clarification.constants import (
 from src.chatbot.clarification.fuzzy_matcher import _combined_scorer
 from src.chatbot.exceptions import AIServiceError
 from src.chatbot.gemini_client import generate_text
-from src.firebase import close_firebase, init_firebase
 from src import firebase as _firebase
 from src.config import settings
 from src.menu.clover_client import (
@@ -1889,6 +1881,8 @@ async def removeItemFromOrder(session_id: str, target: dict, creds: dict | None 
         2. ``target["itemName"]`` provided → fuzzy-search current line item names.
         At least one must be supplied or the call returns an error.
 
+    When ``itemName`` is used, ALL line items sharing that name are removed.
+
     Args:
         session_id:
             The chat session identifier. Do NOT pass the raw Clover order id.
@@ -1902,11 +1896,20 @@ async def removeItemFromOrder(session_id: str, target: dict, creds: dict | None 
     Returns a dict:
 
         success (bool)
-            True when the item was deleted successfully.
+            True when at least one item was deleted successfully.
 
         removedItem (dict | None)
-            ``{"name": str, "quantity": int}`` of the removed item;
+            ``{"name": str, "quantity": int}`` of the removed item(s);
             None when an error occurred before deletion.
+
+        removedCount (int)
+            Total number of line items deleted. 1 when ``orderPosition`` or ``details``
+            resolves to a specific item; N when a name-only removal deletes all matches.
+
+        lineItemId (str | None)
+            The specific Clover line item id that was deleted. Populated when
+            ``orderPosition`` is used or when ``details`` resolves to a specific variant.
+            None when a name-only removal deleted multiple items.
 
         remainingQuantity (int)
             Always 0 — partial removal is not supported.
@@ -1934,6 +1937,8 @@ async def removeItemFromOrder(session_id: str, target: dict, creds: dict | None 
         return {
             "success": False,
             "removedItem": None,
+            "removedCount": 0,
+            "lineItemId": None,
             "remainingQuantity": 0,
             "updatedOrderTotal": 0,
             "error": "must provide at least one of: orderPosition or itemName",
@@ -1973,6 +1978,8 @@ async def removeItemFromOrder(session_id: str, target: dict, creds: dict | None 
             return {
                 "success": False,
                 "removedItem": None,
+                "removedCount": 0,
+                "lineItemId": None,
                 "remainingQuantity": 0,
                 "updatedOrderTotal": 0,
                 "error": f"orderPosition {order_position} out of range (order has {len(line_items)} item(s))",
@@ -1982,6 +1989,51 @@ async def removeItemFromOrder(session_id: str, target: dict, creds: dict | None 
         item_display_name = match.get("name", "")
         removed_quantity = max(1, (match.get("unitQty") or 1000) // 1000)
 
+        # --- Delete single item (orderPosition path) ---
+        print(f"[removeItemFromOrder] deleting line item {target_line_item_id!r}")
+        try:
+            await delete_clover_line_item(
+                creds["token"],
+                creds["merchant_id"],
+                creds["base_url"],
+                order_id,
+                target_line_item_id,
+            )
+        except Exception as exc:
+            print(f"[removeItemFromOrder] delete failed: {exc!r}")
+            return {
+                "success": False,
+                "removedItem": None,
+                "removedCount": 0,
+                "lineItemId": None,
+                "remainingQuantity": 0,
+                "updatedOrderTotal": 0,
+                "error": f"failed to remove item: {exc}",
+            }
+
+        # --- Fetch updated total (non-fatal) ---
+        updated_total = 0
+        try:
+            updated_order = await fetch_clover_order(
+                creds["token"], creds["merchant_id"], creds["base_url"], order_id
+            )
+            updated_total = updated_order.get("total", 0) or 0
+            print(f"[removeItemFromOrder] updated order total: {updated_total} cents")
+        except Exception as exc:
+            print(f"[removeItemFromOrder] fetch_clover_order failed: {exc!r}")
+
+        result = {
+            "success": True,
+            "removedItem": {"name": item_display_name, "quantity": removed_quantity},
+            "removedCount": 1,
+            "lineItemId": target_line_item_id,
+            "remainingQuantity": 0,
+            "updatedOrderTotal": updated_total,
+            "error": None,
+        }
+        print(f"[removeItemFromOrder] result: {result}")
+        return result
+
     else:
         # item_name is not None here
         line_item_names = [li.get("name", "") for li in line_items]
@@ -1990,6 +2042,8 @@ async def removeItemFromOrder(session_id: str, target: dict, creds: dict | None 
             return {
                 "success": False,
                 "removedItem": None,
+                "removedCount": 0,
+                "lineItemId": None,
                 "remainingQuantity": 0,
                 "updatedOrderTotal": 0,
                 "error": f"no line item matching {item_name!r} found in current order",
@@ -2003,64 +2057,81 @@ async def removeItemFromOrder(session_id: str, target: dict, creds: dict | None 
             return {
                 "success": False,
                 "removedItem": None,
+                "removedCount": 0,
+                "lineItemId": None,
                 "remainingQuantity": 0,
                 "updatedOrderTotal": 0,
                 "error": f"ambiguous item name {item_name!r}; matches: {sorted(unique_names)}",
             }
         best_name = best[0]
-        match = next((li for li in line_items if li.get("name", "") == best_name), None)
-        if match is None:
+        all_matching = [li for li in line_items if li.get("name", "") == best_name]
+        if not all_matching:
             return {
                 "success": False,
                 "removedItem": None,
+                "removedCount": 0,
+                "lineItemId": None,
                 "remainingQuantity": 0,
                 "updatedOrderTotal": 0,
                 "error": f"no line item matching {item_name!r} found in current order",
             }
-        target_line_item_id = match.get("id", "")
-        item_display_name = match.get("name", "")
-        removed_quantity = max(1, (match.get("unitQty") or 1000) // 1000)
 
-    # --- Delete ---
-    print(f"[removeItemFromOrder] deleting line item {target_line_item_id!r}")
-    try:
-        await delete_clover_line_item(
-            creds["token"],
-            creds["merchant_id"],
-            creds["base_url"],
-            order_id,
-            target_line_item_id,
-        )
-    except Exception as exc:
-        print(f"[removeItemFromOrder] delete failed: {exc!r}")
-        return {
-            "success": False,
-            "removedItem": None,
+        item_display_name = best_name
+
+        # --- Determine which items to delete ---
+        items_to_delete: list[dict] = all_matching
+        specific_line_item_id: str | None = None
+
+        # --- Delete ---
+        removed_count = 0
+        for li in items_to_delete:
+            li_id = li.get("id", "")
+            print(f"[removeItemFromOrder] deleting line item {li_id!r}")
+            try:
+                await delete_clover_line_item(
+                    creds["token"],
+                    creds["merchant_id"],
+                    creds["base_url"],
+                    order_id,
+                    li_id,
+                )
+                removed_count += 1
+            except Exception as exc:
+                print(f"[removeItemFromOrder] delete failed for {li_id!r}: {exc!r}")
+
+        if removed_count == 0:
+            return {
+                "success": False,
+                "removedItem": None,
+                "removedCount": 0,
+                "lineItemId": None,
+                "remainingQuantity": 0,
+                "updatedOrderTotal": 0,
+                "error": "failed to remove any matching items",
+            }
+
+        # --- Fetch updated total (non-fatal) ---
+        updated_total = 0
+        try:
+            updated_order = await fetch_clover_order(
+                creds["token"], creds["merchant_id"], creds["base_url"], order_id
+            )
+            updated_total = updated_order.get("total", 0) or 0
+            print(f"[removeItemFromOrder] updated order total: {updated_total} cents")
+        except Exception as exc:
+            print(f"[removeItemFromOrder] fetch_clover_order failed: {exc!r}")
+
+        result = {
+            "success": True,
+            "removedItem": {"name": item_display_name, "quantity": removed_count},
+            "removedCount": removed_count,
+            "lineItemId": specific_line_item_id,
             "remainingQuantity": 0,
-            "updatedOrderTotal": 0,
-            "error": f"failed to remove item: {exc}",
+            "updatedOrderTotal": updated_total,
+            "error": None,
         }
-
-    # --- Fetch updated total (non-fatal) ---
-    updated_total = 0
-    try:
-        updated_order = await fetch_clover_order(
-            creds["token"], creds["merchant_id"], creds["base_url"], order_id
-        )
-        updated_total = updated_order.get("total", 0) or 0
-        print(f"[removeItemFromOrder] updated order total: {updated_total} cents")
-    except Exception as exc:
-        print(f"[removeItemFromOrder] fetch_clover_order failed: {exc!r}")
-
-    result = {
-        "success": True,
-        "removedItem": {"name": item_display_name, "quantity": removed_quantity},
-        "remainingQuantity": 0,
-        "updatedOrderTotal": updated_total,
-        "error": None,
-    }
-    print(f"[removeItemFromOrder] result: {result}")
-    return result
+        print(f"[removeItemFromOrder] result: {result}")
+        return result
 
 
 async def changeItemQuantity(session_id: str, target: dict, newQuantity: int, creds: dict | None = None) -> dict:
@@ -3140,150 +3211,6 @@ async def get_order_id_for_session(session_id: str, creds: dict) -> str:
         )
     return order_id
 
-
-CliHandler = Callable[[argparse.Namespace], Awaitable[dict]]
-
-
-async def _cli_find_closest(ns: argparse.Namespace) -> dict:
-    return await findClosestMenuItems(ns.query, ns.details, settings.RESTAURANT_ID)
-
-
-async def _cli_get_item_details(ns: argparse.Namespace) -> dict:
-    return await get_item_details(ns.item_id, settings.RESTAURANT_ID)
-
-
-async def _cli_check_availability(ns: argparse.Namespace) -> dict:
-    return await check_item_availability(ns.item_id, settings.RESTAURANT_ID)
-
-
-async def _cli_validate_modifications(ns: argparse.Namespace) -> dict:
-    if ns.requested_file:
-        raw = Path(ns.requested_file).expanduser().read_text(encoding="utf-8")
-    else:
-        raw = ns.requested_json
-
-    requested = json.loads(raw)
-    if not isinstance(requested, list) or any(
-        not isinstance(value, str) for value in requested
-    ):
-        raise ValueError("requested modifications must be a JSON array of strings")
-
-    return await validateModifications(ns.item_id, ns.merchant_id, requested)
-
-
-async def _cli_check_modifier_or_addon(ns: argparse.Namespace) -> dict:
-    return await checkIfModifierOrAddOn(
-        ns.item_id,
-        ns.merchant_id,
-        ns.requested_modification,
-    )
-
-
-async def _cli_add_item_to_cart(ns: argparse.Namespace) -> dict:
-    if ns.items_file:
-        raw = Path(ns.items_file).expanduser().read_text(encoding="utf-8")
-    elif ns.items_json is not None:
-        raw = ns.items_json
-    else:
-        return await addItemsToOrder(ns.session_id, None)
-
-    parsed = json.loads(raw)
-    if parsed is None:
-        return await addItemsToOrder(ns.session_id, None)
-    if not isinstance(parsed, list):
-        raise ValueError("items must be a JSON array or null")
-    for row in parsed:
-        if not isinstance(row, dict):
-            raise ValueError("each items element must be a JSON object")
-    return await addItemsToOrder(ns.session_id, parsed)
-
-
-async def _cli_replace_item_in_order(ns: argparse.Namespace) -> dict:
-    if ns.replacement_file:
-        raw = Path(ns.replacement_file).expanduser().read_text(encoding="utf-8")
-    else:
-        raw = ns.replacement_json
-    replacement = json.loads(raw)
-    if not isinstance(replacement, dict):
-        raise ValueError("replacement must be a JSON object")
-
-    return await replaceItemInOrder(
-        ns.session_id,
-        replacement,
-        lineItemId=ns.line_item_id,
-        orderPosition=ns.order_position,
-        itemName=ns.item_name,
-    )
-
-
-async def _cli_get_order_line_items(ns: argparse.Namespace) -> dict:
-    return await getOrderLineItems(ns.session_id)
-
-
-async def _cli_summarize_conversation_history(ns: argparse.Namespace) -> dict:
-    return await summarizeConversationHistory(ns.session_id, ns.k)
-
-
-async def _cli_calc_order_price(ns: argparse.Namespace) -> dict:
-    return await calcOrderPrice(ns.session_id)
-
-
-async def _cli_confirm_order(ns: argparse.Namespace) -> dict:
-    return await confirmOrder(ns.session_id)
-
-
-async def _cli_cancel_order(ns: argparse.Namespace) -> dict:
-    return await cancelOrder(ns.session_id)
-
-
-async def _cli_remove_item_from_order(ns: argparse.Namespace) -> dict:
-    target: dict = {}
-    if ns.order_position is not None:
-        target["orderPosition"] = ns.order_position
-    if ns.item_name is not None:
-        target["itemName"] = ns.item_name
-    return await removeItemFromOrder(ns.session_id, target)
-
-
-async def _cli_change_item_quantity(ns: argparse.Namespace) -> dict:
-    target: dict = {}
-    if ns.line_item_id is not None:
-        target["lineItemId"] = ns.line_item_id
-    if ns.order_position is not None:
-        target["orderPosition"] = ns.order_position
-    if ns.item_name is not None:
-        target["itemName"] = ns.item_name
-    return await changeItemQuantity(ns.session_id, target, ns.new_quantity)
-
-
-async def _cli_update_item_in_order(ns: argparse.Namespace) -> dict:
-    target: dict = {}
-    if ns.line_item_id is not None:
-        target["lineItemId"] = ns.line_item_id
-    if ns.order_position is not None:
-        target["orderPosition"] = ns.order_position
-    if ns.item_name is not None:
-        target["itemName"] = ns.item_name
-
-    updates: dict = {}
-    if ns.add_modifiers_json is not None:
-        parsed_add = json.loads(ns.add_modifiers_json)
-        if not isinstance(parsed_add, list):
-            raise ValueError("add modifiers must be a JSON array")
-        updates["addModifiers"] = parsed_add
-    if ns.remove_modifiers_json is not None:
-        parsed_remove = json.loads(ns.remove_modifiers_json)
-        if not isinstance(parsed_remove, list):
-            raise ValueError("remove modifiers must be a JSON array")
-        updates["removeModifiers"] = parsed_remove
-    if getattr(ns, "clear_note", False):
-        updates["note"] = None
-    elif hasattr(ns, "note"):
-        updates["note"] = ns.note
-
-    return await updateItemInOrder(ns.session_id, target, updates)
-
-
 async def getMenuLink(session_id: str, merchant_id: str, creds: dict | None = None) -> dict:
     """Return a shareable menu URL for the merchant.
 
@@ -3514,397 +3441,3 @@ async def getPreviousOrdersDetails(session_id: str, limit: int = 3) -> dict:
         return {"success": False, "orders": [], "error": str(exc)}
 
 
-def _cli_handlers() -> dict[str, CliHandler]:
-    return {
-        "find-closest": _cli_find_closest,
-        "get-item-details": _cli_get_item_details,
-        "check-availability": _cli_check_availability,
-        "validate-modifications": _cli_validate_modifications,
-        "check-modifier-or-addon": _cli_check_modifier_or_addon,
-        "add-item-to-cart": _cli_add_item_to_cart,
-        "replace-item-in-order": _cli_replace_item_in_order,
-        "get-order-line-items": _cli_get_order_line_items,
-        "summarize-conversation-history": _cli_summarize_conversation_history,
-        "calc-order-price": _cli_calc_order_price,
-        "confirm-order": _cli_confirm_order,
-        "cancel-order": _cli_cancel_order,
-        "remove-item-from-order": _cli_remove_item_from_order,
-        "change-item-quantity": _cli_change_item_quantity,
-        "update-item-in-order": _cli_update_item_in_order,
-    }
-
-
-def _build_cli_parser(handlers: dict[str, CliHandler]) -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="Run chatbot tools against live Firestore, Redis, and Clover.",
-    )
-    subs = parser.add_subparsers(dest="command", required=True, metavar="COMMAND")
-
-    p = subs.add_parser(
-        "find-closest",
-        help="Fuzzy-match a spoken item name to menu rows (findClosestMenuItems).",
-    )
-    p.add_argument(
-        "query",
-        help='Raw item phrase as the user said it (e.g. "chicken sando").',
-    )
-    p.add_argument(
-        "--details",
-        default=None,
-        help="Optional qualifier for modifier-aware ranking (e.g. lemon pepper).",
-    )
-
-    p = subs.add_parser(
-        "get-item-details",
-        help="Look up a menu item by Clover id (get_item_details).",
-    )
-    p.add_argument("item_id", help="Clover item UUID.")
-
-    p = subs.add_parser(
-        "check-availability",
-        help="Check whether an item can be ordered now (check_item_availability).",
-    )
-    p.add_argument("item_id", help="Clover item UUID.")
-
-    p = subs.add_parser(
-        "validate-modifications",
-        help="Validate requested modifier strings against one item (validateModifications).",
-    )
-    p.add_argument("item_id", help="Clover item UUID.")
-    p.add_argument(
-        "--merchant-id",
-        default=settings.RESTAURANT_ID,
-        dest="merchant_id",
-        metavar="ID",
-        help="Expected Clover merchant id. Defaults to RESTAURANT_ID from the environment.",
-    )
-    requested_src = p.add_mutually_exclusive_group(required=True)
-    requested_src.add_argument(
-        "--requested",
-        default=None,
-        dest="requested_json",
-        metavar="JSON",
-        help='JSON array of raw modifier strings, e.g. ["no onions", "extra cheese"].',
-    )
-    requested_src.add_argument(
-        "--requested-file",
-        default=None,
-        dest="requested_file",
-        metavar="PATH",
-        help="Read the same JSON as --requested from a file.",
-    )
-
-    p = subs.add_parser(
-        "check-modifier-or-addon",
-        help="Classify whether a free-text modification is related to an existing modifier.",
-    )
-    p.add_argument("item_id", help="Clover item UUID.")
-    p.add_argument(
-        "requested_modification",
-        help='Raw free-text modification, e.g. "extra onions" or "medium rare".',
-    )
-    p.add_argument(
-        "--merchant-id",
-        default=settings.RESTAURANT_ID,
-        dest="merchant_id",
-        metavar="ID",
-        help="Expected Clover merchant id. Defaults to RESTAURANT_ID from the environment.",
-    )
-
-    p = subs.add_parser(
-        "add-item-to-cart",
-        help="Add line items to the session cart (addItemsToOrder).",
-    )
-    p.add_argument(
-        "session_id",
-        help="Chat session id used for the Redis Clover order mapping.",
-    )
-    items_src = p.add_mutually_exclusive_group(required=False)
-    items_src.add_argument(
-        "--items",
-        default=None,
-        dest="items_json",
-        metavar="JSON",
-        help=(
-            "JSON array of line-item objects (or JSON null). Prefer a single line; "
-            "if you break lines with \\, it must be the last character on the line "
-            "(no trailing spaces) or zsh will not join the next line."
-        ),
-    )
-    items_src.add_argument(
-        "--items-file",
-        default=None,
-        dest="items_file",
-        metavar="PATH",
-        help="Read the same JSON as --items from a file (avoids shell quoting and line breaks).",
-    )
-
-    p = subs.add_parser(
-        "replace-item-in-order",
-        help="Swap one line item for another (replaceItemInOrder).",
-    )
-    p.add_argument(
-        "session_id",
-        help="Chat session id used for the Redis Clover order mapping.",
-    )
-    target = p.add_mutually_exclusive_group(required=True)
-    target.add_argument(
-        "--line-item-id",
-        default=None,
-        dest="line_item_id",
-        metavar="ID",
-        help="Clover line item id to remove (from the order payload).",
-    )
-    target.add_argument(
-        "--order-position",
-        default=None,
-        dest="order_position",
-        type=int,
-        metavar="N",
-        help="1-indexed line item position in the current order (e.g. 1 after a single add).",
-    )
-    target.add_argument(
-        "--item-name",
-        default=None,
-        dest="item_name",
-        metavar="NAME",
-        help="Fuzzy-match a line item by name in the current order.",
-    )
-    repl_src = p.add_mutually_exclusive_group(required=True)
-    repl_src.add_argument(
-        "--replacement",
-        default=None,
-        dest="replacement_json",
-        metavar="JSON",
-        help="JSON object: itemId (required), optional quantity, modifiers, note.",
-    )
-    repl_src.add_argument(
-        "--replacement-file",
-        default=None,
-        dest="replacement_file",
-        metavar="PATH",
-        help="Read the same JSON as --replacement from a file.",
-    )
-
-    p = subs.add_parser(
-        "get-order-line-items",
-        help="List line items in the session cart without changing the order (getOrderLineItems).",
-    )
-    p.add_argument(
-        "session_id",
-        help="Chat session id used for the Redis Clover order mapping.",
-    )
-
-    p = subs.add_parser(
-        "summarize-conversation-history",
-        help="Summarize earlier session history before the last K Redis messages.",
-    )
-    p.add_argument(
-        "session_id",
-        help="Chat session id used for the Redis session history mapping.",
-    )
-    p.add_argument(
-        "--k",
-        required=True,
-        dest="k",
-        type=int,
-        metavar="N",
-        help="Exclude the last N raw Redis messages from the summary window.",
-    )
-
-    p = subs.add_parser(
-        "calc-order-price",
-        help="Calculate a Clover-backed price breakdown for the current cart (calcOrderPrice).",
-    )
-    p.add_argument(
-        "session_id",
-        help="Chat session id used for the Redis Clover order mapping.",
-    )
-
-    p = subs.add_parser(
-        "confirm-order",
-        help="Submit the current Clover order and mark the session as confirmed (confirmOrder).",
-    )
-    p.add_argument(
-        "session_id",
-        help="Chat session id used for the Redis Clover order mapping.",
-    )
-
-    p = subs.add_parser(
-        "cancel-order",
-        help="Cancel the current unconfirmed Clover order and clear the session (cancelOrder).",
-    )
-    p.add_argument(
-        "session_id",
-        help="Chat session id used for the Redis Clover order mapping.",
-    )
-
-    p = subs.add_parser(
-        "remove-item-from-order",
-        help="Fully remove a line item from the session cart (removeItemFromOrder).",
-    )
-    p.add_argument(
-        "session_id",
-        help="Chat session id used for the Redis Clover order mapping.",
-    )
-    remove_target = p.add_mutually_exclusive_group(required=True)
-    remove_target.add_argument(
-        "--order-position",
-        default=None,
-        dest="order_position",
-        type=int,
-        metavar="N",
-        help="1-indexed line item position in the current order.",
-    )
-    remove_target.add_argument(
-        "--item-name",
-        default=None,
-        dest="item_name",
-        metavar="NAME",
-        help="Fuzzy-match a line item by name in the current order.",
-    )
-
-    p = subs.add_parser(
-        "change-item-quantity",
-        help="Change the absolute quantity of one line item in the session cart (changeItemQuantity).",
-    )
-    p.add_argument(
-        "session_id",
-        help="Chat session id used for the Redis Clover order mapping.",
-    )
-    change_target = p.add_mutually_exclusive_group(required=True)
-    change_target.add_argument(
-        "--line-item-id",
-        default=None,
-        dest="line_item_id",
-        metavar="ID",
-        help="Clover line item id to update.",
-    )
-    change_target.add_argument(
-        "--order-position",
-        default=None,
-        dest="order_position",
-        type=int,
-        metavar="N",
-        help="1-indexed line item position in the current order.",
-    )
-    change_target.add_argument(
-        "--item-name",
-        default=None,
-        dest="item_name",
-        metavar="NAME",
-        help="Fuzzy-match a line item by name in the current order.",
-    )
-    p.add_argument(
-        "--new-quantity",
-        required=True,
-        dest="new_quantity",
-        type=int,
-        metavar="N",
-        help="Final absolute quantity to set for the matched line item.",
-    )
-
-    p = subs.add_parser(
-        "update-item-in-order",
-        help="Update modifiers and/or note on an existing line item (updateItemInOrder).",
-    )
-    p.add_argument(
-        "session_id",
-        help="Chat session id used for the Redis Clover order mapping.",
-    )
-    update_target = p.add_mutually_exclusive_group(required=True)
-    update_target.add_argument(
-        "--line-item-id",
-        default=None,
-        dest="line_item_id",
-        metavar="ID",
-        help="Clover line item id to update.",
-    )
-    update_target.add_argument(
-        "--order-position",
-        default=None,
-        dest="order_position",
-        type=int,
-        metavar="N",
-        help="1-indexed line item position in the current order.",
-    )
-    update_target.add_argument(
-        "--item-name",
-        default=None,
-        dest="item_name",
-        metavar="NAME",
-        help="Fuzzy-match a line item by name in the current order.",
-    )
-    p.add_argument(
-        "--add-modifiers",
-        default=None,
-        dest="add_modifiers_json",
-        metavar="JSON",
-        help='JSON array of Clover modifier ids to add, e.g. ["mod-1", "mod-2"].',
-    )
-    p.add_argument(
-        "--remove-modifiers",
-        default=None,
-        dest="remove_modifiers_json",
-        metavar="JSON",
-        help='JSON array of Clover modifier ids to remove, e.g. ["mod-3"].',
-    )
-    note_group = p.add_mutually_exclusive_group(required=False)
-    note_group.add_argument(
-        "--note",
-        default=argparse.SUPPRESS,
-        dest="note",
-        metavar="TEXT",
-        help="Replace the line item note with this value.",
-    )
-    note_group.add_argument(
-        "--clear-note",
-        action="store_true",
-        dest="clear_note",
-        help="Clear the existing line item note.",
-    )
-
-    declared = set(subs.choices.keys())
-    if declared != set(handlers):
-        raise RuntimeError(
-            f"CLI subparser names {sorted(declared)!r} must match handler keys {sorted(handlers)!r}"
-        )
-    return parser
-
-
-async def _cli_main(args: argparse.Namespace) -> int:
-    if not str(settings.RESTAURANT_ID).strip():
-        print(
-            "RESTAURANT_ID must be set in the environment (Firebase Users doc id for Clover).",
-            file=sys.stderr,
-        )
-        return 1
-
-    handlers = _cli_handlers()
-    handler = handlers.get(args.command)
-    if handler is None:
-        print(f"Unknown command: {args.command}", file=sys.stderr)
-        return 1
-
-    await init_redis()
-    try:
-        await init_firebase()
-        try:
-            out = await handler(args)
-            print(json.dumps(out, indent=2, default=str))
-        finally:
-            await close_firebase()
-    finally:
-        await close_redis()
-    return 0
-
-
-def main() -> None:
-    handlers = _cli_handlers()
-    parser = _build_cli_parser(handlers)
-    args = parser.parse_args()
-    raise SystemExit(asyncio.run(_cli_main(args)))
-
-
-if __name__ == "__main__":
-    main()
