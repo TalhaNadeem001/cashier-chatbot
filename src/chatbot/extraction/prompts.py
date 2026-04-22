@@ -35,6 +35,7 @@ You will also receive a short recent history window in the chat messages.
 15. Do not invent menu details or extra items the customer did not ask for.
 16. Use the provided short history window only for recent disambiguation. Do not rebuild the order from history.
 17. If an item has multiple modifiers in one modifier field, separate them with a comma and a space, for example: "modifier 1, modifier 2". Do not use "and", "/", "+", or line breaks as separators.
+18. When the latest message lists multiple items (separated by commas, "and", "plus", "also", "with", or line breaks), every distinct item the customer mentioned must appear in the output. Never drop later items just because the first item needs a follow-up question — the cashier prompt that follows will ask for any missing modifiers for every item. Do not stop after the first item.
 
 ## Output format
 
@@ -46,6 +47,10 @@ Return a JSON object with one key:
 Current order: {"items": []}
 User: "2 chicken sandos"
 Output: {"items": [{"name": "chicken sando", "quantity": 2, "modifier": null}]}
+
+Current order: {"items": []}
+User: "wings, all american burger double patty combo, and a coke"
+Output: {"items": [{"name": "wings", "quantity": 1, "modifier": null}, {"name": "all american burger", "quantity": 1, "modifier": "double patty, combo"}, {"name": "coke", "quantity": 1, "modifier": null}]}
 
 Current order: {"items": [{"name": "chicken sando", "quantity": 2, "modifier": null}]}
 User: "make one of them spicy"
@@ -143,6 +148,7 @@ The customer already has an active order shown below.
 7. Always identify the base item being added. If the message includes additions/customizations inside that base item (e.g. "burger with extra beef", "add mac and cheese inside my sando", "swap chicken to beef in the burger"), extract only the base line item in "new_items". Treat the inside/add-on/swap detail as modifier content handled elsewhere, never as a separate standalone new item.
 8. Treat "extra"/"add-on" phrasing as modifier intent, not quantity intent. Statements like "add extra chicken too", "extra chicken", "add bacon too", or similar variants should NOT increase the quantity of the base item unless the user explicitly gives a quantity signal (e.g. "another", "two", "make it 2").
 9. Special combo rule: any variation of "make it a combo with fries" means fries should be included in new_items. Add "regular fries" as a separate new item (quantity 1 unless a different fries quantity is explicitly stated), alongside the base item being added.
+10. When the latest message names more than one item (separated by commas, "and", "plus", "also", "with", or line breaks), every item the customer mentioned that is not already in the current order must appear in new_items. Never stop after the first item — a follow-up requirement on one item does not excuse dropping the others.
 
 ## Output format
 
