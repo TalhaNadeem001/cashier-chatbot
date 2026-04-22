@@ -1409,10 +1409,15 @@ class ExecutionAgent:
                 handler=_get_previous_orders_details_tool,
             ),
             llm_client.GeminiFunctionTool(
-                name="requestPickupTime",
-                description="Store or retrieve a pickup time preference for the session.",
-                parameters_json_schema=_REQUEST_PICKUP_TIME_PARAMETERS_JSON_SCHEMA,
-                handler=_request_pickup_time_tool,
+                name="suggestedPickupTime",
+                description=(
+                    "MUST be called when the customer suggests a pickup time "
+                    "(e.g., 'I'll be there in 30 minutes', 'can I pick up in an hour?'). "
+                    "Convert the time to whole minutes and pass as pickup_time_minutes. "
+                    "Do NOT call for any other intent."
+                ),
+                parameters_json_schema=_SUGGESTED_PICKUP_TIME_PARAMETERS_JSON_SCHEMA,
+                handler=_guard("suggested_pickup_time", _suggested_pickup_time_tool),
             ),
         ]
         print(
