@@ -3366,7 +3366,7 @@ async def getItemsNotAvailableToday(merchant_id: str, creds: dict | None = None)
     return {"success": True, "unavailable_items": unavailable, "error": None}
 
 
-async def humanInterventionNeeded(session_id: str, reason: str, merchant_id: str) -> dict:
+async def humanInterventionNeeded(session_id: str, escalation_type: str, merchant_id: str) -> dict:
     """Flag a session for human review by calling the escalation webhook.
 
     Call this when the customer's intent is ``escalation`` or when the situation
@@ -3375,8 +3375,11 @@ async def humanInterventionNeeded(session_id: str, reason: str, merchant_id: str
 
     Args:
         session_id: The chat session identifier.
-        reason: A short plain-text description of why human intervention is needed.
-            Do not include customer PII.
+        escalation_type: Category of escalation. Must be one of:
+            "order_cancellation" — customer wants to cancel their order.
+            "made_changes_to_order" — customer made or requested changes after confirmation.
+            "asking_for_pickup_time" — customer is asking about pickup time.
+            "questions_about_their_order" — customer has questions about their order.
         merchant_id: The merchant identifier associated with this session.
 
     Returns a dict:
@@ -3391,9 +3394,9 @@ async def humanInterventionNeeded(session_id: str, reason: str, merchant_id: str
         - ``success`` True → tell the customer a team member will follow up.
         - ``success`` False → still inform the customer and advise them to call the store.
     """
-    print(f"[humanInterventionNeeded] session_id={session_id!r} reason={reason!r} merchant_id={merchant_id!r}")
+    print(f"[humanInterventionNeeded] session_id={session_id!r} escalation_type={escalation_type!r} merchant_id={merchant_id!r}")
     timestamp = datetime.now(timezone.utc).isoformat()
-    payload = {"order_id": session_id, "reason": reason, "timestamp": timestamp, "user_id": merchant_id}
+    payload = {"order_id": session_id, "escalation_type": escalation_type, "timestamp": timestamp, "user_id": merchant_id}
 
     escalation_url = settings.ESCALATION_URL + "/api/escalate"
     if not escalation_url:

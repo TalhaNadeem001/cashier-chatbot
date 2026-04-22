@@ -302,12 +302,24 @@ _GET_ITEMS_NOT_AVAILABLE_TODAY_PARAMETERS_JSON_SCHEMA: dict[str, Any] = {
 _HUMAN_INTERVENTION_NEEDED_PARAMETERS_JSON_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
-        "reason": {
+        "escalation_type": {
             "type": "string",
-            "description": "Short plain-text description of why human intervention is needed.",
-        }
+            "enum": [
+                "order_cancellation",
+                "made_changes_to_order",
+                "asking_for_pickup_time",
+                "questions_about_their_order",
+            ],
+            "description": (
+                "Category of escalation based on the conversation. "
+                "order_cancellation: customer wants to cancel their order. "
+                "made_changes_to_order: customer made or requested changes after confirmation. "
+                "asking_for_pickup_time: customer is asking about pickup time. "
+                "questions_about_their_order: customer has questions about their order."
+            ),
+        },
     },
-    "required": ["reason"],
+    "required": ["escalation_type"],
     "additionalProperties": False,
 }
 _GET_PREVIOUS_ORDERS_DETAILS_PARAMETERS_JSON_SCHEMA: dict[str, Any] = {
@@ -478,7 +490,7 @@ class Orchestrator:
                     item_name = entry.get("parsed_item", {}).get("Request_items", {}).get("name", "unknown item")
                     await humanInterventionNeeded(
                         session_id=prepared_context.session_id,
-                        reason=f"Could not resolve item after {len(entry['qa'])} clarification attempts: {item_name}",
+                        escalation_type="questions_about_their_order",
                         merchant_id=prepared_context.merchant_id or "",
                     )
                     entry["status"] = "done"
@@ -1100,11 +1112,10 @@ class ExecutionAgent:
             print(f"[ExecutionAgent] tool={tool_name} OUTPUT:\n{out_json}")
 
         async def _order_confirmed_escalate(action: str) -> dict[str, Any]:
-            reason = f"Customer attempted '{action}' after order was already confirmed."
             print(f"[ExecutionAgent] order_confirmed_guard triggered for action={action!r}")
             result = await humanInterventionNeeded(
                 session_id=runtime.context.session_id,
-                reason=reason,
+                escalation_type="made_changes_to_order",
                 merchant_id=runtime.context.merchant_id or "",
             )
             result["agentInstruction"] = (
@@ -1287,11 +1298,11 @@ class ExecutionAgent:
             _log_tool_call_io("getItemsNotAvailableToday", args, out)
             return out
 
-        async def _human_intervention_needed_tool(*, reason: str) -> dict[str, Any]:
-            args = {"reason": reason}
+        async def _human_intervention_needed_tool(*, escalation_type: str) -> dict[str, Any]:
+            args = {"escalation_type": escalation_type}
             out = await humanInterventionNeeded(
                 session_id=runtime.context.session_id,
-                reason=reason,
+                escalation_type=escalation_type,
                 merchant_id=runtime.context.merchant_id or "",
             )
             _log_tool_call_io("humanInterventionNeeded", args, out)
@@ -1397,6 +1408,7 @@ class ExecutionAgent:
                 description=(
                     "MUST be called whenever the customer asks to speak to a human, manager, or staff member, "
                     "OR when the intent is escalation, OR when the situation cannot be resolved automatically. "
+                    "Classify the escalation_type from the conversation before calling. "
                     "Always call this before responding to the customer in these cases."
                 ),
                 parameters_json_schema=_HUMAN_INTERVENTION_NEEDED_PARAMETERS_JSON_SCHEMA,
