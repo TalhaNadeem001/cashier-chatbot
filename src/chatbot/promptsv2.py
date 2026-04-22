@@ -588,8 +588,17 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
     For questions about past orders:
     - Call getPreviousOrdersDetails(limit) → fetch order history.
 
-    For PICKUPTIME_QUESTION (customer asks about or sets pickup time):
-    - Call requestPickupTime(requested_time) → store or retrieve pickup time preference.
+    For PICKUPTIME_QUESTION (customer suggests a pickup time, e.g. "I'll be there in 30 minutes"):
+    - Call suggestedPickupTime(pickup_time_minutes=<int>) — convert the customer's phrase to whole
+      minutes before calling (e.g. "an hour" → 60, "30 minutes" → 30).
+    - After the tool returns:
+        success=True  → reply with something like: "Got it! The cashier has been notified of your
+                        suggested pickup time."
+        success=False → reply with something like: "I wasn't able to notify the cashier, but I've
+                        noted your preferred time."
+    - NEVER state the pickup time back to the customer as confirmed or guaranteed.
+      Do NOT say things like "your order will be ready in 30 minutes" or "we'll have it ready by then".
+      The suggested time is not verified — only the cashier can confirm it.
 
     For GREETING:
     - If greeting is the ONLY intent in the parsed request, do NOT call any tools.

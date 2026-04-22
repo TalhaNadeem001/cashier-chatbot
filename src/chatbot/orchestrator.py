@@ -47,7 +47,7 @@ from src.chatbot.tools import (
     prepare_clover_data,
     replaceItemInOrder,
     removeItemFromOrder,
-    requestPickupTime,
+    suggestedPickupTime,
     updateItemInOrder,
     validateRequestedItem,
 )
@@ -316,14 +316,15 @@ _GET_PREVIOUS_ORDERS_DETAILS_PARAMETERS_JSON_SCHEMA: dict[str, Any] = {
     },
     "additionalProperties": False,
 }
-_REQUEST_PICKUP_TIME_PARAMETERS_JSON_SCHEMA: dict[str, Any] = {
+_SUGGESTED_PICKUP_TIME_PARAMETERS_JSON_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
-        "requested_time": {
-            "type": ["string", "null"],
-            "description": "Free-text pickup time from the customer, or null to read existing preference.",
+        "pickup_time_minutes": {
+            "type": "integer",
+            "description": "Customer's suggested pickup time converted to whole minutes from now.",
         }
     },
+    "required": ["pickup_time_minutes"],
     "additionalProperties": False,
 }
 
@@ -1115,16 +1116,14 @@ class ExecutionAgent:
             _log_tool_call_io("getPreviousOrdersDetails", args, out)
             return out
 
-        async def _request_pickup_time_tool(
-            *,
-            requested_time: str | None = None,
-        ) -> dict[str, Any]:
-            args = {"requested_time": requested_time}
-            out = await requestPickupTime(
+        async def _suggested_pickup_time_tool(*, pickup_time_minutes: int) -> dict[str, Any]:
+            args = {"pickup_time_minutes": pickup_time_minutes}
+            out = await suggestedPickupTime(
                 session_id=runtime.context.session_id,
-                requested_time=requested_time,
+                pickup_time_minutes=pickup_time_minutes,
+                merchant_id=runtime.context.merchant_id or "",
             )
-            _log_tool_call_io("requestPickupTime", args, out)
+            _log_tool_call_io("suggestedPickupTime", args, out)
             return out
 
         tools_list = [
@@ -1216,10 +1215,15 @@ class ExecutionAgent:
                 handler=_get_previous_orders_details_tool,
             ),
             gemini_client.GeminiFunctionTool(
-                name="requestPickupTime",
-                description="Store or retrieve a pickup time preference for the session.",
-                parameters_json_schema=_REQUEST_PICKUP_TIME_PARAMETERS_JSON_SCHEMA,
-                handler=_request_pickup_time_tool,
+                name="suggestedPickupTime",
+                description=(
+                    "MUST be called when the customer suggests a pickup time "
+                    "(e.g., 'I'll be there in 30 minutes', 'can I pick up in an hour?'). "
+                    "Convert the time to whole minutes and pass as pickup_time_minutes. "
+                    "Do NOT call for any other intent."
+                ),
+                parameters_json_schema=_SUGGESTED_PICKUP_TIME_PARAMETERS_JSON_SCHEMA,
+                handler=_suggested_pickup_time_tool,
             ),
         ]
         print(

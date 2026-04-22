@@ -3392,7 +3392,7 @@ async def humanInterventionNeeded(session_id: str, reason: str, merchant_id: str
     timestamp = datetime.now(timezone.utc).isoformat()
     payload = {"order_id": session_id, "reason": reason, "timestamp": timestamp, "user_id": merchant_id}
 
-    escalation_url = settings.ESCALATION_URL
+    escalation_url = settings.ESCALATION_URL + "/api/escalate"
     if not escalation_url:
         print("[humanInterventionNeeded] ESCALATION_URL not configured")
         return {"success": False, "escalated": False, "error": "ESCALATION_URL is not configured"}
@@ -3406,6 +3406,63 @@ async def humanInterventionNeeded(session_id: str, reason: str, merchant_id: str
     except Exception as exc:
         print(f"[humanInterventionNeeded] failed: {exc!r}")
         return {"success": False, "escalated": False, "error": str(exc)}
+
+
+async def suggestedPickupTime(session_id: str, pickup_time_minutes: int, merchant_id: str) -> dict:
+    """Notify the external system that the customer has suggested a pickup time.
+
+    Call this ONLY when the customer explicitly states a pickup time (e.g.,
+    "I'll be there in 20 minutes", "can I pick this up in an hour?").
+    Do NOT call it when the customer has not mentioned a time, or when you
+    are simply confirming or recapping an order.
+
+    Args:
+        session_id: The chat session identifier.
+        pickup_time_minutes: The pickup time suggested by the customer, expressed
+            as a whole number of minutes from now (e.g., 30 for "in 30 minutes",
+            60 for "in an hour"). Convert the customer's natural-language phrase
+            to minutes before passing — do NOT pass a raw string.
+        merchant_id: The merchant identifier associated with this session.
+
+    Returns a dict:
+        success (bool)
+            True when the webhook returned a 2xx response.
+        pickup_time_minutes (int)
+            Echo of the ``pickup_time_minutes`` argument.
+        timestamp (str)
+            ISO-8601 UTC timestamp of when this tool was called.
+        error (str | None)
+            Human-readable reason for failure, or None on success.
+
+    Decision guide for the agent:
+        - ``success`` True  → acknowledge the pickup time to the customer
+          (e.g., "Got it, we'll have your order ready in ~30 minutes!").
+        - ``success`` False → still acknowledge the time to the customer but
+          note internally that the notification could not be sent.
+    """
+    print(f"[suggestedPickupTime] session_id={session_id!r} pickup_time_minutes={pickup_time_minutes!r} merchant_id={merchant_id!r}")
+    timestamp = datetime.now(timezone.utc).isoformat()
+    payload = {
+        "order_id": session_id,
+        "pickup_time_suggestion": pickup_time_minutes,
+        "pickup_time_suggestion_timestamp": timestamp,
+        "user_id": merchant_id,
+    }
+
+    pickup_url = settings.ESCALATION_URL + "/api/suggested-pickup-time"
+    if not settings.ESCALATION_URL:
+        print("[suggestedPickupTime] ESCALATION_URL not configured")
+        return {"success": False, "pickup_time_minutes": pickup_time_minutes, "timestamp": timestamp, "error": "ESCALATION_URL is not configured"}
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(pickup_url, json=payload)
+            response.raise_for_status()
+        print(f"[suggestedPickupTime] webhook sent status={response.status_code}")
+        return {"success": True, "pickup_time_minutes": pickup_time_minutes, "timestamp": timestamp, "error": None}
+    except Exception as exc:
+        print(f"[suggestedPickupTime] failed: {exc!r}")
+        return {"success": False, "pickup_time_minutes": pickup_time_minutes, "timestamp": timestamp, "error": str(exc)}
 
 
 async def getPreviousOrdersDetails(session_id: str, limit: int = 3) -> dict:
@@ -3449,69 +3506,6 @@ async def getPreviousOrdersDetails(session_id: str, limit: int = 3) -> dict:
     except Exception as exc:
         print(f"[getPreviousOrdersDetails] failed: {exc!r}")
         return {"success": False, "orders": [], "error": str(exc)}
-
-
-async def requestPickupTime(session_id: str, requested_time: str | None = None) -> dict:
-    """Store or retrieve a pickup time preference for the session.
-
-    Call this when the customer asks about pickup time or wants to set a specific pickup time.
-    If ``requested_time`` is provided, the preference is stored. If omitted, any existing
-    preference is returned.
-
-    Args:
-        session_id: The chat session identifier.
-        requested_time: A free-text pickup time string from the customer (e.g., "12:30pm",
-            "30 minutes"). Pass None or omit to only read any existing preference.
-
-    Returns a dict:
-        success (bool)
-            True when the operation completed without error.
-        estimated_minutes (int | None)
-            Estimated wait time in minutes, or None when not available.
-        confirmed_time (str | None)
-            The stored pickup time string, or None when no preference has been set.
-        error (str | None)
-            Human-readable reason for failure, or None on success.
-
-    Decision guide for the agent:
-        - ``success`` True with ``confirmed_time`` → relay the time to the customer.
-        - ``success`` True without ``confirmed_time`` → tell customer no specific time is set.
-        - ``success`` False → inform customer you couldn't process their pickup time request.
-    """
-    print(f"[requestPickupTime] session_id={session_id!r} requested_time={requested_time!r}")
-    pickup_key = f"pickup_time:{session_id}"
-    try:
-        if requested_time:
-            payload = json.dumps({
-                "requested_time": requested_time,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            })
-            await cache_set(pickup_key, payload, ttl=_SESSION_CLOVER_ORDER_REDIS_TTL_SECONDS)
-            print(f"[requestPickupTime] stored requested_time={requested_time!r}")
-            return {
-                "success": True,
-                "estimated_minutes": None,
-                "confirmed_time": requested_time,
-                "error": None,
-            }
-
-        existing = await cache_get(pickup_key)
-        if existing:
-            data = json.loads(existing)
-            confirmed = data.get("requested_time")
-            print(f"[requestPickupTime] retrieved confirmed_time={confirmed!r}")
-            return {
-                "success": True,
-                "estimated_minutes": None,
-                "confirmed_time": confirmed,
-                "error": None,
-            }
-
-        print("[requestPickupTime] no existing pickup time")
-        return {"success": True, "estimated_minutes": None, "confirmed_time": None, "error": None}
-    except Exception as exc:
-        print(f"[requestPickupTime] failed: {exc!r}")
-        return {"success": False, "estimated_minutes": None, "confirmed_time": None, "error": str(exc)}
 
 
 def _cli_handlers() -> dict[str, CliHandler]:
