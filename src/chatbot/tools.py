@@ -2982,7 +2982,6 @@ async def confirmOrder(session_id: str, creds: dict | None = None) -> dict:
         final_order = await fetch_clover_order(
             creds["token"], creds["merchant_id"], creds["base_url"], order_id
         )
-        final_raw_line_items = _normalize_order_line_items(final_order)
         breakdown = _pricing_breakdown_from_order(final_order)
         confirmed_items = [
             {
@@ -2990,10 +2989,10 @@ async def confirmOrder(session_id: str, creds: dict | None = None) -> dict:
                 "name": line_item["name"],
                 "quantity": line_item["quantity"],
                 # Clover often renders base item price separately from modifier rows on tickets.
-                "price": final_raw_line_items[idx].get("price", 0) or 0,
+                "price": line_item.get("unitPrice", 0) or 0,
                 "lineTotal": line_item["lineTotal"],
             }
-            for idx, line_item in enumerate(breakdown["lineItems"])
+            for line_item in breakdown["lineItems"]
         ]
 
         await cache_set(_session_status_redis_key(session_id), "confirmed")
@@ -3447,7 +3446,14 @@ async def humanInterventionNeeded(session_id: str, escalation_type: str, merchan
     """
     print(f"[humanInterventionNeeded] session_id={session_id!r} escalation_type={escalation_type!r} merchant_id={merchant_id!r}")
     timestamp = datetime.now(timezone.utc).isoformat()
-    payload = {"order_id": session_id, "escalation_type": escalation_type, "timestamp": timestamp, "user_id": merchant_id}
+    clover_order_id = await cache_get(_session_clover_order_redis_key(session_id))
+    payload = {
+        "order_id": session_id,
+        "clover_order_id": clover_order_id,
+        "escalation_type": escalation_type,
+        "timestamp": timestamp,
+        "user_id": merchant_id,
+    }
 
     escalation_url = settings.ESCALATION_URL + "/api/escalate"
     if not escalation_url:
@@ -3499,8 +3505,10 @@ async def suggestedPickupTime(session_id: str, pickup_time_minutes: int, merchan
     """
     print(f"[suggestedPickupTime] session_id={session_id!r} pickup_time_minutes={pickup_time_minutes!r} merchant_id={merchant_id!r}")
     timestamp = datetime.now(timezone.utc).isoformat()
+    clover_order_id = await cache_get(_session_clover_order_redis_key(session_id))
     payload = {
         "order_id": session_id,
+        "clover_order_id": clover_order_id,
         "pickup_time_suggestion": pickup_time_minutes,
         "pickup_time_suggestion_timestamp": timestamp,
         "user_id": merchant_id,
@@ -3548,7 +3556,12 @@ async def askingForPickupTime(session_id: str, merchant_id: str) -> dict:
         - success False → no action needed; proceed normally (silent best-effort ping).
     """
     print(f"[askingForPickupTime] session_id={session_id!r} merchant_id={merchant_id!r}")
-    payload = {"order_id": session_id, "user_id": merchant_id}
+    clover_order_id = await cache_get(_session_clover_order_redis_key(session_id))
+    payload = {
+        "order_id": session_id,
+        "clover_order_id": clover_order_id,
+        "user_id": merchant_id,
+    }
 
     if not settings.ESCALATION_URL:
         print("[askingForPickupTime] ESCALATION_URL not configured")

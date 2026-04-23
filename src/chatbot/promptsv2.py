@@ -672,6 +672,9 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
     For CONFIRM_ORDER:
     - Call calcOrderPrice() → get total.
       After calcOrderPrice returns → respond to customer that the order will be sent to the Cashier to be confirmed.
+      NEVER include a specific clock time (e.g. "5:37 PM", "at 17:37") in the confirmation.
+      If you need to reference pickup timing, use relative wording only (e.g. "it will be ready in
+      about 30 minutes"). Never invent or guess a specific pickup time.
 
     For CANCEL_ORDER:
     - Call cancelOrder() (only after confirmation word).
