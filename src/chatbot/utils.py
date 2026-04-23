@@ -663,10 +663,32 @@ def _hardcoded_sales_tax(subtotal: int) -> int:
     return ((subtotal * _HARDCODED_SALES_TAX_PERCENT) + 50) // 100
 
 
+def _group_priced_line_items(line_items: list[dict]) -> list[dict]:
+    grouped: list[dict] = []
+    index_by_key: dict[tuple, int] = {}
+    for li in line_items:
+        modifier_key = tuple(
+            sorted(
+                (m.get("modifierId") or "", m.get("name") or "", int(m.get("price") or 0))
+                for m in (li.get("modifierPrices") or [])
+            )
+        )
+        key = (li.get("name") or "", int(li.get("unitPrice") or 0), modifier_key)
+        if key in index_by_key:
+            existing = grouped[index_by_key[key]]
+            existing["quantity"] = int(existing.get("quantity") or 0) + int(li.get("quantity") or 0)
+            existing["lineTotal"] = int(existing.get("lineTotal") or 0) + int(li.get("lineTotal") or 0)
+        else:
+            grouped.append(dict(li))
+            index_by_key[key] = len(grouped) - 1
+    return grouped
+
+
 def _pricing_breakdown_from_order(order_data: dict) -> dict:
-    line_items = [
+    raw_line_items = [
         _priced_line_item(li) for li in _normalize_order_line_items(order_data)
     ]
+    line_items = _group_priced_line_items(raw_line_items)
     subtotal = order_data.get("subtotal")
     if subtotal is None:
         subtotal = _sum_line_item_totals(line_items)
