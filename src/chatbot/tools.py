@@ -348,22 +348,60 @@ def _find_closest_menu_items_from_menu(
     # stripping a leading "N Pc/pc/piece/pieces" prefix, return size_variant so the
     # agent asks which size rather than asking "did you mean X?".
     _SIZE_PREFIX_RE = re.compile(r'^\d+\s*(?:pc|pcs|piece|pieces)\s+', re.IGNORECASE)
-    stripped_names = {_SIZE_PREFIX_RE.sub('', c.get('name', '')).strip().lower(): c for c in candidates}
     base_groups: dict[str, list[dict]] = {}
     for c in candidates:
         base = _SIZE_PREFIX_RE.sub('', c.get('name', '')).strip().lower()
         base_groups.setdefault(base, []).append(c)
+
+    # Wing-type detection: if 2+ distinct size families exist in the candidates,
+    # the customer named a family category (e.g. "wings") without specifying a type.
+    # Return wing_type_ambiguous so the agent lists types before asking for a size.
+    size_families = [base for base, members in base_groups.items()
+                     if any(_SIZE_PREFIX_RE.match(m.get('name', '')) for m in members)]
+    if len(size_families) >= 2:
+        # Full scan: collect every menu item belonging to any detected size family
+        # so the agent sees all variants, not just the top-3 fuzzy candidates.
+        display_types = []
+        all_family_members: list[dict] = []
+        for base in size_families:
+            family_items = [
+                item
+                for name, item_list in items_by_name.items()
+                if _SIZE_PREFIX_RE.sub('', name).strip().lower() == base
+                for item in item_list
+            ]
+            if family_items:
+                all_family_members.extend(family_items)
+                display_name = _SIZE_PREFIX_RE.sub('', family_items[0].get('name', '')).strip()
+                display_types.append(display_name)
+        print(
+            "[findClosestMenuItems] return wing_type_ambiguous "
+            f"types={display_types!r} total_members={len(all_family_members)}"
+        )
+        return {
+            "exact_match": None,
+            "candidates": all_family_members,
+            "match_confidence": "wing_type_ambiguous",
+            "wing_types": display_types,
+        }
+
     size_family_base = next((base for base, members in base_groups.items() if len(members) >= 2), None)
     if size_family_base is not None:
-        family_members = base_groups[size_family_base]
+        # Full scan: collect every menu item in this size family so the agent
+        # sees all size options, not just the top-3 fuzzy candidates.
+        family_members = [
+            item
+            for name, item_list in items_by_name.items()
+            if _SIZE_PREFIX_RE.sub('', name).strip().lower() == size_family_base
+            for item in item_list
+        ]
         size_options = []
         for c in family_members:
-            full = c.get('name', '')
-            label = _SIZE_PREFIX_RE.match(full)
+            label = _SIZE_PREFIX_RE.match(c.get('name', ''))
             if label:
                 size_options.append(label.group(0).strip())
-        display_base = family_members[0].get('name', '')
-        display_base = _SIZE_PREFIX_RE.sub('', display_base).strip()
+        size_options.sort(key=lambda x: int(x.split()[0]))
+        display_base = _SIZE_PREFIX_RE.sub('', family_members[0].get('name', '')).strip() if family_members else size_family_base
         print(
             "[findClosestMenuItems] return size_variant "
             f"base={display_base!r} options={size_options!r}"
@@ -1208,6 +1246,17 @@ async def validateRequestedItem(
             Ambiguous match. Show ``candidates[0]`` (and optionally
             ``candidates[1]``) and ask "Did you mean X?" before adding.
             All downstream fields are ``None``.
+
+        matchConfidence == "wing_type_ambiguous"
+            The customer named a broad family (e.g. "wings") that spans multiple
+            distinct item types on the menu (e.g. "Boneless Wings" and "Tenders").
+            Extra field populated: ``wing_types`` (list[str]) — one display name
+            per distinct type family.
+            Do NOT call any mutation tools. List ALL wing_types and ask which type
+            the customer wants. When they answer, re-call validateRequestedItem
+            with just the type name (e.g. ``"boneless wings"``). That call will
+            return size_variant — follow that rule to resolve the size.
+            All downstream fields (itemId, available, valid, …) are ``None``.
 
         matchConfidence == "size_variant"
             The customer named a size family without specifying a size (e.g.

@@ -597,6 +597,12 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
     For ADD_ITEM:
     1. Call validateRequestedItem(itemName, details). Then check the result:
        - matchConfidence "none"          ▶ STOP → tell customer item not found
+       - matchConfidence "wing_type_ambiguous" ▶ STOP → list ALL entries from wing_types and ask
+         which type of wings the customer wants.
+         (e.g. "Which type of wings would you like — Boneless Wings or Tenders?")
+         When they answer, re-call validateRequestedItem with just the type name
+         (e.g. "boneless wings") as itemName. That call will return size_variant —
+         follow the size_variant rule below to resolve the size.
        - matchConfidence "size_variant"  ▶ FIRST check whether the customer's original item name
          already contains a number that matches one of the size_options entries (e.g. customer
          said "30 piece boneless wings" and size_options contains "30 Pc"). Compare the leading

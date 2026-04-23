@@ -1,6 +1,6 @@
 # Helper functions for chatbot
 from src.chatbot.constants import ConversationState, _MENU_AVAILABILITY_STALE_SECONDS, _HARDCODED_SALES_TAX_PERCENT
-from src.chatbot.constants import _MENU_CACHE_VERSION, _MENU_CACHE_TTL_SECONDS
+from src.chatbot.constants import _MENU_CACHE_VERSION, _MENU_CACHE_TTL_SECONDS, _MENU_ITEM_ID_BLOCKLIST
 from src.chatbot.promptsv2 import _SUMMARIZE_HISTORY_SYSTEM_PROMPT
 from src.cache import cache_get, cache_set
 import json
@@ -313,11 +313,13 @@ async def _normalize_menu(raw: dict) -> dict:
         if item.get("deleted"):
             continue
 
+        item_id = item["id"]
+        if item_id in _MENU_ITEM_ID_BLOCKLIST:
+            continue
+
         raw_name = item.get("name", "").strip()
         if not raw_name:
             continue
-
-        item_id = item["id"]
         by_id[item_id] = item
 
         by_name.setdefault(raw_name.lower(), []).append(item)

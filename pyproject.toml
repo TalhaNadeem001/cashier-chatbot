@@ -37,7 +37,7 @@ dependencies = [
     "typing-extensions==4.15.0",
     "typing-inspection==0.4.2",
     "uvicorn==0.34.0",
-    "uvloop==0.22.1",
+    "uvloop==0.22.1; sys_platform != 'win32'",
     "watchfiles==1.1.1",
     "websockets==16.0",
 ]

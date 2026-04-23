@@ -123,11 +123,14 @@ async def main(firebase_merchant_id: str) -> None:
     embeddings = await _embed_all(item_names)
     print(f"[generate_menu_embeddings] {len(embeddings)} embeddings generated")
 
+    # Embeddings are serialized to a JSON string to avoid Firestore's
+    # 20,000 index-entries-per-document limit, which is easily exceeded
+    # when storing a map of 61 items × 1536 floats each.
     doc = {
         "model": EMBEDDING_MODEL,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "menu_hash": menu_hash,
-        "embeddings": embeddings,
+        "embeddings_json": json.dumps(embeddings),
     }
 
     print("[generate_menu_embeddings] writing to Firestore...")

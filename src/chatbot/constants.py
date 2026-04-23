@@ -65,3 +65,10 @@ _BUFFER_MAX_WAIT_SECONDS: float = 10.0
 # Default pickup window (minutes) reported to the customer when an order is
 # confirmed and no specific pickup time has been requested.
 _DEFAULT_PICKUP_MINUTES: int = 30
+
+# Clover item IDs that should never appear in the system menu.
+# Add IDs here for placeholder or misconfigured items that exist in Clover
+# but should not be orderable by customers.
+_MENU_ITEM_ID_BLOCKLIST: frozenset[str] = frozenset({
+    "KYNK3BZB1798J",  # "Wings" — Clover placeholder, real wing items are the sized variants
+})
