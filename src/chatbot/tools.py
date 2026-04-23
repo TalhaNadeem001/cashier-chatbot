@@ -3433,6 +3433,7 @@ async def humanInterventionNeeded(session_id: str, escalation_type: str, merchan
         escalation_type: Category of escalation. Must be one of:
             "order_cancellation" — customer wants to cancel their order.
             "made_changes_to_order" — customer made or requested changes after confirmation.
+            "asking_for_pickup_time" — customer is asking about pickup time.
             "questions_about_their_order" — customer has questions about their order.
         merchant_id: The merchant identifier associated with this session.
 

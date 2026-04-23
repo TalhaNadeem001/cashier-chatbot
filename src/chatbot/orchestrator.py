@@ -55,7 +55,7 @@ from src.chatbot.tools import (
 )
 from datetime import datetime, timezone
 
-from src.cache import cache_get, cache_list_append
+from src.cache import cache_get, cache_list_append, cache_set
 from src.chatbot.utils import (
     _session_messages_redis_key,
     _session_status_redis_key,
@@ -524,6 +524,7 @@ class Orchestrator:
 
         # Update ordering stage
         if order_confirmed_this_turn:
+            await cache_set(_session_status_redis_key(request.session_id), "confirmed")
             await set_ordering_stage(request.session_id, "ordering")
             print("[Orchestrator] order confirmed, stage → ordering")
         elif stage == "awaiting_order_confirm" and non_confirm_intents:
