@@ -234,6 +234,7 @@ class ParsingAgentResult(BaseModel):
 class ExecutionAgentContext(BaseModel):
     session_id: str
     merchant_id: str | None = None
+    original_merchant_id: str | None = None
     clover_creds: dict[str, Any] | None = None
     clover_error: str | None = None
 
@@ -241,6 +242,7 @@ class ExecutionAgentContext(BaseModel):
 class PreparedExecutionContext(BaseModel):
     session_id: str
     merchant_id: str | None = None
+    original_merchant_id: str | None = None
     latest_customer_message: str
     current_order_details: CurrentOrderDetails
     latest_k_messages_by_customer: list[str]

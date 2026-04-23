@@ -497,7 +497,7 @@ class Orchestrator:
                     await humanInterventionNeeded(
                         session_id=prepared_context.session_id,
                         escalation_type="questions_about_their_order",
-                        merchant_id=prepared_context.merchant_id or "",
+                        merchant_id=prepared_context.original_merchant_id or "",
                     )
                     entry["status"] = "done"
                     escalated = True
@@ -646,6 +646,7 @@ class Orchestrator:
             return ExecutionAgentContext(
                 session_id=request.session_id,
                 merchant_id=request.merchant_id,
+                original_merchant_id=request.merchant_id,
                 clover_creds=None,
                 clover_error=str(exc),
             )
@@ -654,6 +655,7 @@ class Orchestrator:
         return ExecutionAgentContext(
             session_id=request.session_id,
             merchant_id=resolved_merchant_id,
+            original_merchant_id=request.merchant_id,
             clover_creds=clover_creds,
             clover_error=None,
         )
@@ -681,6 +683,7 @@ class Orchestrator:
         return PreparedExecutionContext(
             session_id=execution_context.session_id,
             merchant_id=execution_context.merchant_id,
+            original_merchant_id=execution_context.original_merchant_id,
             latest_customer_message=parsed_input.context.most_recent_message,
             current_order_details=parsed_input.context.current_order_details,
             latest_k_messages_by_customer=parsed_input.context.latest_k_messages_by_customer,
@@ -928,6 +931,7 @@ class ExecutionAgent:
             context=ExecutionAgentContext(
                 session_id=context_object.session_id,
                 merchant_id=context_object.merchant_id,
+                original_merchant_id=context_object.original_merchant_id,
                 clover_creds=context_object.clover_creds,
                 clover_error=context_object.clover_error,
             ),
@@ -1123,7 +1127,7 @@ class ExecutionAgent:
             result = await humanInterventionNeeded(
                 session_id=runtime.context.session_id,
                 escalation_type="made_changes_to_order",
-                merchant_id=runtime.context.merchant_id or "",
+                merchant_id=runtime.context.original_merchant_id or "",
             )
             result["agentInstruction"] = (
                 "The order is already confirmed and cannot be changed by the bot. "
@@ -1301,7 +1305,7 @@ class ExecutionAgent:
             out = await humanInterventionNeeded(
                 session_id=runtime.context.session_id,
                 escalation_type=escalation_type,
-                merchant_id=runtime.context.merchant_id or "",
+                merchant_id=runtime.context.original_merchant_id or "",
             )
             _log_tool_call_io("humanInterventionNeeded", args, out)
             return out
@@ -1324,7 +1328,7 @@ class ExecutionAgent:
             out = await suggestedPickupTime(
                 session_id=runtime.context.session_id,
                 pickup_time_minutes=pickup_time_minutes,
-                merchant_id=runtime.context.merchant_id or "",
+                merchant_id=runtime.context.original_merchant_id or "",
             )
             _log_tool_call_io("suggestedPickupTime", args, out)
             return out
@@ -1333,7 +1337,7 @@ class ExecutionAgent:
             args = {}
             out = await askingForPickupTime(
                 session_id=runtime.context.session_id,
-                merchant_id=runtime.context.merchant_id or "",
+                merchant_id=runtime.context.original_merchant_id or "",
             )
             _log_tool_call_io("askingForPickupTime", args, out)
             return out
