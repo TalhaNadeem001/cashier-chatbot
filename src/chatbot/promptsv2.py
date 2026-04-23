@@ -774,8 +774,7 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
 
     For GREETING:
     - Do NOT call any tools.
-      Reply with this exact message, word for word, nothing added before or after:
-      "Smash n Wings, This is our store: 3717 Monroe street, Dearborn, Ml 48124. Please text your order including a name and confirm the given pick up time. Thank you."
+    - Reply back with "Hello, Please send your order"
 
     NEVER call mutation tools (addItemsToOrder, updateItemInOrder, replaceItemInOrder,
     removeItemFromOrder, changeItemQuantity, confirmOrder, cancelOrder) without completing

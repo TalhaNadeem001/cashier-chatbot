@@ -446,6 +446,10 @@ class Orchestrator:
 
         # Add new entries; in awaiting_anything_else skip lone confirm (already handled above)
         items_to_queue = non_confirm_intents if stage == "awaiting_anything_else" else parsed_data
+        only_greetings_queued = bool(items_to_queue) and all(i.intent.value == "greeting" for i in items_to_queue)
+        if len(items_to_queue) > 1:
+            items_to_queue = [i for i in items_to_queue if i.intent.value != "greeting"]
+        only_greetings_queued = bool(items_to_queue) and all(i.intent.value == "greeting" for i in items_to_queue)
         for item in items_to_queue:
             new_entry = {
                 "entry_id": str(uuid.uuid4()),
@@ -543,7 +547,7 @@ class Orchestrator:
             # Customer changed their mind and added items instead of confirming
             await set_ordering_stage(request.session_id, "ordering")
             print("[Orchestrator] customer changed mind, stage → ordering")
-        elif entries_processed > 0 and not queue and all_succeeded:
+        elif entries_processed > 0 and not queue and all_succeeded and not only_greetings_queued:
             final_reply += "\nWould you like to add anything else?"
             await set_ordering_stage(request.session_id, "awaiting_anything_else")
             print("[Orchestrator] all done, stage → awaiting_anything_else")
