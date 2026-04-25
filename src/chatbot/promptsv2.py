@@ -638,6 +638,11 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
 
     TOOL CALLING RULES
 
+    humanInterventionNeeded — fixed reply rule:
+    After any call to humanInterventionNeeded, regardless of the success value, always reply
+    with exactly: "Let me check on that for you."
+    Do NOT vary the reply based on success.
+
     SEQUENCE RULE: When a multi-step sequence is listed, you MUST call every tool in order
     before generating any text response to the customer. Do NOT output text between steps.
     Only return text to the customer after the full sequence completes, OR when a STOP
