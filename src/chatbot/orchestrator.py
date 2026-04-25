@@ -497,16 +497,25 @@ class Orchestrator:
             is_order_confirmed=is_order_confirmed,
         )
 
+        _INFORMATIONAL_INTENTS = {
+            "order_question",
+            "menu_question",
+            "restaurant_question",
+            "pickuptime_question",
+        }
+
         # Execute all pending entries in order
         replies: list[str] = []
         entries_processed = 0
         all_succeeded = True
         order_confirmed_this_turn = False
+        processed_intents: set[str] = set()
 
         for entry in queue:
             if entry.get("status") != "pending":
                 continue
             entries_processed += 1
+            processed_intents.add(entry.get("parsed_item", {}).get("Intent", ""))
             result = await self.execution_agent.run_single(
                 entry=entry,
                 context_object=prepared_context,
@@ -546,6 +555,8 @@ class Orchestrator:
                 f"clarification_q_count={len(result.clarification_questions)}",
             )
 
+        only_informational_queued = bool(processed_intents) and processed_intents.issubset(_INFORMATIONAL_INTENTS)
+
         queue = [e for e in queue if e.get("status") != "done"]
         await save_intent_queue(request.session_id, queue)
 
@@ -560,7 +571,7 @@ class Orchestrator:
             # Customer changed their mind and added items instead of confirming
             await set_ordering_stage(request.session_id, "ordering")
             print("[Orchestrator] customer changed mind, stage → ordering")
-        elif entries_processed > 0 and not queue and all_succeeded and not only_greetings_queued:
+        elif entries_processed > 0 and not queue and all_succeeded and not only_greetings_queued and not only_informational_queued:
             final_reply += "\nIs there anything else you would like to add?"
             await set_ordering_stage(request.session_id, "awaiting_anything_else")
             print("[Orchestrator] all done, stage → awaiting_anything_else")
