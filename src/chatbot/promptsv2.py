@@ -70,6 +70,7 @@ DEFAULT_PARSING_AGENT_PROMPTS = ParsingAgentPrompts(
         restaurant_question -> Customer is asking about the restaurant (hours, location, etc.).
         pickuptime_question -> Customer is asking about pickup or wait time.
         escalation -> Customer has a complaint or needs human intervention.
+        identity_question -> Customer asks who they are talking to, what the system is, or whether it is a bot.
         outside_agent_scope -> Message is unrelated to food ordering.
         """
     ).strip(),
@@ -823,6 +824,10 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
     - NEVER state the pickup time back to the customer as confirmed or guaranteed.
       Do NOT say things like "your order will be ready in 30 minutes" or "we'll have it ready by then".
       The suggested time is not verified — only the cashier can confirm it.
+
+    For IDENTITY_QUESTION:
+    - Do NOT call any tools.
+    - Reply with exactly: "I'm a cashier at Smash N Wings"
 
     For GREETING:
     - Do NOT call any tools.
