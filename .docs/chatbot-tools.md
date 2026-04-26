@@ -157,3 +157,38 @@ Persists the customer's name to Firestore under `Users/{firebase_uid}/Customers/
 2. `src/chatbot/promptsv2.py` ~line 749 — Added IMPORTANT note-preservation instruction in the `Normal MODIFY_ITEM flow` block.
 
 **Design:** `updateItemInOrder` uses a sentinel (`"note" in updates`) — the fix is correct; the implementation didn't need to change.
+
+## 2026-04-26 - introduce_name intent for saveHumanName
+
+**Problem:** Name detection was a hidden side-effect in the execution agent prompt — the agent was told to call `saveHumanName` for "GREETING or any intent where the customer mentions their name." No parser signal meant name mentions embedded in `add_item` or other intents could be missed.
+
+**Fix (four changes):**
+1. `src/chatbot/schema.py` — Added `INTRODUCE_NAME = "introduce_name"` to `ParsedRequestIntent` enum.
+2. `src/chatbot/promptsv2.py` `intent_labels_prompt` — Added `introduce_name` label with instructions: store the name in `Request_items.name`, `quantity=0`, `details=""`. Notes that it can co-occur with any other intent as a separate object.
+3. `src/chatbot/promptsv2.py` `few_shot_examples_prompt` — Added Examples 12–14 covering: greeting+name, name+add_item, name-only.
+4. `src/chatbot/orchestrator.py` `_INFORMATIONAL_INTENTS` — Added `"introduce_name"` so name-only messages don't trigger the "Is there anything else?" prompt.
+5. `src/chatbot/promptsv2.py` execution agent prompt — Added explicit `For INTRODUCE_NAME:` block routing to `saveHumanName(name=Request_items.name)`. Kept the fallback for name mentions without the explicit intent.
+
+**Behaviour:** When mixed with action intents (e.g., `add_item`), `introduce_name` is NOT stripped from the queue (unlike `greeting`), so `saveHumanName` always fires.
+
+## 2026-04-26 - Name gate before order confirmation
+
+**Feature:** Before confirming the order, the orchestrator checks if a customer name is on record. If not, it asks for the name, saves it, then confirms.
+
+**New tool — `getHumanProfile` (`tools.py`):**
+Reads `Users/{firebase_uid}/Customers/{phone_number}` from Firestore. Returns `{success, name, phone_number, error}`. Orchestrator-only — not exposed to the execution agent.
+
+**New stage — `awaiting_name_before_confirm`:**
+Inserted between `awaiting_order_confirm` (customer said "yes, confirm") and actual confirmation.
+
+**Orchestrator flow changes (`orchestrator.py`):**
+
+Two new branches added after the `introduce_name` inline handler, before queue building:
+
+1. **`awaiting_name_before_confirm` handler:** If `introduce_name` is in `parsed_data` (name was given and already saved by the inline handler), confirm the order directly — set session status `"confirmed"`, stage → `"ordering"`, reply with the standard confirmation text. If no name, re-ask and stay in the same stage.
+
+2. **Name gate:** When `stage == "awaiting_order_confirm"` and `only_confirm` is True and `phone_number` is available — call `getHumanProfile`. If no name on record, ask `"What name should I put the order under?"`, set stage to `"awaiting_name_before_confirm"`, return early. If name exists, fall through to normal queue processing.
+
+**Gotchas:**
+- Gate is skipped when `phone_number` is None (web/test clients) — can't store a name without a phone number, so confirmation proceeds normally.
+- Inline confirm copies the exact reply text from the execution agent prompt: `"Thank you. Your order has been received. Allow me a moment to set your pickup time."` — keep these in sync if the prompt changes.

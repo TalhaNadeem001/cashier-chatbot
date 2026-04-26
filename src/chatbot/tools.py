@@ -3852,6 +3852,49 @@ async def getPreviousOrdersDetails(session_id: str, limit: int = 3) -> dict:
         return {"success": False, "orders": [], "error": str(exc)}
 
 
+async def getHumanProfile(
+    phone_number: str | None,
+    firebase_uid: str,
+) -> dict:
+    """Read the customer's saved profile from Firestore.
+
+    Called by the orchestrator before confirming an order to check whether
+    the customer's name is already on record. Not exposed to the execution agent.
+
+    Firestore path: Users/{firebase_uid}/Customers/{phone_number}
+
+    Parameters:
+        phone_number — Customer's phone number (Customers doc ID).
+                       If None, returns success=False, name=None immediately.
+        firebase_uid — The merchant's Firebase UID (original_merchant_id).
+
+    Returns dict with keys:
+        success      — bool: True when the Firestore read completed (even if the doc
+                       doesn't exist yet); False on error or missing phone_number.
+        name         — str | None: the customer's saved name, or None if not set.
+        phone_number — str | None: echoed back from the input.
+        error        — str | None: error message, None on success.
+    """
+    print(f"[getHumanProfile] phone_number={phone_number!r} firebase_uid={firebase_uid!r}")
+    if not phone_number:
+        print("[getHumanProfile] skipped — phone_number not available")
+        return {"success": False, "name": None, "phone_number": None, "error": "phone_number not available"}
+    db = _firebase.firebaseDatabase
+    if db is None:
+        print("[getHumanProfile] firebase not initialised")
+        return {"success": False, "name": None, "phone_number": phone_number, "error": "Firebase not initialised"}
+    try:
+        doc_ref = db.collection("Users").document(firebase_uid).collection("Customers").document(phone_number)
+        snapshot = await doc_ref.get()
+        existing = snapshot.to_dict() or {}
+        name = existing.get("name") or None
+        print(f"[getHumanProfile] name={name!r}")
+        return {"success": True, "name": name, "phone_number": phone_number, "error": None}
+    except Exception as exc:
+        print(f"[getHumanProfile] error: {exc!r}")
+        return {"success": False, "name": None, "phone_number": phone_number, "error": str(exc)}
+
+
 async def saveHumanName(
     name: str,
     phone_number: str | None,

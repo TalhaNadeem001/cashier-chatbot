@@ -144,6 +144,7 @@ class ParsedRequestIntent(str, Enum):
     ESCALATION = "escalation"
     PICKUPTIME_QUESTION = "pickuptime_question"
     GREETING = "greeting"
+    INTRODUCE_NAME = "introduce_name"
     OUTSIDE_AGENT_SCOPE = "outside_agent_scope"
 
 

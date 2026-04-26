@@ -69,6 +69,7 @@ DEFAULT_PARSING_AGENT_PROMPTS = ParsingAgentPrompts(
         menu_question -> Customer is asking about menu or item-specific details.
         restaurant_question -> Customer is asking about the restaurant (hours, location, etc.).
         pickuptime_question -> Customer is asking about pickup or wait time.
+        introduce_name -> Customer states their own name (e.g., "I'm John", "my name is Sarah", "it's Mike"). Use Request_items.name for the name value; quantity=0, details="". Can co-occur with greeting or any order intent — emit as a separate object.
         escalation -> Customer has a complaint or needs human intervention.
         identity_question -> Customer asks who they are talking to, what the system is, or whether it is a bot.
         outside_agent_scope -> Message is unrelated to food ordering.
@@ -80,7 +81,9 @@ DEFAULT_PARSING_AGENT_PROMPTS = ParsingAgentPrompts(
         ONE REQUEST = ONE OBJECT
         If a message has multiple requests, create one JSON object per request in order.
         NAMES ARE CUSTOMER NAMES, NOT FOOD ITEMS
-        Ignore names like "Hassan", "Noor" in entity extraction.
+        When a customer appends or states their name (e.g. "1 burger, Jordan" or "It's Sarah"),
+        do NOT include the name in the food item's name/details fields.
+        Instead, emit a separate introduce_name object for it.
         LOGISTICS ARE NOT INTENTS
         "Pickup", "to go", etc. are context, not separate intents.
         QUANTITY DEFAULT = 1
@@ -173,6 +176,12 @@ DEFAULT_PARSING_AGENT_PROMPTS = ParsingAgentPrompts(
             "Confidence_level": "high",
             "Request_items": {"name": "classic chicken sub", "quantity": 1, "details": "extra pickles"},
             "Request_details": "1 classic chicken sub extra pickles."
+          },
+          {
+            "Intent": "introduce_name",
+            "Confidence_level": "high",
+            "Request_items": {"name": "Jordan", "quantity": 0, "details": ""},
+            "Request_details": "Jordan."
           }
         ]
         "Message_3": [
@@ -201,6 +210,12 @@ DEFAULT_PARSING_AGENT_PROMPTS = ParsingAgentPrompts(
             "Confidence_level": "high",
             "Request_items": {"name": "hot honey burger", "quantity": 1, "details": "no onions add bacon"},
             "Request_details": "Hot honey burger no onions add bacon."
+          },
+          {
+            "Intent": "introduce_name",
+            "Confidence_level": "high",
+            "Request_items": {"name": "Yousif", "quantity": 0, "details": ""},
+            "Request_details": "Yousif."
           }
         ]
         "Message_2": [
@@ -369,6 +384,60 @@ DEFAULT_PARSING_AGENT_PROMPTS = ParsingAgentPrompts(
               "Confidence_level": "high",
               "Request_items": {"name": "12 pc boneless wings", "quantity": 2, "details": ""},
               "Request_details": "2 orders of 12 pc boneless wings"
+            }
+          ],
+          "ModifiedEntries": []
+        }
+        --- Example 12 ---
+        Transcript:
+        C: Hey I'm John
+        {
+          "Data": [
+            {
+              "Intent": "greeting",
+              "Confidence_level": "high",
+              "Request_items": {"name": "", "quantity": 0, "details": ""},
+              "Request_details": "Hey"
+            },
+            {
+              "Intent": "introduce_name",
+              "Confidence_level": "high",
+              "Request_items": {"name": "John", "quantity": 0, "details": ""},
+              "Request_details": "I'm John"
+            }
+          ],
+          "ModifiedEntries": []
+        }
+        --- Example 13 ---
+        Transcript:
+        C: It's Mike, I'd like a classic burger please
+        {
+          "Data": [
+            {
+              "Intent": "introduce_name",
+              "Confidence_level": "high",
+              "Request_items": {"name": "Mike", "quantity": 0, "details": ""},
+              "Request_details": "It's Mike"
+            },
+            {
+              "Intent": "add_item",
+              "Confidence_level": "high",
+              "Request_items": {"name": "classic burger", "quantity": 1, "details": ""},
+              "Request_details": "I'd like a classic burger please"
+            }
+          ],
+          "ModifiedEntries": []
+        }
+        --- Example 14 ---
+        Transcript:
+        C: My name is Sarah
+        {
+          "Data": [
+            {
+              "Intent": "introduce_name",
+              "Confidence_level": "high",
+              "Request_items": {"name": "Sarah", "quantity": 0, "details": ""},
+              "Request_details": "My name is Sarah"
             }
           ],
           "ModifiedEntries": []
@@ -845,7 +914,17 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
     - Do NOT call any tools.
     - Reply with exactly: "I'm a cashier at Smash N Wings"
 
-    For GREETING or any intent where the customer mentions their name
+    For INTRODUCE_NAME:
+    - Call saveHumanName(name=<Request_items.name>) immediately.
+    - Do NOT produce any reply text for this intent. It is a silent background action.
+    - Do NOT say hello, greet the customer, or mention that the name was saved.
+    - success=True / success=False → no reply either way.
+    - If this intent appears alongside another intent (e.g. add_item), call
+      saveHumanName first (silently), then handle the other intent normally and
+      produce only that intent's reply.
+
+    For GREETING or any other intent where the customer mentions their name
+    but no INTRODUCE_NAME intent was parsed
     (e.g. "I'm John", "my name is Sarah", "it's Mike"):
     - Call saveHumanName(name=<name>) immediately.
     - After the tool returns, continue with the normal reply for the intent.

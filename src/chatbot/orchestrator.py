@@ -39,6 +39,7 @@ from src.chatbot.tools import (
     calcOrderPrice,
     cancelOrder,
     changeItemQuantity,
+    getHumanProfile,
     getMenuLink,
     getItemsNotAvailableToday,
     getOrderLineItems,
@@ -480,8 +481,62 @@ class Orchestrator:
                         f"all_answered={all_answered}",
                     )
 
+        # Handle introduce_name directly — no LLM round-trip needed.
+        for item in (non_confirm_intents if stage == "awaiting_anything_else" else parsed_data):
+            if item.intent.value == "introduce_name":
+                name = item.request_items.name if item.request_items else ""
+                if name:
+                    await saveHumanName(
+                        name=name,
+                        phone_number=execution_context.phone_number,
+                        firebase_uid=execution_context.original_merchant_id or "",
+                    )
+                    print(f"[Orchestrator] introduce_name handled inline name={name!r}")
+
+        # BRANCH: customer replied to "what name for the order?"
+        if stage == "awaiting_name_before_confirm":
+            has_name = any(i.intent.value == "introduce_name" for i in parsed_data)
+            if has_name:
+                await cache_set(_session_status_redis_key(request.session_id), "confirmed")
+                await set_ordering_stage(request.session_id, "ordering")
+                branch_reply = "Thank you. Your order has been received. Allow me a moment to set your pickup time."
+                print("[Orchestrator] name provided, order confirmed inline, stage → ordering")
+            else:
+                branch_reply = "I still need a name for the order. What name should I use?"
+                print("[Orchestrator] no name provided, re-asking for name")
+            ai_now = datetime.now(timezone.utc).isoformat()
+            await cache_list_append(
+                redis_key,
+                json.dumps({"role": "assistant", "content": branch_reply, "timestamp": ai_now}),
+            )
+            return ChatbotV2MessageResponse(
+                system_response=branch_reply,
+                session_id=request.session_id,
+            )
+
+        # NAME GATE: require a name before confirming the order.
+        if stage == "awaiting_order_confirm" and only_confirm:
+            profile = await getHumanProfile(
+                phone_number=execution_context.phone_number,
+                firebase_uid=execution_context.original_merchant_id or "",
+            )
+            if not profile.get("name"):
+                await set_ordering_stage(request.session_id, "awaiting_name_before_confirm")
+                gate_reply = "What name should I put the order under?"
+                print("[Orchestrator] name gate: no name on record, asking for name, stage → awaiting_name_before_confirm")
+                ai_now = datetime.now(timezone.utc).isoformat()
+                await cache_list_append(
+                    redis_key,
+                    json.dumps({"role": "assistant", "content": gate_reply, "timestamp": ai_now}),
+                )
+                return ChatbotV2MessageResponse(
+                    system_response=gate_reply,
+                    session_id=request.session_id,
+                )
+
         # Add new entries; in awaiting_anything_else skip lone confirm (already handled above)
         items_to_queue = non_confirm_intents if stage == "awaiting_anything_else" else parsed_data
+        items_to_queue = [i for i in items_to_queue if i.intent.value != "introduce_name"]
         only_greetings_queued = bool(items_to_queue) and all(i.intent.value == "greeting" for i in items_to_queue)
         if len(items_to_queue) > 1:
             items_to_queue = [i for i in items_to_queue if i.intent.value != "greeting"]
@@ -527,6 +582,7 @@ class Orchestrator:
             "pickuptime_question",
             "identity_question",
             "greeting",
+            "introduce_name",
         }
 
         # Execute all pending entries in order
