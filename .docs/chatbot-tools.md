@@ -192,3 +192,32 @@ Two new branches added after the `introduce_name` inline handler, before queue b
 **Gotchas:**
 - Gate is skipped when `phone_number` is None (web/test clients) — can't store a name without a phone number, so confirmation proceeds normally.
 - Inline confirm copies the exact reply text from the execution agent prompt: `"Thank you. Your order has been received. Allow me a moment to set your pickup time."` — keep these in sync if the prompt changes.
+
+## 2026-04-26 - MODIFY_ITEM order-side item resolution + validateModifications AI upgrade
+
+### Problem
+The `MODIFY_ITEM` flow called `validateRequestedItem(itemName)` first, which searched the **entire menu** to resolve the target item. This could match items not in the order and was redundant — item identity should come from the order, not the menu.
+
+Additionally, `validateModifications` used `_match_requested_modifier` (deterministic fuzzy keyword match), while `validateRequestedItem` used `resolve_modifiers_for_item` (AI LLM resolver). This meant swapping to `validateModifications` would have weakened modifier resolution.
+
+### Changes
+
+**`src/chatbot/tools.py` — `validateModifications`:**
+- Replaced the `_match_requested_modifier` loop with a call to `resolve_modifiers_for_item` (same AI resolver pattern as `validateRequestedItem`).
+- Added `asNote` to the return dict — preferences the AI resolved as free-text notes rather than Clover modifier IDs.
+- Removed now-unused `_match_requested_modifier` helper and `MODS_CONFIRMED_THRESHOLD` import.
+
+**`src/chatbot/promptsv2.py` — Normal MODIFY_ITEM flow:**
+- Replaced the single `validateRequestedItem` call with a 4-step sequence:
+  1. `getOrderLineItems()` — confirm item is in the order; get exact name + `lineItemId`.
+  2. `findClosestMenuItems(exact_order_item_name)` — resolve `itemId` + `merchantId` by exact name.
+  3. `validateModifications(itemId, merchantId, requestedModifications)` — AI modifier resolution.
+  4. `updateItemInOrder(target={lineItemId}, updates={addModifiers/removeModifiers})`.
+
+**`src/chatbot/promptsv2.py` — LOW CONFIDENCE BEHAVIOR:**
+- Scoped `validateRequestedItem` to `add_item` only.
+- For `modify_item`, `remove_item`, and `replace_item` (old item), low confidence now starts with `getOrderLineItems()` instead of a menu search.
+
+### Gotchas
+- `getOrderLineItems` does not return the Clover menu `itemId` — only `lineItemId`. Step 2 (`findClosestMenuItems`) is still needed to get the menu UUID for `validateModifications`. If `getOrderLineItems` is ever updated to expose `itemId` per line item, step 2 can be dropped.
+- The `MODIFY_ITEM` empty-order fallback (redirects to ADD_ITEM flow) still uses `validateRequestedItem` — this is correct since the item doesn't exist in the order yet.

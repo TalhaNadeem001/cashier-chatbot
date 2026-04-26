@@ -39,6 +39,7 @@ from src.chatbot.tools import (
     calcOrderPrice,
     cancelOrder,
     changeItemQuantity,
+    findClosestMenuItems,
     getHumanProfile,
     getMenuLink,
     getItemsNotAvailableToday,
@@ -54,6 +55,7 @@ from src.chatbot.tools import (
     saveHumanName,
     suggestedPickupTime,
     updateItemInOrder,
+    validateModifications,
     validateRequestedItem,
 )
 from datetime import datetime, timezone
@@ -375,6 +377,55 @@ _SUGGESTED_PICKUP_TIME_PARAMETERS_JSON_SCHEMA: dict[str, Any] = {
 
 _ASKING_FOR_PICKUP_TIME_PARAMETERS_JSON_SCHEMA = _NO_ARGUMENTS_JSON_SCHEMA
 _ASKING_FOR_WAIT_TIME_PARAMETERS_JSON_SCHEMA = _NO_ARGUMENTS_JSON_SCHEMA
+_GET_ORDER_LINE_ITEMS_PARAMETERS_JSON_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": False,
+}
+_FIND_CLOSEST_MENU_ITEMS_PARAMETERS_JSON_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "item_name": {
+            "type": "string",
+            "description": "The exact item name to look up on the menu.",
+        },
+        "details": {
+            "type": ["string", "null"],
+            "description": "Optional modifier or qualifier string.",
+        },
+    },
+    "required": ["item_name"],
+    "additionalProperties": False,
+}
+_VALIDATE_MODIFICATIONS_PARAMETERS_JSON_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "itemId": {
+            "type": "string",
+            "description": "Clover menu item UUID resolved from findClosestMenuItems.",
+        },
+        "merchantId": {
+            "type": "string",
+            "description": "Merchant id from findClosestMenuItems result.",
+        },
+        "requestedModifications": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Raw modifier strings from the customer's request (e.g. ['beef bacon', 'no sauce']).",
+        },
+        "existingModifierIds": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": (
+                "Modifier IDs already applied to the order line item — take from lineItem.modifierIds "
+                "returned by getOrderLineItems. Pass these so required modifier groups already "
+                "satisfied on the existing item are not re-prompted."
+            ),
+        },
+    },
+    "required": ["itemId", "merchantId"],
+    "additionalProperties": False,
+}
 _SAVE_HUMAN_NAME_PARAMETERS_JSON_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
@@ -1498,14 +1549,61 @@ class ExecutionAgent:
             _log_tool_call_io("saveHumanName", args, out)
             return out
 
+        async def _get_order_line_items_tool() -> dict[str, Any]:
+            args: dict[str, Any] = {}
+            out = await getOrderLineItems(
+                session_id=runtime.context.session_id,
+                creds=runtime.context.clover_creds,
+            )
+            _log_tool_call_io("getOrderLineItems", args, out)
+            return out
+
+        async def _find_closest_menu_items_tool(
+            *,
+            item_name: str,
+            details: str | None = None,
+        ) -> dict[str, Any]:
+            args: dict[str, Any] = {"item_name": item_name, "details": details}
+            out = await findClosestMenuItems(
+                item_name=item_name,
+                details=details,
+                merchant_id=runtime.context.merchant_id,
+                creds=runtime.context.clover_creds,
+            )
+            _log_tool_call_io("findClosestMenuItems", args, out)
+            return out
+
+        async def _validate_modifications_tool(
+            *,
+            itemId: str,
+            merchantId: str,
+            requestedModifications: list[str] | None = None,
+            existingModifierIds: list[str] | None = None,
+        ) -> dict[str, Any]:
+            args: dict[str, Any] = {
+                "itemId": itemId,
+                "merchantId": merchantId,
+                "requestedModifications": requestedModifications,
+                "existingModifierIds": existingModifierIds,
+            }
+            out = await validateModifications(
+                itemId=itemId,
+                merchantId=merchantId,
+                requestedModifications=requestedModifications,
+                existingModifierIds=existingModifierIds,
+                creds=runtime.context.clover_creds,
+            )
+            _log_tool_call_io("validateModifications", args, out)
+            return out
+
         tools_list = [
             llm_client.GeminiFunctionTool(
                 name="validateRequestedItem",
                 description=(
                     "Resolve a customer-mentioned item against the live menu, confirm availability, "
                     "validate any requested modifiers, and identify missing required modifier groups — "
-                    "all in one call. Use this for ADD_ITEM, MODIFY_ITEM, and REPLACE_ITEM before "
-                    "mutating the order."
+                    "all in one call. Use this for ADD_ITEM and REPLACE_ITEM (new item only). "
+                    "Do NOT use for MODIFY_ITEM — use getOrderLineItems → findClosestMenuItems → validateModifications instead."
                 ),
                 parameters_json_schema=_VALIDATE_REQUESTED_ITEM_PARAMETERS_JSON_SCHEMA,
                 handler=_validate_requested_item_tool,
@@ -1624,6 +1722,37 @@ class ExecutionAgent:
                 ),
                 parameters_json_schema=_SAVE_HUMAN_NAME_PARAMETERS_JSON_SCHEMA,
                 handler=_save_human_name_tool,
+            ),
+            llm_client.GeminiFunctionTool(
+                name="getOrderLineItems",
+                description=(
+                    "Return all line items currently in the customer's cart. "
+                    "Call this at the start of MODIFY_ITEM to confirm the target item exists "
+                    "in the order before mutating it."
+                ),
+                parameters_json_schema=_GET_ORDER_LINE_ITEMS_PARAMETERS_JSON_SCHEMA,
+                handler=_get_order_line_items_tool,
+            ),
+            llm_client.GeminiFunctionTool(
+                name="findClosestMenuItems",
+                description=(
+                    "Look up a menu item by name to resolve its Clover itemId and merchantId. "
+                    "In MODIFY_ITEM, call this after getOrderLineItems confirms the item is in the order — "
+                    "pass the exact name from the order line item, not the customer's raw text."
+                ),
+                parameters_json_schema=_FIND_CLOSEST_MENU_ITEMS_PARAMETERS_JSON_SCHEMA,
+                handler=_find_closest_menu_items_tool,
+            ),
+            llm_client.GeminiFunctionTool(
+                name="validateModifications",
+                description=(
+                    "Validate and resolve raw modifier strings against a known menu item using AI. "
+                    "Requires itemId and merchantId from findClosestMenuItems. "
+                    "Use in MODIFY_ITEM after resolving the item — do NOT use for ADD_ITEM "
+                    "(use validateRequestedItem instead)."
+                ),
+                parameters_json_schema=_VALIDATE_MODIFICATIONS_PARAMETERS_JSON_SCHEMA,
+                handler=_validate_modifications_tool,
             ),
         ]
         print(
