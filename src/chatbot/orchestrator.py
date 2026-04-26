@@ -49,6 +49,8 @@ from src.chatbot.tools import (
     replaceItemInOrder,
     removeItemFromOrder,
     askingForPickupTime,
+    askingForWaitTime,
+    saveHumanName,
     suggestedPickupTime,
     updateItemInOrder,
     validateRequestedItem,
@@ -293,7 +295,14 @@ _UPDATE_ITEM_IN_ORDER_PARAMETERS_JSON_SCHEMA: dict[str, Any] = {
                     "type": "array",
                     "items": {"type": "string"},
                 },
-                "note": {"type": ["string", "null"]},
+                "note": {
+                    "type": ["string", "null"],
+                    "description": (
+                        "Only include this field when the customer explicitly asked to change or clear the item note. "
+                        "OMIT 'note' entirely from the updates object when only adding or removing modifiers — "
+                        "omitting it preserves the existing note. Passing null clears it permanently."
+                    ),
+                },
             },
             "additionalProperties": False,
         },
@@ -364,6 +373,18 @@ _SUGGESTED_PICKUP_TIME_PARAMETERS_JSON_SCHEMA: dict[str, Any] = {
 }
 
 _ASKING_FOR_PICKUP_TIME_PARAMETERS_JSON_SCHEMA = _NO_ARGUMENTS_JSON_SCHEMA
+_ASKING_FOR_WAIT_TIME_PARAMETERS_JSON_SCHEMA = _NO_ARGUMENTS_JSON_SCHEMA
+_SAVE_HUMAN_NAME_PARAMETERS_JSON_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "name": {
+            "type": "string",
+            "description": "The customer's name exactly as they mentioned it.",
+        }
+    },
+    "required": ["name"],
+    "additionalProperties": False,
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -704,6 +725,7 @@ class Orchestrator:
                 original_merchant_id=request.merchant_id,
                 clover_creds=None,
                 clover_error=str(exc),
+                phone_number=request.phone_number,
             )
 
         resolved_merchant_id = clover_creds.get("merchant_id") or request.merchant_id
@@ -713,6 +735,7 @@ class Orchestrator:
             original_merchant_id=request.merchant_id,
             clover_creds=clover_creds,
             clover_error=None,
+            phone_number=request.phone_number,
         )
 
     def prepareAgentContext(
@@ -745,6 +768,7 @@ class Orchestrator:
             clover_creds=execution_context.clover_creds,
             clover_error=execution_context.clover_error,
             is_order_confirmed=is_order_confirmed,
+            phone_number=execution_context.phone_number,
         )
 
 
@@ -989,6 +1013,7 @@ class ExecutionAgent:
                 original_merchant_id=context_object.original_merchant_id,
                 clover_creds=context_object.clover_creds,
                 clover_error=context_object.clover_error,
+                phone_number=context_object.phone_number,
             ),
             is_order_confirmed=context_object.is_order_confirmed,
         )
@@ -1398,6 +1423,25 @@ class ExecutionAgent:
             _log_tool_call_io("askingForPickupTime", args, out)
             return out
 
+        async def _asking_for_wait_time_tool() -> dict[str, Any]:
+            args = {}
+            out = await askingForWaitTime(
+                session_id=runtime.context.session_id,
+                firebase_uid=runtime.context.original_merchant_id or "",
+            )
+            _log_tool_call_io("askingForWaitTime", args, out)
+            return out
+
+        async def _save_human_name_tool(*, name: str) -> dict[str, Any]:
+            args = {"name": name}
+            out = await saveHumanName(
+                name=name,
+                phone_number=runtime.context.phone_number,
+                firebase_uid=runtime.context.original_merchant_id or "",
+            )
+            _log_tool_call_io("saveHumanName", args, out)
+            return out
+
         tools_list = [
             llm_client.GeminiFunctionTool(
                 name="validateRequestedItem",
@@ -1503,6 +1547,27 @@ class ExecutionAgent:
                 ),
                 parameters_json_schema=_ASKING_FOR_PICKUP_TIME_PARAMETERS_JSON_SCHEMA,
                 handler=_guard("asking_for_pickup_time", _asking_for_pickup_time_tool),
+            ),
+            llm_client.GeminiFunctionTool(
+                name="askingForWaitTime",
+                description=(
+                    "Call this ONLY when the customer asks specifically about the current wait time "
+                    "(e.g. 'what's the wait?', 'how long is the wait right now?', 'how busy are you?'). "
+                    "Do NOT call this for pickup-time questions or alongside confirmOrder — "
+                    "use askingForPickupTime for those."
+                ),
+                parameters_json_schema=_ASKING_FOR_WAIT_TIME_PARAMETERS_JSON_SCHEMA,
+                handler=_guard("asking_for_wait_time", _asking_for_wait_time_tool),
+            ),
+            llm_client.GeminiFunctionTool(
+                name="saveHumanName",
+                description=(
+                    "Call this whenever the customer mentions their name "
+                    "(e.g., 'I'm John', 'my name is Sarah', 'it's Mike'). "
+                    "Pass the name exactly as stated. Do NOT call for any other reason."
+                ),
+                parameters_json_schema=_SAVE_HUMAN_NAME_PARAMETERS_JSON_SCHEMA,
+                handler=_save_human_name_tool,
             ),
         ]
         print(

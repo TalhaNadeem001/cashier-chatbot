@@ -3318,6 +3318,7 @@ async def getOrderLineItems(session_id: str, creds: dict | None = None) -> dict:
                                name (str)        — Display name of the item.
                                quantity (int)    — Number of units (unitQty / 1000, min 1).
                                price (int)       — Line-level total in cents from Clover.
+                               note (str | None) — Free-text note on the line item (e.g. "extra crispy"), or None if no note.
                              Empty list when the cart has no items.
         orderTotal (int)   — Current order total in cents from Clover.
         error (str | None) — Human-readable error message, or None on success.
@@ -3344,6 +3345,7 @@ async def getOrderLineItems(session_id: str, creds: dict | None = None) -> dict:
                 "name": li.get("name", ""),
                 "quantity": _line_item_quantity(li),
                 "price": li.get("price", 0),
+                "note": li.get("note") or None,
             }
             for li in raw_list
         ]
@@ -3764,6 +3766,49 @@ async def askingForPickupTime(session_id: str, firebase_uid: str) -> dict:
         return {"success": False, "error": str(exc)}
 
 
+async def askingForWaitTime(session_id: str, firebase_uid: str) -> dict:
+    """Notify the restaurant that the customer is asking about wait time.
+
+    Call this ONLY when the customer explicitly asks about the current wait time
+    (e.g. "what's the wait?", "how long is the wait right now?", "how busy are you?").
+    Do NOT call this for general pickup-time questions or alongside confirmOrder —
+    use askingForPickupTime for those cases.
+
+    Args:
+        session_id: The chat session identifier.
+        firebase_uid: The Firebase UID (original_merchant_id) for this merchant.
+            Sent as user_id in the webhook payload. Do NOT pass the Clover merchant ID.
+
+    Returns a dict:
+        success (bool)
+            True when the webhook returned a 2xx response.
+        error (str | None)
+            Human-readable reason for failure, or None on success.
+
+    Decision guide for the agent:
+        - success True  → no action needed; proceed normally.
+        - success False → no action needed; proceed normally (silent best-effort ping).
+    """
+    print(f"[askingForWaitTime] session_id={session_id!r} firebase_uid={firebase_uid!r}")
+    payload = {"order_id": session_id, "user_id": firebase_uid}
+
+    if not settings.ESCALATION_URL:
+        print("[askingForWaitTime] ESCALATION_URL not configured")
+        return {"success": False, "error": "ESCALATION_URL is not configured"}
+
+    ping_url = settings.ESCALATION_URL + "/api/ping-for-wait-time"
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(ping_url, json=payload)
+            response.raise_for_status()
+        print(f"[askingForWaitTime] webhook sent status={response.status_code}")
+        return {"success": True, "error": None}
+    except Exception as exc:
+        print(f"[askingForWaitTime] failed: {exc!r}")
+        return {"success": False, "error": str(exc)}
+
+
 async def getPreviousOrdersDetails(session_id: str, limit: int = 3) -> dict:
     """Retrieve stored order history for a session from Redis.
 
@@ -3807,3 +3852,99 @@ async def getPreviousOrdersDetails(session_id: str, limit: int = 3) -> dict:
         return {"success": False, "orders": [], "error": str(exc)}
 
 
+async def saveHumanName(
+    name: str,
+    phone_number: str | None,
+    firebase_uid: str,
+) -> dict:
+    """Save the customer's name to Firestore.
+
+    Called whenever the customer mentions their name during the conversation.
+
+    Parameters:
+        name         — The customer's name exactly as they stated it.
+        phone_number — Customer's phone number (used as the Customers doc ID).
+                       If None, the save is skipped and success=False is returned.
+        firebase_uid — The original merchant's Firebase UID
+                       (original_merchant_id from execution context).
+
+    Firestore path: Users/{firebase_uid}/Customers/{phone_number}
+    Document fields written: { "name": str, "phone_number": str }
+
+    Returns dict with keys:
+        success       — bool: True if written or name already matched, False on error/missing phone_number
+        already_saved — bool: True if the name was already identical (no write performed)
+        error         — str | None: error message, None on success
+
+    Decision guide for the agent:
+        - success=True  → continue normally
+        - success=False → continue normally (silent failure, do not mention to customer)
+    """
+    print(f"[saveHumanName] name={name!r} phone_number={phone_number!r} firebase_uid={firebase_uid!r}")
+    if not phone_number:
+        print("[saveHumanName] skipped — phone_number not available")
+        return {"success": False, "already_saved": False, "error": "phone_number not available"}
+    db = _firebase.firebaseDatabase
+    if db is None:
+        print("[saveHumanName] firebase not initialised")
+        return {"success": False, "already_saved": False, "error": "Firebase not initialised"}
+    try:
+        doc_ref = db.collection("Users").document(firebase_uid).collection("Customers").document(phone_number)
+        snapshot = await doc_ref.get()
+        existing = snapshot.to_dict() or {}
+        existing_name = existing.get("name")
+
+        if existing_name == name:
+            print("[saveHumanName] name already saved, skipping write")
+            return {"success": True, "already_saved": True, "error": None}
+
+        await doc_ref.set(
+            {"name": name, "phone_number": phone_number},
+            merge=True,
+        )
+        if existing_name:
+            print(f"[saveHumanName] name updated from {existing_name!r} to {name!r}")
+        else:
+            print("[saveHumanName] saved successfully")
+        return {"success": True, "already_saved": False, "error": None}
+    except Exception as exc:
+        print(f"[saveHumanName] error: {exc!r}")
+        return {"success": False, "already_saved": False, "error": str(exc)}
+
+
+async def getHumanProfile(
+    phone_number: str | None,
+    firebase_uid: str,
+) -> dict:
+    """Fetch a customer's stored profile from Firestore.
+
+    Called directly by orchestrator code — NOT exposed to the execution agent.
+    Reads Users/{firebase_uid}/Customers/{phone_number}.
+
+    Parameters:
+        phone_number — Customer's phone number (document ID). Returns success=False when None.
+        firebase_uid — Merchant's Firebase UID (original_merchant_id).
+
+    Returns dict with keys:
+        success      — bool: True if document found, False on missing phone / Firebase error
+        name         — str | None: customer name if found, None otherwise
+        error        — str | None: error message on failure, None on success
+    """
+    print(f"[getHumanProfile] phone_number={phone_number!r} firebase_uid={firebase_uid!r}")
+    if not phone_number:
+        print("[getHumanProfile] skipped — phone_number not available")
+        return {"success": False, "name": None, "error": "phone_number not available"}
+    db = _firebase.firebaseDatabase
+    if db is None:
+        print("[getHumanProfile] firebase not initialised")
+        return {"success": False, "name": None, "error": "Firebase not initialised"}
+    try:
+        doc_ref = db.collection("Users").document(firebase_uid).collection("Customers").document(phone_number)
+        snapshot = await doc_ref.get()
+        data = snapshot.to_dict() or {}
+        name = data.get("name")
+        print(f"[getHumanProfile] name={name!r}")
+        return {"success": True, "name": name, "error": None}
+    except Exception as exc:
+        print(f"[getHumanProfile] error: {exc!r}")
+        return {"success": False, "name": None, "error": str(exc)}

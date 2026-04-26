@@ -507,6 +507,7 @@ def _priced_line_item(line_item: dict) -> dict:
         "unitPrice": unit_price,
         "modifierPrices": modifier_prices,
         "lineTotal": line_total,
+        "note": line_item.get("note") or None,
     }
 
 

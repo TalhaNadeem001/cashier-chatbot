@@ -78,6 +78,7 @@ async def _run_as_processor(request: ChatbotV2MessageRequest) -> ChatbotV2Messag
             user_message=combined,
             session_id=session_id,
             merchant_id=request.merchant_id,
+            phone_number=request.phone_number,
         )
 
         print(f"[buffer] processor calling orchestrator for session={session_id!r}")

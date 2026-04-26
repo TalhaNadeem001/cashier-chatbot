@@ -115,3 +115,45 @@ Introduced a read-through Redis cache for full Clover order responses to elimina
 - `calcOrderPrice` previously used `expand=["lineItems", "lineItems.modifications", "discounts"]`; now uses the standard cached response. Pricing breakdown still works since `_pricing_breakdown_from_order` uses the Clover `total` and line item prices which are always present in the default response.
 - `_get_order_data` forward-references `get_order_id_for_session` (defined later in the same file at ~line 3400). This is fine in Python since both are module-level functions resolved at call time.
 - `confirmOrder`'s `fetch_clover_order` calls were intentionally left unchanged — confirmation is a mutation that needs authoritative data and doesn't benefit from caching.
+
+## 2026-04-26 - saveHumanName tool
+
+### Overview
+Persists the customer's name to Firestore under `Users/{firebase_uid}/Customers/{phone_number}`.
+
+### How It Works
+- Triggered whenever the agent detects the customer mentioned their name (GREETING or any intent).
+- Looks up existing doc; skips the write if the name is already identical (`already_saved=True`).
+- Uses `merge=True` so other fields on the Customers doc are not overwritten.
+- Fails silently (returns `success=False`) when `phone_number` is None or Firebase is uninitialised — agent continues normally in both cases.
+
+### Data Flow
+`ChatbotV2MessageRequest.phone_number` → `buffer.py merged_request` → `ExecutionAgentContext.phone_number` → `PreparedExecutionContext.phone_number` → `ExecutionToolRuntime context.phone_number` → `_save_human_name_tool` → `saveHumanName`
+
+### Key Files
+- `src/chatbot/tools.py` — `saveHumanName` implementation (~line 3853)
+- `src/chatbot/orchestrator.py` — `_SAVE_HUMAN_NAME_PARAMETERS_JSON_SCHEMA`, `_save_human_name_tool`, registered in `tools_list` (no `_guard` wrapper — safe post-confirmation)
+- `src/chatbot/schema.py` — `phone_number` added to `ExecutionAgentContext` and `PreparedExecutionContext`
+- `src/chatbot/buffer.py` — `phone_number` forwarded in `merged_request`
+- `src/chatbot/promptsv2.py` — GREETING section updated to instruct agent to call `saveHumanName` when name is detected
+
+## 2026-04-26 - Add `getHumanProfile` (read-side counterpart to `saveHumanName`)
+
+`getHumanProfile(phone_number, firebase_uid) -> dict` added to `src/chatbot/tools.py` (~line 3913).
+
+- Reads `Users/{firebase_uid}/Customers/{phone_number}` from Firestore (same path as `saveHumanName`).
+- Returns `{ success, name, error }`.
+- **Not** registered as an agent tool — called directly by Python orchestrator code.
+- Returns `success=False` immediately when `phone_number` is `None` or Firebase is uninitialised.
+
+## 2026-04-26 - Fix note erasure when adding modifiers via `updateItemInOrder`
+
+**Bug:** When a customer added an item with a free-text note (e.g. "add lettuce no smash sauce") and then modified it with a modifier ("add beef bacon to it"), the LLM was including `"note": null` in the `updates` dict, silently clearing the note.
+
+**Root cause:** The `note` field in `_UPDATE_ITEM_IN_ORDER_PARAMETERS_JSON_SCHEMA` had no description, so the LLM filled it in as `null` when it wasn't needed. The prompt also had no instruction to omit `note` when only changing modifiers.
+
+**Fix (two changes):**
+1. `src/chatbot/orchestrator.py` ~line 298 — Added `description` to the `note` field in `_UPDATE_ITEM_IN_ORDER_PARAMETERS_JSON_SCHEMA` instructing the LLM to OMIT `note` entirely when only modifying modifiers.
+2. `src/chatbot/promptsv2.py` ~line 749 — Added IMPORTANT note-preservation instruction in the `Normal MODIFY_ITEM flow` block.
+
+**Design:** `updateItemInOrder` uses a sentinel (`"note" in updates`) — the fix is correct; the implementation didn't need to change.

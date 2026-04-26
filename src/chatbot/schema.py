@@ -114,6 +114,7 @@ class ChatbotV2MessageRequest(BaseModel):
     user_message: str 
     session_id: str 
     merchant_id: str | None = None
+    phone_number: str | None = None
 
 
 class ChatbotV2MessageResponse(BaseModel):
@@ -237,6 +238,7 @@ class ExecutionAgentContext(BaseModel):
     original_merchant_id: str | None = None
     clover_creds: dict[str, Any] | None = None
     clover_error: str | None = None
+    phone_number: str | None = None
 
 
 class PreparedExecutionContext(BaseModel):
@@ -249,6 +251,7 @@ class PreparedExecutionContext(BaseModel):
     clover_creds: dict[str, Any] | None = None
     clover_error: str | None = None
     is_order_confirmed: bool = False
+    phone_number: str | None = None
 
 
 class ExecutionAgentToolDescriptor(BaseModel):
