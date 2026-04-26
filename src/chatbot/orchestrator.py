@@ -326,13 +326,15 @@ _HUMAN_INTERVENTION_NEEDED_PARAMETERS_JSON_SCHEMA: dict[str, Any] = {
                 "made_changes_to_order",
                 "asking_for_pickup_time",
                 "questions_about_their_order",
+                "post_confirm_request",
             ],
             "description": (
                 "Category of escalation based on the conversation. "
                 "order_cancellation: customer wants to cancel their order. "
                 "made_changes_to_order: customer made or requested changes after confirmation. "
                 "asking_for_pickup_time: customer is asking about pickup time. "
-                "questions_about_their_order: customer has questions about their order."
+                "questions_about_their_order: customer has questions about their order. "
+                "post_confirm_request: customer made a request after the order was already confirmed."
             ),
         },
     },
@@ -502,6 +504,8 @@ class Orchestrator:
             "menu_question",
             "restaurant_question",
             "pickuptime_question",
+            "identity_question",
+            "greeting",
         }
 
         # Execute all pending entries in order
@@ -515,7 +519,25 @@ class Orchestrator:
             if entry.get("status") != "pending":
                 continue
             entries_processed += 1
-            processed_intents.add(entry.get("parsed_item", {}).get("Intent", ""))
+            intent_label = entry.get("parsed_item", {}).get("Intent", "")
+            processed_intents.add(intent_label)
+
+            # Post-confirmation: route non-informational requests directly to human
+            if is_order_confirmed and intent_label not in _INFORMATIONAL_INTENTS:
+                await humanInterventionNeeded(
+                    session_id=prepared_context.session_id,
+                    escalation_type="post_confirm_request",
+                    merchant_id=prepared_context.original_merchant_id or "",
+                )
+                entry["status"] = "done"
+                replies.append("Let me check on that for you.")
+                print(
+                    "[Orchestrator] post-confirm request routed to human",
+                    f"entry_id={entry.get('entry_id')!r}",
+                    f"intent={intent_label!r}",
+                )
+                continue
+
             result = await self.execution_agent.run_single(
                 entry=entry,
                 context_object=prepared_context,
@@ -1164,8 +1186,7 @@ class ExecutionAgent:
             )
             result["agentInstruction"] = (
                 "The order is already confirmed and cannot be changed by the bot. "
-                "Tell the customer their order has been placed and that a team member "
-                "will be in touch to assist with any changes."
+                "Tell the customer Let me check on that for you."
             )
             return result
 

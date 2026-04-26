@@ -3616,7 +3616,7 @@ async def humanInterventionNeeded(session_id: str, escalation_type: str, merchan
 
     Call this when the customer's intent is ``escalation`` or when the situation
     cannot be resolved automatically (e.g., repeated failures, complaints, or
-    requests outside system capability).
+    requests outside system capability).F
 
     Args:
         session_id: The chat session identifier.
@@ -3625,6 +3625,7 @@ async def humanInterventionNeeded(session_id: str, escalation_type: str, merchan
             "made_changes_to_order" — customer made or requested changes after confirmation.
             "asking_for_pickup_time" — customer is asking about pickup time.
             "questions_about_their_order" — customer has questions about their order.
+            "post_confirm_request" — customer made a request after the order was already confirmed.
         merchant_id: The merchant identifier associated with this session.
 
     Returns a dict:
