@@ -221,3 +221,12 @@ Additionally, `validateModifications` used `_match_requested_modifier` (determin
 ### Gotchas
 - `getOrderLineItems` does not return the Clover menu `itemId` — only `lineItemId`. Step 2 (`findClosestMenuItems`) is still needed to get the menu UUID for `validateModifications`. If `getOrderLineItems` is ever updated to expose `itemId` per line item, step 2 can be dropped.
 - The `MODIFY_ITEM` empty-order fallback (redirects to ADD_ITEM flow) still uses `validateRequestedItem` — this is correct since the item doesn't exist in the order yet.
+
+## 2026-04-27 - escalation vs order_question parser disambiguation
+
+**Problem:** "my total is wrong" was classified as `order_question` (neutral info request) instead of `escalation` (complaint/dispute). The execution agent just called `calcOrderPrice` and reported the total rather than escalating.
+
+**Fix (`src/chatbot/promptsv2.py` — `intent_labels_prompt` and `parsing_rules_prompt`):**
+- `order_question` description now explicitly says "neutral informational requests — NOT complaints or disputes."
+- `escalation` description now explicitly includes price/total disputes: "my total is wrong", "the price is off", "I was overcharged."
+- Added a `COMPLAINT vs QUESTION DISTINCTION` parsing rule with concrete examples to reinforce the boundary.

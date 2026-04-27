@@ -65,12 +65,12 @@ DEFAULT_PARSING_AGENT_PROMPTS = ParsingAgentPrompts(
         change_item_number -> Customer wants to change the quantity of an already-requested item.
         confirm_order -> Customer is confirming, approving, or closing the order.
         cancel_order -> Customer wants to cancel the entire order.
-        order_question -> Customer is asking about their current order (items in it, total price, whether something was added, etc.).
+        order_question -> Customer is neutrally asking about their current order (items in it, total price, whether something was added, etc.). Use ONLY for neutral informational requests — NOT for complaints or disputes.
         menu_question -> Customer is asking about menu or item-specific details.
         restaurant_question -> Customer is asking about the restaurant (hours, location, etc.).
         pickuptime_question -> Customer is asking about pickup or wait time.
         introduce_name -> Customer states their own name (e.g., "I'm John", "my name is Sarah", "it's Mike"). Use Request_items.name for the name value; quantity=0, details="". Can co-occur with greeting or any order intent — emit as a separate object.
-        escalation -> Customer has a complaint or needs human intervention.
+        escalation -> Customer has a complaint, dispute, or needs human intervention. This includes ANY message where the customer says something is wrong, incorrect, or missing (e.g. "my total is wrong", "the price is off", "that's not what I ordered", "I was overcharged").
         identity_question -> Customer asks who they are talking to, what the system is, or whether it is a bot.
         outside_agent_scope -> Message is unrelated to food ordering.
         """
@@ -123,6 +123,10 @@ DEFAULT_PARSING_AGENT_PROMPTS = ParsingAgentPrompts(
         MULTIPLE INTENTS FOR SAME ITEM
         If add + modify appear together, output separate objects in the same order as the message.
         If an item is mentioned as a side, add it to the details of the main item.
+        COMPLAINT vs QUESTION DISTINCTION
+        "What is my total?" → order_question
+        "My total is wrong", "the price is incorrect", "I was overcharged", "that's not right" → escalation
+        Any message asserting something is wrong, missing, or incorrect → escalation, NOT order_question.
         DO NOT OVER-INFER
         Only extract what is clearly stated.
         UNFULFILLED QUEUE RESOLUTION
