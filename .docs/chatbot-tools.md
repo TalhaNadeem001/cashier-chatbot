@@ -222,6 +222,15 @@ Additionally, `validateModifications` used `_match_requested_modifier` (determin
 - `getOrderLineItems` does not return the Clover menu `itemId` — only `lineItemId`. Step 2 (`findClosestMenuItems`) is still needed to get the menu UUID for `validateModifications`. If `getOrderLineItems` is ever updated to expose `itemId` per line item, step 2 can be dropped.
 - The `MODIFY_ITEM` empty-order fallback (redirects to ADD_ITEM flow) still uses `validateRequestedItem` — this is correct since the item doesn't exist in the order yet.
 
+## 2026-04-27 - Wrong fuzzy match downgrade in validateRequestedItem
+
+**Problem:** "fish sandwich" fuzzy-matched to "Sando & Fries" (score 72 ≥ `CONFIRMED_THRESHOLD` 70, auto-confirmed as exact). "Fish Battered Cod" scored only 54. Both item-name words "fish" and "sandwich" ended up as `invalid` modifiers — entirely orphaned — but the match stood.
+
+**Fix (`src/chatbot/tools.py` — `validateRequestedItem`):**
+After the modifier resolver runs, check if every content word of `itemName` is orphaned (in `leftover_words` AND in `truly_invalid`). If so, downgrade `matchConfidence` from `exact` to `close` and restore the candidates list (already built by `_build_candidates` before the auto-confirm branch, but cleared by the `include_candidate_details` guard). Returns early with `{**base, **_null_downstream}` so the agent presents candidates to the customer.
+
+**Condition:** `orphaned_set == itemName_content_words` — must be complete, not partial. "spicy chicken sando" → "Chicken Sando" does not trigger because "chicken" and "sando" matched the item name.
+
 ## 2026-04-27 - escalation vs order_question parser disambiguation
 
 **Problem:** "my total is wrong" was classified as `order_question` (neutral info request) instead of `escalation` (complaint/dispute). The execution agent just called `calcOrderPrice` and reported the total rather than escalating.

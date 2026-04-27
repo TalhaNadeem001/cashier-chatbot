@@ -285,6 +285,13 @@ _SODA_ALIASES: frozenset[str] = frozenset({
 
 _SODA_CANONICAL = "can of pop"
 
+_FISH_SANDWICH_ALIASES: frozenset[str] = frozenset({
+    "fish sandwich",
+    "fish cod sandwich",
+    "fish battered cod sandwich",
+})
+_FISH_SANDWICH_CANONICAL = "fish battered cod"
+
 
 def _find_closest_menu_items_from_menu(
     *,
@@ -315,6 +322,18 @@ def _find_closest_menu_items_from_menu(
             f"original={item_name!r} → rewriting to {_SODA_CANONICAL!r}"
         )
         item_name = _SODA_CANONICAL
+
+    fish_sandwich_in_menu = _FISH_SANDWICH_CANONICAL in items_by_name
+    if (
+        normalized_input in _FISH_SANDWICH_ALIASES
+        and _get_local_item(item_name, items_by_name) is None
+        and fish_sandwich_in_menu
+    ):
+        print(
+            f"[findClosestMenuItems] fish sandwich alias matched "
+            f"original={item_name!r} → rewriting to {_FISH_SANDWICH_CANONICAL!r}"
+        )
+        item_name = _FISH_SANDWICH_CANONICAL
 
     exact_match = _get_local_item(item_name, items_by_name)
     top_matches = process.extract(
@@ -1681,6 +1700,24 @@ async def validateRequestedItem(
 
         missing_require_choice = _required_modifier_groups(item_row, selected_keys)
         all_valid = not truly_invalid and not missing_require_choice
+
+        # Downgrade to "close" when every content word of itemName is orphaned:
+        # present in leftover_words (didn't match the item name) AND in truly_invalid
+        # (not a modifier or note either). Catches wrong fuzzy matches like
+        # "fish sandwich" → "Sando & Fries" where the entire query has no semantic home.
+        _stopwords = {'a', 'an', 'the', 'of', 'for', 'me', 'my', 'i', 'and', 'with', 'please', 'some'}
+        itemName_content_words = {w.lower() for w in itemName.split() if w.lower() not in _stopwords}
+        leftover_set = {w.lower() for w in leftover_words}
+        orphaned_set = {w.lower() for w in truly_invalid if w.lower() in leftover_set}
+        if itemName_content_words and orphaned_set == itemName_content_words:
+            print(
+                "[validateRequestedItem] downgrade to close — "
+                f"all item-name words orphaned={orphaned_set!r}"
+            )
+            base["matchConfidence"] = "close"
+            base["candidates"] = candidates  # restore list cleared by include_candidate_details
+            return {**base, **_null_downstream}
+
         result = {
             **base,
             "itemId": item_id,

@@ -143,6 +143,15 @@ DEFAULT_PARSING_AGENT_PROMPTS = ParsingAgentPrompts(
            filled (copy the original question, provide the answer text).
         4. Only include an entry in ModifiedEntries if you are confident you found an answer.
            Do NOT guess. Leave uncertain entries out of ModifiedEntries entirely.
+        SINGLE ANSWER BROADCAST
+        If the customer's message contains exactly one identifiable answer AND there are multiple
+        unfulfilled entries each with exactly one unanswered qa question, apply that single answer
+        as the response to ALL of those entries and include all of them in ModifiedEntries.
+        Only do this when the single answer is plausibly relevant to every pending question
+        (e.g. all entries are asking for the same type of choice — heat level, flavor, size).
+        If the questions are clearly asking for different things (e.g. one asks for a flavor and
+        another asks for a size), fill only the entries you are confident about and leave the rest
+        unanswered.
         5. New intents from this message go in Data as usual (even if the message also answers
            unfulfilled entries).
         6. If the message is purely answering unfulfilled entries (no new order action), Data may
@@ -513,6 +522,38 @@ DEFAULT_PARSING_AGENT_PROMPTS = ParsingAgentPrompts(
             {
               "EntryId": "ghi-789",
               "QA": [{"question": "Which flavor for the 6 wings — Lemon Pepper, Mango Habanero, or Plain?", "answer": "Lemon Pepper"}]
+            }
+          ]
+        }
+        --- Example 10 ---
+        unfulfilled_queue: [
+          {
+            "entry_id": "aaa-111",
+            "parsed_item": {"Intent": "add_item", "Confidence_level": "high",
+                            "Request_items": {"name": "wings", "quantity": 1, "details": ""},
+                            "Request_details": "wings"},
+            "qa": [{"question": "What heat level for the wings — Mild, Medium, or Spicy?", "answer": null}]
+          },
+          {
+            "entry_id": "bbb-222",
+            "parsed_item": {"Intent": "add_item", "Confidence_level": "high",
+                            "Request_items": {"name": "chicken sandwich", "quantity": 1, "details": ""},
+                            "Request_details": "chicken sandwich"},
+            "qa": [{"question": "What heat level for the chicken sandwich — Mild, Medium, or Spicy?", "answer": null}]
+          }
+        ]
+        Transcript:
+        C: Spicy please.
+        {
+          "Data": [],
+          "ModifiedEntries": [
+            {
+              "EntryId": "aaa-111",
+              "QA": [{"question": "What heat level for the wings — Mild, Medium, or Spicy?", "answer": "Spicy"}]
+            },
+            {
+              "EntryId": "bbb-222",
+              "QA": [{"question": "What heat level for the chicken sandwich — Mild, Medium, or Spicy?", "answer": "Spicy"}]
             }
           ]
         }
