@@ -604,13 +604,15 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
 
     LOW CONFIDENCE BEHAVIOR
     When any parsed intent has confidence_level of "low":
-    - Still call validateRequestedItem(itemName, details) first to identify what exists on the menu.
-    - If validateRequestedItem returns matchConfidence "exact" and allValid is True, proceed
-      normally — an exact menu match resolves the ambiguity; call the mutation tool as usual.
-    - If validateRequestedItem returns matchConfidence "close", do NOT call any mutation tools.
-      Present candidates[0].name to the customer and ask them to confirm
-      (e.g. "Just to confirm, did you mean [candidate name]?").
-    - Only proceed with mutations after the customer confirms.
+    - For add_item: Still call validateRequestedItem(itemName, details) first to identify what
+      exists on the menu. If matchConfidence is "exact" and allValid is True, proceed normally.
+      If matchConfidence is "close", do NOT call any mutation tools — present candidates[0].name
+      and ask the customer to confirm before proceeding.
+    - For modify_item, remove_item, and replace_item (old item only): Do NOT call
+      validateRequestedItem. Instead start with getOrderLineItems() to confirm the item exists
+      in the current order, then proceed with the normal flow for that intent. If the item is
+      not found in the order, tell the customer it is not in their order.
+    - Only proceed with mutations after confirming the target item.
 
     CLARIFICATION RULES
     Ask questions if:
@@ -813,9 +815,18 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
          with the modification already applied.
 
     Normal MODIFY_ITEM flow (order already has items):
-    1. Call validateRequestedItem(itemName, details). Apply same STOP conditions as ADD_ITEM.
+    1. Call getOrderLineItems() to inspect the current cart.
+       - itemName not found in lineItems → STOP → tell the customer that item is not in their order.
+       - Multiple line items match → STOP → list the matching names and ask which one they mean.
+       - Exactly one match → take the exact name and lineItemId from that line item.
+    2. Call findClosestMenuItems(exact_order_item_name) using the matched name from step 1.
+       This resolves the Clover itemId and merchantId needed for modifier validation.
+    3. Call validateModifications(itemId, merchantId, requestedModifications, existingModifierIds) where
+       requestedModifications is the list of raw modifier strings from the customer's request and
+       existingModifierIds is the modifierIds list from the matched line item returned by step 1.
        - allValid == True                → IMMEDIATELY call updateItemInOrder (do NOT return text yet)
-    2. Call updateItemInOrder(target, updates).
+       - Non-empty invalid or requireChoice → STOP → ask the customer to clarify the modifier.
+    4. Call updateItemInOrder(target={lineItemId from step 1}, updates={addModifiers/removeModifiers from step 3}).
        IMPORTANT — note preservation: Only include "note" in the updates dict when the customer
        explicitly asked to change or clear the item note. When only adding or removing modifiers,
        OMIT "note" from updates entirely. Including "note": null will permanently erase any
@@ -897,7 +908,7 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
 
     For PICKUPTIME_QUESTION (customer asks about wait time, e.g. "how long is the wait?", "what's the wait right now?", "how busy are you?"):
     - Call askingForWaitTime() — no arguments needed.
-    - After the tool returns, tell the customer the cashier has been notified and will provide the wait time.
+    - After the tool returns, tell the customer Let me check on that for you.
       Do NOT promise a specific wait duration.
 
     For PICKUPTIME_QUESTION (customer suggests a pickup time, e.g. "I'll be there in 30 minutes"):

@@ -19,7 +19,6 @@ from src.chatbot.clarification.constants import (
     AMBIGUITY_GAP,
     CONFIRMED_THRESHOLD,
     LOW_MENU_MATCH_THRESHOLD,
-    MODS_CONFIRMED_THRESHOLD,
     NOT_FOUND_THRESHOLD,
 )
 from src.chatbot.clarification.fuzzy_matcher import _combined_scorer
@@ -835,18 +834,6 @@ def _flatten_item_modifier_options(item_row: dict) -> list[dict]:
     return options
 
 
-def _match_requested_modifier(requested: str, options: list[dict]) -> dict | None:
-    if not options:
-        return None
-
-    choices = {index: option["name"] for index, option in enumerate(options)}
-    match = process.extractOne(requested, choices, scorer=_combined_scorer)
-    if match is None or match[1] < MODS_CONFIRMED_THRESHOLD:
-        return None
-
-    return options[match[2]]
-
-
 def _required_modifier_groups(
     item_row: dict, selected_keys: set[tuple[str, str]]
 ) -> list[dict]:
@@ -1059,6 +1046,8 @@ async def validateModifications(
     itemId: str,
     merchantId: str,
     requestedModifications: list[str] | None = None,
+    existingModifierIds: list[str] | None = None,
+    creds: dict | None = None,
 ) -> dict:
     """Validate raw requested modifications against one resolved Clover item.
 
@@ -1066,20 +1055,28 @@ async def validateModifications(
     and wants to check whether one or more free-text modifier phrases can be
     safely converted into real Clover modifier ids before mutating the order.
 
+    Uses an AI resolver (same as validateRequestedItem) so natural-language
+    modifier descriptions (e.g. "no sauce", "make it spicy") are handled
+    correctly even when they don't fuzzy-match a modifier name verbatim.
+
     Args:
         itemId: Clover item UUID already resolved for the current order item.
         merchantId: Merchant id expected by the caller; validation fails closed
             when it does not match the resolved Clover merchant.
         requestedModifications: Raw modifier strings extracted from the guest message.
+        existingModifierIds: Modifier IDs already applied to the order line item
+            (from getOrderLineItems lineItem.modifierIds). Pass these for MODIFY_ITEM
+            so required groups already satisfied are not flagged in requireChoice.
 
     Returns a dict with:
         valid: list of matched modifier rows with resolved ids, canonical names, and prices.
         invalid: raw modifier strings that could not be matched for this item.
+        asNote: modifier-like requests the AI resolved as free-text notes (not Clover modifiers).
         requireChoice: required modifier groups still missing one or more selections.
         allValid: True only when every non-empty request matched and no required group is missing.
 
     Decision guide for the agent:
-        - ``allValid`` True with one clear ``valid`` row → safe to apply that modifier.
+        - ``allValid`` True → safe to apply modifiers; pass ``asNote`` joined as the line-item note.
         - Non-empty ``invalid`` or ``requireChoice`` → ask the customer to clarify.
         - Empty ``valid`` with all requested values in ``invalid`` → fail closed; do not mutate the order.
     """
@@ -1093,11 +1090,12 @@ async def validateModifications(
         f"itemId={itemId!r} merchantId={merchantId!r} requested={requested!r}"
     )
 
-    db = _firebase.firebaseDatabase
-    creds = await prepare_clover_data(db, settings)
+    if creds is None:
+        db = _firebase.firebaseDatabase
+        creds = await prepare_clover_data(db, settings)
     print(
-        "[validateModifications] after prepare_clover_data "
-        f"creds_merchant_id={creds.get('merchant_id')!r}"
+        "[validateModifications] creds_merchant_id="
+        f"{creds.get('merchant_id')!r}"
     )
 
     if merchantId != creds.get("merchant_id"):
@@ -1124,50 +1122,76 @@ async def validateModifications(
         "[validateModifications] flattened options "
         f"count={len(flattened_options)}"
     )
+
     valid: list[dict] = []
-    invalid: list[str] = []
+    as_note: list[str] = []
+    truly_invalid: list[str] = []
     selected_keys: set[tuple[str, str]] = set()
 
-    for raw_modification in requested:
+    if existingModifierIds:
+        option_by_id_pre = {opt["modifierId"]: opt for opt in flattened_options}
+        for mid in existingModifierIds:
+            opt = option_by_id_pre.get(mid)
+            if opt:
+                selected_keys.add((opt["groupId"], mid))
         print(
-            "[validateModifications] checking modification "
-            f"raw={raw_modification!r}"
+            "[validateModifications] pre_populated_selected_keys "
+            f"count={len(selected_keys)}"
         )
-        match = _match_requested_modifier(raw_modification, flattened_options)
-        if match is None:
-            invalid.append(raw_modification)
-            print(
-                "[validateModifications] no match "
-                f"raw={raw_modification!r}"
-            )
-            continue
 
-        selection_key = (match["groupId"], match["modifierId"])
-        if selection_key in selected_keys:
-            print(
-                "[validateModifications] duplicate match skipped "
-                f"selection_key={selection_key!r}"
-            )
-            continue
-
-        selected_keys.add(selection_key)
-        valid.append(
-            {
-                "requested": raw_modification,
-                "modifierId": match["modifierId"],
-                "name": match["name"],
-                "price": match["price"],
-                "groupId": match["groupId"],
-                "groupName": match["groupName"],
-            }
+    if requested:
+        unified_details = ", ".join(requested)
+        resolution = await resolve_modifiers_for_item(
+            details=unified_details,
+            item_name=str(item_row.get("name", "")).strip(),
+            available_options=flattened_options,
         )
+        print(
+            "[validateModifications] ai_resolution "
+            f"resolved_count={len(resolution.resolved)} "
+            f"as_note={resolution.as_note!r} "
+            f"unresolvable={resolution.unresolvable!r}"
+        )
+
+        option_by_id = {opt["modifierId"]: opt for opt in flattened_options}
+        as_note = list(resolution.as_note)
+        truly_invalid = list(resolution.unresolvable)
+
+        for resolved_item in resolution.resolved:
+            opt = option_by_id.get(resolved_item.modifierId)
+            if opt is None:
+                print(
+                    "[validateModifications] ai_resolved_id_not_found "
+                    f"modifierId={resolved_item.modifierId!r} name={resolved_item.name!r}"
+                )
+                truly_invalid.append(resolved_item.name)
+                continue
+            selection_key = (opt["groupId"], opt["modifierId"])
+            if selection_key in selected_keys:
+                print(
+                    "[validateModifications] ai_resolved_duplicate "
+                    f"selection_key={selection_key!r}"
+                )
+                continue
+            selected_keys.add(selection_key)
+            valid.append(
+                {
+                    "requested": resolved_item.name,
+                    "modifierId": opt["modifierId"],
+                    "name": opt["name"],
+                    "price": opt["price"],
+                    "groupId": opt["groupId"],
+                    "groupName": opt["groupName"],
+                }
+            )
 
     require_choice = _required_modifier_groups(item_row, selected_keys)
     result = {
         "valid": valid,
-        "invalid": invalid,
+        "invalid": truly_invalid,
+        "asNote": as_note,
         "requireChoice": require_choice,
-        "allValid": not invalid and not require_choice,
+        "allValid": not truly_invalid and not require_choice,
     }
     print(f"[validateModifications] result={result!r}")
     return result
@@ -3314,11 +3338,15 @@ async def getOrderLineItems(session_id: str, creds: dict | None = None) -> dict:
         success (bool)     — True when the order was fetched successfully.
         orderId (str)      — Clover order id for this session.
         lineItems (list)   — One dict per line item in the order:
-                               lineItemId (str)  — Clover line item id.
-                               name (str)        — Display name of the item.
-                               quantity (int)    — Number of units (unitQty / 1000, min 1).
-                               price (int)       — Line-level total in cents from Clover.
-                               note (str | None) — Free-text note on the line item (e.g. "extra crispy"), or None if no note.
+                               lineItemId (str)      — Clover line item id.
+                               name (str)            — Display name of the item.
+                               quantity (int)        — Number of units (unitQty / 1000, min 1).
+                               price (int)           — Line-level total in cents from Clover.
+                               note (str | None)     — Free-text note on the line item, or None if no note.
+                               modifierIds (list[str]) — Modifier IDs already applied to this line item.
+                                                         Pass these as existingModifierIds to validateModifications
+                                                         during MODIFY_ITEM so required groups already satisfied
+                                                         are not re-prompted.
                              Empty list when the cart has no items.
         orderTotal (int)   — Current order total in cents from Clover.
         error (str | None) — Human-readable error message, or None on success.
@@ -3346,6 +3374,10 @@ async def getOrderLineItems(session_id: str, creds: dict | None = None) -> dict:
                 "quantity": _line_item_quantity(li),
                 "price": li.get("price", 0),
                 "note": li.get("note") or None,
+                "modifierIds": [
+                    r["modifier_id"]
+                    for r in _extract_line_item_modification_records(li)
+                ],
             }
             for li in raw_list
         ]
