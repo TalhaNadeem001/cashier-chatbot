@@ -9,6 +9,29 @@ import time
 from src.menu.loader import build_normalized_items
 
 
+_CONFIDENCE_TAG_RE = re.compile(r'\n?\[(High|Medium|Low)\]$')
+
+
+def _append_confidence_tag(note: str | None, confidence: str | None) -> str | None:
+    tag_map = {"high": "[High]", "medium": "[Medium]"}
+    tag = tag_map.get((confidence or "").lower(), "[Low]")
+    return f"{note}\n{tag}" if note else tag
+
+
+def _strip_confidence_tag(note: str | None) -> str | None:
+    if not note:
+        return note
+    cleaned = _CONFIDENCE_TAG_RE.sub("", note).strip()
+    return cleaned or None
+
+
+def _extract_confidence_tag(note: str | None) -> str | None:
+    if not note:
+        return None
+    m = _CONFIDENCE_TAG_RE.search(note)
+    return f"[{m.group(1)}]" if m else None
+
+
 def _parse_safely(value: str | None, enum_cls):
     if not value:
         return None
@@ -517,7 +540,7 @@ def _priced_line_item(line_item: dict) -> dict:
         "unitPrice": unit_price,
         "modifierPrices": modifier_prices,
         "lineTotal": line_total,
-        "note": line_item.get("note") or None,
+        "note": _strip_confidence_tag(line_item.get("note") or None),
     }
 
 

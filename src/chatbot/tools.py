@@ -60,7 +60,8 @@ from src.chatbot.utils import _clover_creds_redis_key, _menu_cache_key, _session
 from src.chatbot.utils import _summary_prompt_messages, _serialize_cached_history_summary, _parse_cached_history_summary
 from src.chatbot.utils import _normalize_menu, _persist_menu_items_cache, _menu_cache_age_seconds, _menu_snapshot_considered_fresh
 from src.chatbot.utils import _normalize_order_line_items, _line_item_quantity, _extract_line_item_modification_records
-from src.chatbot.utils import _item_not_found_result, _availability_result, _describe_update_changes, _pricing_breakdown_from_order 
+from src.chatbot.utils import _item_not_found_result, _availability_result, _describe_update_changes, _pricing_breakdown_from_order
+from src.chatbot.utils import _append_confidence_tag, _strip_confidence_tag
 
 _FIREBASE_LOG_CONTEXT: ContextVar[dict | None] = ContextVar(
     "_FIREBASE_LOG_CONTEXT", default=None
@@ -1770,8 +1771,8 @@ async def addItemsToOrder(session_id: str, items: list[dict] | None = None, cred
         item_id = spec.get("itemId", "")
         quantity = spec.get("quantity") or 1
         modifiers: list[str] = spec.get("modifiers") or []
-        note: str | None = spec.get("note")
         confidence: str | None = spec.get("confidence")
+        note: str | None = _append_confidence_tag(spec.get("note"), confidence)
 
         in_by_id = item_id in by_id
         in_by_modifier_id = item_id in by_modifier_id
@@ -2858,7 +2859,7 @@ async def updateItemInOrder(session_id: str, target: dict, updates: dict, creds:
         if modifier_id not in present_modifier_ids
     ]
 
-    current_note = matched_line_item.get("note")
+    current_note = _strip_confidence_tag(matched_line_item.get("note"))
     note_changed = note_present and note_value != current_note
 
     if not modifiers_to_remove and not modifiers_to_add and not note_changed:
@@ -3256,7 +3257,7 @@ async def getOrderLineItems(session_id: str, creds: dict | None = None, *, force
                 "name": li.get("name", ""),
                 "quantity": _line_item_quantity(li),
                 "price": li.get("price", 0),
-                "note": li.get("note") or None,
+                "note": _strip_confidence_tag(li.get("note") or None),
                 "modifierIds": [
                     r["modifier_id"]
                     for r in _extract_line_item_modification_records(li)

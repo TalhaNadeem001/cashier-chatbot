@@ -383,3 +383,32 @@ Added a `confidence` field to track how reliably the system matched a customer's
 ### Gotchas
 - `"auto_exact"` is only surfaced by `_find_closest_menu_items_from_menu` / `validateRequestedItem`. `findClosestMenuItems` (the simpler tool) still maps both paths to `"exact"` — no change there since that tool is used for lookup, not ordering.
 - When `matchConfidence == "close"` and the customer confirms, the agent calls `addItemsToOrder` directly with the confirmed candidate's `itemId` — no second `validateRequestedItem` call — so the agent must remember to set `confidence: "medium"` in that scenario.
+
+## 2026-04-28 - Confidence Tag Embedding in Clover Line Item Notes
+
+### Overview
+Fuzzy-match confidence (`"high"`, `"medium"`, or `None`) is now embedded in the Clover line item note as a structured tag (`[High]`, `[Medium]`, `[Low]`), visible to merchants on the Clover dashboard. The tag is transparently stripped from all data returned to the LLM so the agent never sees it.
+
+### Confidence → Tag Mapping
+| `confidence` value | Tag |
+|---|---|
+| `"high"` | `[High]` |
+| `"medium"` | `[Medium]` |
+| `None` / missing | `[Low]` |
+
+### Note Format
+Tag appended on a new line: `"extra crispy\n[High]"`. Stripped with regex `\n?\[(High|Medium|Low)\]$`.
+
+### Key Changes
+- `src/chatbot/utils.py` — added `_CONFIDENCE_TAG_RE`, `_append_confidence_tag`, `_strip_confidence_tag`, `_extract_confidence_tag` after line 12.
+- `src/chatbot/utils.py` — `_priced_line_item` (~line 540): note now passed through `_strip_confidence_tag` before returning (used by `calcOrderPrice`).
+- `src/chatbot/tools.py` — `addItemsToOrder`: `note` is now built via `_append_confidence_tag(spec.get("note"), confidence)` before calling `add_clover_line_item`.
+- `src/chatbot/tools.py` — `getOrderLineItems`: `note` field passed through `_strip_confidence_tag` before returning to LLM.
+- `src/chatbot/tools.py` — `updateItemInOrder`: `current_note` stripped before comparison; new note value written as-is (tag NOT re-appended — confidence tag is only written once at item addition via `addItemsToOrder`).
+
+### Gotchas
+- `replaceItemInOrder` calls `addItemsToOrder` logic internally — no change needed there.
+- `_normalize_order_line_items` intentionally left unchanged — it returns raw Clover data; stripping happens at the tool boundary.
+- When `note_value is None` in `updateItemInOrder`, the note is cleared — this is intentional.
+- The confidence tag is written **only once** at item creation (`addItemsToOrder`). Subsequent note updates via `updateItemInOrder` (e.g., `asNote` from `validateModifications`) write the new note verbatim without re-attaching the tag. This prevents `"medium [High]"` appearing in Clover.
+- `_extract_confidence_tag` remains defined in `utils.py` but is no longer imported in `tools.py`.
