@@ -339,3 +339,20 @@ Removed session-based fallback document naming for Firestore logs.
 
 ### File
 - `src/chatbot/tools.py` — `log_firebase_event(...)` now requires a non-empty `order_id` and no longer uses `session:{session_id}` fallback doc IDs.
+
+## 2026-04-28 - orchestrator handle_message syntax fix
+
+### Overview
+Fixed a broken duplicated block in `handle_message` that introduced invalid indentation and detached code from the `try` block.
+
+### What was wrong
+- A duplicated post-processing/reply block existed twice, once dedented outside `try` and once over-indented.
+- This caused parser and type-check errors (`try` missing `except/finally`, unexpected indentation, expected expression).
+
+### What changed
+- Removed the duplicate malformed block and kept a single canonical post-processing block inside `try`.
+- Kept the `escalation_queued` guard in the stage-transition condition so escalation responses do not append the "anything else" prompt.
+- Preserved `ai_reply` / `flow_end` logging and final response return path.
+
+### File
+- `src/chatbot/orchestrator.py` — `Orchestrator.handle_message`
