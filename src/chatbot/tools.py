@@ -3823,6 +3823,7 @@ async def saveHumanName(
     print(f"[saveHumanName] start name={name!r} phone_number={phone_number!r}")
     if not phone_number:
         return {"success": False, "already_saved": False, "error": "phone_number not available"}
+    name = name.strip().title()
     db = _firebase.firebaseDatabase
     if db is None:
         return {"success": False, "already_saved": False, "error": "Firebase not initialised"}
