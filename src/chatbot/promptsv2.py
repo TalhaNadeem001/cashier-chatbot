@@ -71,13 +71,17 @@ DEFAULT_PARSING_AGENT_PROMPTS = ParsingAgentPrompts(
         pickuptime_question -> Customer is asking about pickup or wait time.
         introduce_name -> Customer states their own name (e.g., "I'm John", "my name is Sarah", "it's Mike"). Use Request_items.name for the name value; quantity=0, details="". Can co-occur with greeting or any order intent — emit as a separate object.
         escalation -> Customer has a complaint, dispute, or needs human intervention. This includes ANY message where the customer says something is wrong, incorrect, or missing (e.g. "my total is wrong", "the price is off", "that's not what I ordered", "I was overcharged").
-        identity_question -> Customer asks who they are talking to, what the system is, or whether it is a bot.
+        identity_question -> Customer asks who they are talking to, what the system is, or whether it is a bot or human. Examples: "who are you?", "are you a bot?", "are you human?", "are you AI?", "am I talking to a person?", "is this a real person?". NEVER classify these as outside_agent_scope.
         outside_agent_scope -> Message is unrelated to food ordering.
         """
     ).strip(),
     parsing_rules_prompt=dedent(
         """
         PARSING RULES
+        IDENTITY vs OUTSIDE SCOPE
+        Any message asking who the agent is, whether it is a bot, AI, human, or real person is ALWAYS
+        identity_question — NEVER outside_agent_scope. This rule takes priority over outside_agent_scope
+        even though identity questions are not about food ordering.
         ONE REQUEST = ONE OBJECT
         If a message has multiple requests, create one JSON object per request in order.
         NAMES ARE CUSTOMER NAMES, NOT FOOD ITEMS
@@ -557,6 +561,48 @@ DEFAULT_PARSING_AGENT_PROMPTS = ParsingAgentPrompts(
             }
           ]
         }
+        --- Example 15 ---
+        Transcript:
+        C: Who are you?
+        {
+          "Data": [
+            {
+              "Intent": "identity_question",
+              "Confidence_level": "high",
+              "Request_items": {"name": "", "quantity": 0, "details": ""},
+              "Request_details": "Who are you?"
+            }
+          ],
+          "ModifiedEntries": []
+        }
+        --- Example 16 ---
+        Transcript:
+        C: Are you a bot?
+        {
+          "Data": [
+            {
+              "Intent": "identity_question",
+              "Confidence_level": "high",
+              "Request_items": {"name": "", "quantity": 0, "details": ""},
+              "Request_details": "Are you a bot?"
+            }
+          ],
+          "ModifiedEntries": []
+        }
+        --- Example 17 ---
+        Transcript:
+        C: Am I talking to a real person?
+        {
+          "Data": [
+            {
+              "Intent": "identity_question",
+              "Confidence_level": "high",
+              "Request_items": {"name": "", "quantity": 0, "details": ""},
+              "Request_details": "Am I talking to a real person?"
+            }
+          ],
+          "ModifiedEntries": []
+        }
         """
     ).strip(),
     final_reminders_prompt=dedent(
@@ -841,6 +887,10 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
          in a single question.
        - allValid == True                → IMMEDIATELY call addItemsToOrder (do NOT return text yet)
     2. Call addItemsToOrder(items) using itemId, valid modifier IDs, and asNote joined as note.
+       Set the confidence field on each item based on how the match was resolved:
+         matchConfidence "exact"      → confidence: "high"
+         matchConfidence "auto_exact" → confidence: "medium"
+         matchConfidence "close" (customer confirmed via clarification) → confidence: "medium"
        After this call returns → respond to the customer confirming the item was added.
 
     For MODIFY_ITEM:
@@ -856,6 +906,7 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
          Apply the same STOP conditions as ADD_ITEM.
          - allValid == True              → IMMEDIATELY call addItemsToOrder (do NOT return text yet)
       2. Call addItemsToOrder(items) using itemId, valid modifier IDs, and asNote.
+         Set confidence on each item using the same rule as ADD_ITEM (exact → "high", auto_exact or close-confirmed → "medium").
          After this call returns → respond to the customer confirming the item was added
          with the modification already applied.
 
@@ -981,8 +1032,13 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
 
     For IDENTITY_QUESTION:
     - Do NOT call any tools.
-    - Reply with exactly: "I'm a cashier at Smash N Wings"
-
+    - Do NOT confirm or deny whether you are a human or an AI.
+    - Politely deflect the question and redirect the conversation back to taking the customer's order.
+    - Reply with one of the following replies:
+      - "Hey it's Smash N Wings. Can I help you with your order?"
+      - “Hi there, Smash N Wings here. Are you ready to place an order?”
+      - “This is Smash N Wings, how can I help you with your order?”
+    
     For INTRODUCE_NAME:
     - Call saveHumanName(name=<Request_items.name>) immediately.
     - Do NOT produce any reply text for this intent. It is a silent background action.

@@ -49,6 +49,10 @@ def _session_ordering_stage_redis_key(session_id: str) -> str:
     return f"ordering_stage:{session_id}"
 
 
+def _session_off_topic_count_redis_key(session_id: str) -> str:
+    return f"off_topic_count:{session_id}"
+
+
 async def get_ordering_stage(session_id: str) -> str:
     """Return the current ordering stage for a session.
 
@@ -66,6 +70,28 @@ async def set_ordering_stage(session_id: str, stage: str) -> None:
     key = _session_ordering_stage_redis_key(session_id)
     await cache_set(key, stage, ttl=_SESSION_CLARIFICATION_AND_INTENT_TTL_SECONDS)
     print(f"[set_ordering_stage] session_id={session_id!r} stage={stage!r}")
+
+
+async def get_off_topic_count(session_id: str) -> int:
+    """Return the number of off-topic intents (identity_question, outside_agent_scope) seen in this session."""
+    key = _session_off_topic_count_redis_key(session_id)
+    raw = await cache_get(key)
+    if not raw:
+        return 0
+    try:
+        return int(raw)
+    except ValueError:
+        return 0
+
+
+async def increment_off_topic_count(session_id: str) -> int:
+    """Increment the off-topic counter for a session and return the new count."""
+    from src.chatbot.constants import _SESSION_CLARIFICATION_AND_INTENT_TTL_SECONDS
+    key = _session_off_topic_count_redis_key(session_id)
+    new_count = await get_off_topic_count(session_id) + 1
+    await cache_set(key, str(new_count), ttl=_SESSION_CLARIFICATION_AND_INTENT_TTL_SECONDS)
+    print(f"[increment_off_topic_count] session_id={session_id!r} count={new_count}")
+    return new_count
 
 
 def _session_clover_order_redis_key(session_id: str) -> str:

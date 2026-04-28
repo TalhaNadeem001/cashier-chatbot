@@ -187,7 +187,14 @@ Two new branches added after the `introduce_name` inline handler, before queue b
 
 1. **`awaiting_name_before_confirm` handler:** If `introduce_name` is in `parsed_data` (name was given and already saved by the inline handler), confirm the order directly — set session status `"confirmed"`, stage → `"ordering"`, reply with the standard confirmation text. If no name, re-ask and stay in the same stage.
 
-2. **Name gate:** When `stage == "awaiting_order_confirm"` and `only_confirm` is True and `phone_number` is available — call `getHumanProfile`. If no name on record, ask `"What name should I put the order under?"`, set stage to `"awaiting_name_before_confirm"`, return early. If name exists, fall through to normal queue processing.
+2. **Name gate:** When `stage == "awaiting_order_confirm"` and `only_confirm` is True and `phone_number` is available — call `getHumanProfile`.
+   - No name on record → ask `"What name should I put the order under?"`, set stage to `"awaiting_name_before_confirm"`, return early.
+   - Name exists → ask `"Just to confirm, your order will be placed under [name] — is that correct?"`, set stage to `"awaiting_name_confirm"`, return early.
+
+3. **`awaiting_name_confirm` handler:** Inserted after `awaiting_name_before_confirm` handler. Customer is responding to the name-confirmation question.
+   - `introduce_name` or `confirm_order` in `parsed_data` → confirm order directly (set status `"confirmed"`, stage → `"ordering"`, reply with standard text).
+   - Neither → ask `"What name should I put the order under?"`, set stage to `"awaiting_name_before_confirm"`.
+   - Note: the inline `introduce_name` handler already calls `saveHumanName` before this branch fires, so the new name is already persisted when confirming.
 
 **Gotchas:**
 - Gate is skipped when `phone_number` is None (web/test clients) — can't store a name without a phone number, so confirmation proceeds normally.
@@ -356,3 +363,23 @@ Fixed a broken duplicated block in `handle_message` that introduced invalid inde
 
 ### File
 - `src/chatbot/orchestrator.py` — `Orchestrator.handle_message`
+
+## 2026-04-29 - Item resolution confidence field
+
+### Overview
+Added a `confidence` field to track how reliably the system matched a customer's spoken item name to a menu item, passed through `addItemsToOrder` and echoed back in `addedItems`.
+
+### Values
+- `"high"` — verbatim exact match: the item name appeared literally in the menu index (`matchConfidence == "exact"` from a direct `by_name` lookup).
+- `"medium"` — fuzzy auto-confirmed (`matchConfidence == "auto_exact"`: score ≥ `CONFIRMED_THRESHOLD`, no close competitor) OR a `"close"` match the customer confirmed via a clarification question.
+
+### Key Changes
+- `src/chatbot/tools.py` — `_find_closest_menu_items_from_menu`: fuzzy auto-confirm branch now returns `"match_confidence": "auto_exact"` instead of `"exact"`, making the two paths distinguishable downstream.
+- `src/chatbot/tools.py` — `validateRequestedItem`: guard updated from `!= "exact"` to `not in ("exact", "auto_exact")` so `auto_exact` falls through to the full modifier-resolution branch and gets `itemId`/`merchantId` populated. Docstring updated with `"auto_exact"` entry and confidence assignment rules.
+- `src/chatbot/tools.py` — `addItemsToOrder`: reads `confidence` from each item spec, echoes it in each `addedItems` entry. Docstring updated for both the input spec and the return field.
+- `src/chatbot/orchestrator.py` — `_ADD_ITEMS_TO_ORDER_PARAMETERS_JSON_SCHEMA`: `confidence` added as optional enum field `["high", "medium"]` with description.
+- `src/chatbot/promptsv2.py` — ADD_ITEM and MODIFY_ITEM (empty-order fallback) flows now instruct the agent to set `confidence` on each item dict before calling `addItemsToOrder`.
+
+### Gotchas
+- `"auto_exact"` is only surfaced by `_find_closest_menu_items_from_menu` / `validateRequestedItem`. `findClosestMenuItems` (the simpler tool) still maps both paths to `"exact"` — no change there since that tool is used for lookup, not ordering.
+- When `matchConfidence == "close"` and the customer confirms, the agent calls `addItemsToOrder` directly with the confirmed candidate's `itemId` — no second `validateRequestedItem` call — so the agent must remember to set `confidence: "medium"` in that scenario.
