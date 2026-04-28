@@ -52,15 +52,6 @@ async def cache_list_append(key: str, value: str) -> None:
     await redis.rpush(key, value)
 
 
-async def cache_set_nx(key: str, value: str, ttl: int) -> bool:
-    result = await redis.set(key, value, ex=ttl, nx=True)
-    return result is not None
-
-
-async def cache_set_pex(key: str, value: str, ttl_ms: int) -> None:
-    await redis.set(key, value, px=ttl_ms)
-
-
 async def cache_list_clear(key: str) -> list[str]:
     async with redis.pipeline(transaction=True) as pipe:
         await pipe.lrange(key, 0, -1)

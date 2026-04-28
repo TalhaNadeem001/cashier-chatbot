@@ -686,6 +686,29 @@
 
   // ── Send message ───────────────────────────────────────────────
 
+  async function submitMessage(text) {
+    showTyping();
+
+    const res = await fetch("/chatbot/v2/message", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(buildChatbotV2MessageBody(text)),
+    });
+
+    if (!res.ok) {
+      hideTyping();
+      const err = await res.json().catch(() => ({ detail: "Unknown error" }));
+      appendMessage("bot", `Error: ${err.detail || res.statusText}`);
+      return;
+    }
+
+    const data = await res.json();
+    hideTyping();
+    if (data.system_response) {
+      appendMessage("bot", data.system_response);
+    }
+  }
+
   async function sendMessage() {
     const text = inputEl.value.trim();
     if (!text) return;
@@ -695,27 +718,8 @@
 
     appendMessage("user", text);
 
-    showTyping();
-
     try {
-      const res = await fetch("/chatbot/v2/message", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildChatbotV2MessageBody(text)),
-      });
-
-      hideTyping();
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ detail: "Unknown error" }));
-        appendMessage("bot", `Error: ${err.detail || res.statusText}`);
-        return;
-      }
-
-      const data = await res.json();
-
-      appendMessage("bot", data.system_response);
-
+      await submitMessage(text);
     } catch (e) {
       hideTyping();
       appendMessage("bot", "Network error — is the server running?");
@@ -772,27 +776,8 @@
 
     appendMessage("user", text);
 
-    showTyping();
-
     try {
-      const res = await fetch("/chatbot/v2/message", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildChatbotV2MessageBody(text)),
-      });
-
-      hideTyping();
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ detail: "Unknown error" }));
-        appendMessage("bot", `Error: ${err.detail || res.statusText}`);
-        return;
-      }
-
-      const data = await res.json();
-
-      appendMessage("bot", data.system_response);
-
+      await submitMessage(text);
     } catch (e) {
       hideTyping();
       appendMessage("bot", "Network error — is the server running?");

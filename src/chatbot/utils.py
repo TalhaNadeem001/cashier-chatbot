@@ -96,22 +96,6 @@ def _session_messages_redis_key(session_id: str) -> str:
 def _session_history_summary_cache_key(session_id: str, messages_covered: int) -> str:
     return f"summary:{session_id}:{messages_covered}"
 
-
-def _buffer_messages_redis_key(session_id: str) -> str:
-    return f"buffer:messages:{session_id}"
-
-
-def _buffer_timer_redis_key(session_id: str) -> str:
-    return f"buffer:timer:{session_id}"
-
-
-def _buffer_result_redis_key(session_id: str) -> str:
-    return f"buffer:result:{session_id}"
-
-
-def _buffer_lock_redis_key(session_id: str) -> str:
-    return f"buffer:lock:{session_id}"
-
 def _normalize_session_history_message(raw_message: str) -> dict | None:
     payload = json.loads(raw_message)
     if not isinstance(payload, dict):
