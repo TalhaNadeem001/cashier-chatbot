@@ -883,8 +883,39 @@ class Orchestrator:
                 _INFORMATIONAL_INTENTS
             )
 
-            queue = [e for e in queue if e.get("status") != "done"]
-            await save_intent_queue(request.session_id, queue)
+        only_informational_queued = bool(processed_intents) and processed_intents.issubset(_INFORMATIONAL_INTENTS)
+        escalation_queued = "escalation" in processed_intents
+
+        queue = [e for e in queue if e.get("status") != "done"]
+        await save_intent_queue(request.session_id, queue)
+
+        final_reply = "\n".join(r.strip() for r in replies if r.strip()) or "Understood."
+
+        # Update ordering stage
+        if order_confirmed_this_turn:
+            await cache_set(_session_status_redis_key(request.session_id), "confirmed")
+            await set_ordering_stage(request.session_id, "ordering")
+            print("[Orchestrator] order confirmed, stage → ordering")
+        elif stage == "awaiting_order_confirm" and non_confirm_intents:
+            # Customer changed their mind and added items instead of confirming
+            await set_ordering_stage(request.session_id, "ordering")
+            print("[Orchestrator] customer changed mind, stage → ordering")
+        elif entries_processed > 0 and not queue and all_succeeded and not only_greetings_queued and not only_informational_queued and not escalation_queued:
+            final_reply += "\nIs there anything else you would like to add?"
+            await set_ordering_stage(request.session_id, "awaiting_anything_else")
+            print("[Orchestrator] all done, stage → awaiting_anything_else")
+
+        ai_now = datetime.now(timezone.utc).isoformat()
+        await cache_list_append(
+            redis_key,
+            json.dumps(
+                {
+                    "role": "assistant",
+                    "content": final_reply,
+                    "timestamp": ai_now,
+                }
+            ),
+        )
 
             final_reply = "\n".join(r.strip() for r in replies if r.strip()) or "Understood."
 

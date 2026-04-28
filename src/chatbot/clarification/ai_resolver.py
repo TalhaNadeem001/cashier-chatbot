@@ -73,6 +73,7 @@ async def resolve_modifiers_for_item(
     details: str,
     item_name: str,
     available_options: list[dict],
+    existing_modifiers: list[dict] | None = None,
 ) -> ModifierResolutionResult:
     slim_options = [
         {
@@ -84,9 +85,14 @@ async def resolve_modifiers_for_item(
         }
         for opt in available_options
     ]
+    slim_existing = [
+        {"modifierId": m["modifierId"], "name": m["name"]}
+        for m in (existing_modifiers or [])
+    ]
     system_content = MODIFIER_RESOLUTION_SYSTEM_PROMPT.format(
         item_name=item_name,
         options_json=json.dumps(slim_options, ensure_ascii=False),
+        existing_modifiers_json=json.dumps(slim_existing, ensure_ascii=False),
     )
     messages: list[dict] = [
         {"role": "system", "content": system_content},

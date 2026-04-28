@@ -389,6 +389,13 @@ _SODA_ALIASES: frozenset[str] = frozenset({
 
 _SODA_CANONICAL = "can of pop"
 
+_FISH_SANDWICH_ALIASES: frozenset[str] = frozenset({
+    "fish sandwich",
+    "fish cod sandwich",
+    "fish battered cod sandwich",
+})
+_FISH_SANDWICH_CANONICAL = "fish battered cod"
+
 
 def _find_closest_menu_items_from_menu(
     *,
@@ -411,6 +418,18 @@ def _find_closest_menu_items_from_menu(
         and can_of_pop_in_menu
     ):
         item_name = _SODA_CANONICAL
+
+    fish_sandwich_in_menu = _FISH_SANDWICH_CANONICAL in items_by_name
+    if (
+        normalized_input in _FISH_SANDWICH_ALIASES
+        and _get_local_item(item_name, items_by_name) is None
+        and fish_sandwich_in_menu
+    ):
+        print(
+            f"[findClosestMenuItems] fish sandwich alias matched "
+            f"original={item_name!r} → rewriting to {_FISH_SANDWICH_CANONICAL!r}"
+        )
+        item_name = _FISH_SANDWICH_CANONICAL
 
     exact_match = _get_local_item(item_name, items_by_name)
     top_matches = process.extract(
@@ -1125,14 +1144,21 @@ async def validateModifications(
     valid: list[dict] = []
     as_note: list[str] = []
     truly_invalid: list[str] = []
+    to_remove: list[dict] = []
     selected_keys: set[tuple[str, str]] = set()
 
+    option_by_id_pre = {opt["modifierId"]: opt for opt in flattened_options}
+    existing_modifier_objects: list[dict] = []
     if existingModifierIds:
-        option_by_id_pre = {opt["modifierId"]: opt for opt in flattened_options}
         for mid in existingModifierIds:
             opt = option_by_id_pre.get(mid)
             if opt:
                 selected_keys.add((opt["groupId"], mid))
+                existing_modifier_objects.append({"modifierId": mid, "name": opt["name"]})
+        print(
+            "[validateModifications] pre_populated_selected_keys "
+            f"count={len(selected_keys)}"
+        )
 
     if requested:
         unified_details = ", ".join(requested)
@@ -1140,11 +1166,28 @@ async def validateModifications(
             details=unified_details,
             item_name=str(item_row.get("name", "")).strip(),
             available_options=flattened_options,
+            existing_modifiers=existing_modifier_objects,
+        )
+        print(
+            "[validateModifications] ai_resolution "
+            f"resolved_count={len(resolution.resolved)} "
+            f"to_remove={resolution.to_remove!r} "
+            f"as_note={resolution.as_note!r} "
+            f"unresolvable={resolution.unresolvable!r}"
         )
 
         option_by_id = {opt["modifierId"]: opt for opt in flattened_options}
+        existing_by_id = {m["modifierId"]: m for m in existing_modifier_objects}
         as_note = list(resolution.as_note)
         truly_invalid = list(resolution.unresolvable)
+
+        for mid in resolution.to_remove:
+            existing_opt = existing_by_id.get(mid)
+            if existing_opt:
+                to_remove.append({"modifierId": mid, "name": existing_opt["name"]})
+                print(f"[validateModifications] to_remove resolved modifierId={mid!r}")
+            else:
+                print(f"[validateModifications] to_remove id not in existing modifierId={mid!r}")
 
         for resolved_item in resolution.resolved:
             opt = option_by_id.get(resolved_item.modifierId)
@@ -1169,6 +1212,7 @@ async def validateModifications(
     require_choice = _required_modifier_groups(item_row, selected_keys)
     result = {
         "valid": valid,
+        "toRemove": to_remove,
         "invalid": truly_invalid,
         "asNote": as_note,
         "requireChoice": require_choice,
@@ -1583,6 +1627,24 @@ async def validateRequestedItem(
 
         missing_require_choice = _required_modifier_groups(item_row, selected_keys)
         all_valid = not truly_invalid and not missing_require_choice
+
+        # Downgrade to "close" when every content word of itemName is orphaned:
+        # present in leftover_words (didn't match the item name) AND in truly_invalid
+        # (not a modifier or note either). Catches wrong fuzzy matches like
+        # "fish sandwich" → "Sando & Fries" where the entire query has no semantic home.
+        _stopwords = {'a', 'an', 'the', 'of', 'for', 'me', 'my', 'i', 'and', 'with', 'please', 'some'}
+        itemName_content_words = {w.lower() for w in itemName.split() if w.lower() not in _stopwords}
+        leftover_set = {w.lower() for w in leftover_words}
+        orphaned_set = {w.lower() for w in truly_invalid if w.lower() in leftover_set}
+        if itemName_content_words and orphaned_set == itemName_content_words:
+            print(
+                "[validateRequestedItem] downgrade to close — "
+                f"all item-name words orphaned={orphaned_set!r}"
+            )
+            base["matchConfidence"] = "close"
+            base["candidates"] = candidates  # restore list cleared by include_candidate_details
+            return {**base, **_null_downstream}
+
         result = {
             **base,
             "itemId": item_id,

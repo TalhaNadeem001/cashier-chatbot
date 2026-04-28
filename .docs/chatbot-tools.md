@@ -222,6 +222,32 @@ Additionally, `validateModifications` used `_match_requested_modifier` (determin
 - `getOrderLineItems` does not return the Clover menu `itemId` — only `lineItemId`. Step 2 (`findClosestMenuItems`) is still needed to get the menu UUID for `validateModifications`. If `getOrderLineItems` is ever updated to expose `itemId` per line item, step 2 can be dropped.
 - The `MODIFY_ITEM` empty-order fallback (redirects to ADD_ITEM flow) still uses `validateRequestedItem` — this is correct since the item doesn't exist in the order yet.
 
+## 2026-04-27 - Wrong fuzzy match downgrade in validateRequestedItem
+
+**Problem:** "fish sandwich" fuzzy-matched to "Sando & Fries" (score 72 ≥ `CONFIRMED_THRESHOLD` 70, auto-confirmed as exact). "Fish Battered Cod" scored only 54. Both item-name words "fish" and "sandwich" ended up as `invalid` modifiers — entirely orphaned — but the match stood.
+
+**Fix (`src/chatbot/tools.py` — `validateRequestedItem`):**
+After the modifier resolver runs, check if every content word of `itemName` is orphaned (in `leftover_words` AND in `truly_invalid`). If so, downgrade `matchConfidence` from `exact` to `close` and restore the candidates list (already built by `_build_candidates` before the auto-confirm branch, but cleared by the `include_candidate_details` guard). Returns early with `{**base, **_null_downstream}` so the agent presents candidates to the customer.
+
+**Condition:** `orphaned_set == itemName_content_words` — must be complete, not partial. "spicy chicken sando" → "Chicken Sando" does not trigger because "chicken" and "sando" matched the item name.
+
+## 2026-04-27 - escalation vs order_question parser disambiguation
+
+**Problem:** "my total is wrong" was classified as `order_question` (neutral info request) instead of `escalation` (complaint/dispute). The execution agent just called `calcOrderPrice` and reported the total rather than escalating.
+
+## 2026-04-27 - MENU_QUESTION modifier query stuck in clarification loop
+
+**Problem:** "What mods can I get for the chicken sando?" was parsed as `menu_question`, but the execution agent had no handler for item-specific modifier queries. It fell back to calling `validateRequestedItem`, which returned `missingRequireChoice: [Heat Level]` and left the entry in `need_clarification`. Every subsequent customer message was absorbed as an "answer" to the pending `menu_question` entry. When all qa pairs were filled the agent described options instead of adding — queue cleared, "yes" was parsed as `confirm_order`, empty cart confirmed.
+
+**Fix (`src/chatbot/promptsv2.py` — execution agent prompt):**
+Added a `For MENU_QUESTION (item modifier query)` block: call `findClosestMenuItems(itemName)`, list all modifier groups and options, never call `validateRequestedItem`, never ask for the customer's choice, always resolve done after replying.
+
+## 2026-04-27 - escalation vs order_question parser disambiguation
+
+**Fix (`src/chatbot/promptsv2.py` — `intent_labels_prompt` and `parsing_rules_prompt`):**
+- `order_question` description now explicitly says "neutral informational requests — NOT complaints or disputes."
+- `escalation` description now explicitly includes price/total disputes: "my total is wrong", "the price is off", "I was overcharged."
+- Added a `COMPLAINT vs QUESTION DISTINCTION` parsing rule with concrete examples to reinforce the boundary.
 ## 2026-04-28 - Firebase conversation and print logging
 
 ### Overview

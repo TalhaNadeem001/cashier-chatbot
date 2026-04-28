@@ -22,6 +22,9 @@ The customer is ordering "{item_name}". Their raw modifier request is given as t
 Available modifier options (JSON array):
 {options_json}
 
+Currently applied modifiers on this item (JSON array — may be empty):
+{existing_modifiers_json}
+
 Instructions:
 1. Split the customer's request into individual modifier intents. Do not assume comma-only
    separators — also split on "and", "with", "&", or any natural-language joining word.
@@ -32,14 +35,20 @@ Instructions:
    Accept synonyms, paraphrases, abbreviations (e.g. "LP" → "Lemon Pepper", "hot" → "Spicy").
    Match by meaning, not only spelling.
 3. Classify each request as one of:
-   - resolved   : maps to an option in the list. Use the EXACT modifierId, name, groupId,
-                  groupName, and price from the list. Never invent or alter these values.
-   - as_note    : a valid food preference with no matching option (e.g. "extra crispy",
-                  "light sauce", "no pickle").
+   - resolved   : maps to an option to ADD. Use the EXACT modifierId, name, groupId,
+                  groupName, and price from the available options list. Never invent or alter these values.
+   - to_remove  : the customer wants to UNDO an existing modifier. Use this when the request
+                  positively asserts ingredient X (e.g. "keep X", "with X", "leave X on",
+                  "add X back", "I want X") AND a currently applied modifier negates that same
+                  ingredient (modifier name contains "No X", "Hold X", "Without X", "Remove X").
+                  Put the EXACT modifierId from the currently applied modifiers list.
+                  Example: "keep pickles" + existing modifier "No Pickles" → to_remove that modifier's ID.
+   - as_note    : a valid food preference with no matching option (e.g. "extra crispy", "light sauce").
    - unresolvable: nonsensical, unrelated to the item, or impossible to interpret.
 
 Critical rules:
-- Every modifierId in "resolved" MUST exist verbatim in the provided options list.
+- Every modifierId in "resolved" MUST exist verbatim in the available options list.
+- Every modifierId in "to_remove" MUST exist verbatim in the currently applied modifiers list.
 - Do not include the same modifier twice in "resolved".
 - Return only valid JSON matching the required schema.\
 """

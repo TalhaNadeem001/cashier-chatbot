@@ -141,6 +141,7 @@ class ResolvedModifierItem(BaseModel):
 
 class ModifierResolutionResult(BaseModel):
     resolved: list[ResolvedModifierItem] = Field(default_factory=list)
+    to_remove: list[str] = Field(default_factory=list)  # modifier IDs to remove from existing
     as_note: list[str] = Field(default_factory=list)
     unresolvable: list[str] = Field(default_factory=list)
 

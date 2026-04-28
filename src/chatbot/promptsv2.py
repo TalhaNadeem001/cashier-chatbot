@@ -65,12 +65,12 @@ DEFAULT_PARSING_AGENT_PROMPTS = ParsingAgentPrompts(
         change_item_number -> Customer wants to change the quantity of an already-requested item.
         confirm_order -> Customer is confirming, approving, or closing the order.
         cancel_order -> Customer wants to cancel the entire order.
-        order_question -> Customer is asking about their current order (items in it, total price, whether something was added, etc.).
+        order_question -> Customer is neutrally asking about their current order (items in it, total price, whether something was added, etc.). Use ONLY for neutral informational requests — NOT for complaints or disputes.
         menu_question -> Customer is asking about menu or item-specific details.
         restaurant_question -> Customer is asking about the restaurant (hours, location, etc.).
         pickuptime_question -> Customer is asking about pickup or wait time.
         introduce_name -> Customer states their own name (e.g., "I'm John", "my name is Sarah", "it's Mike"). Use Request_items.name for the name value; quantity=0, details="". Can co-occur with greeting or any order intent — emit as a separate object.
-        escalation -> Customer has a complaint or needs human intervention.
+        escalation -> Customer has a complaint, dispute, or needs human intervention. This includes ANY message where the customer says something is wrong, incorrect, or missing (e.g. "my total is wrong", "the price is off", "that's not what I ordered", "I was overcharged").
         identity_question -> Customer asks who they are talking to, what the system is, or whether it is a bot.
         outside_agent_scope -> Message is unrelated to food ordering.
         """
@@ -123,6 +123,10 @@ DEFAULT_PARSING_AGENT_PROMPTS = ParsingAgentPrompts(
         MULTIPLE INTENTS FOR SAME ITEM
         If add + modify appear together, output separate objects in the same order as the message.
         If an item is mentioned as a side, add it to the details of the main item.
+        COMPLAINT vs QUESTION DISTINCTION
+        "What is my total?" → order_question
+        "My total is wrong", "the price is incorrect", "I was overcharged", "that's not right" → escalation
+        Any message asserting something is wrong, missing, or incorrect → escalation, NOT order_question.
         DO NOT OVER-INFER
         Only extract what is clearly stated.
         UNFULFILLED QUEUE RESOLUTION
@@ -139,6 +143,15 @@ DEFAULT_PARSING_AGENT_PROMPTS = ParsingAgentPrompts(
            filled (copy the original question, provide the answer text).
         4. Only include an entry in ModifiedEntries if you are confident you found an answer.
            Do NOT guess. Leave uncertain entries out of ModifiedEntries entirely.
+        SINGLE ANSWER BROADCAST
+        If the customer's message contains exactly one identifiable answer AND there are multiple
+        unfulfilled entries each with exactly one unanswered qa question, apply that single answer
+        as the response to ALL of those entries and include all of them in ModifiedEntries.
+        Only do this when the single answer is plausibly relevant to every pending question
+        (e.g. all entries are asking for the same type of choice — heat level, flavor, size).
+        If the questions are clearly asking for different things (e.g. one asks for a flavor and
+        another asks for a size), fill only the entries you are confident about and leave the rest
+        unanswered.
         5. New intents from this message go in Data as usual (even if the message also answers
            unfulfilled entries).
         6. If the message is purely answering unfulfilled entries (no new order action), Data may
@@ -512,6 +525,38 @@ DEFAULT_PARSING_AGENT_PROMPTS = ParsingAgentPrompts(
             }
           ]
         }
+        --- Example 10 ---
+        unfulfilled_queue: [
+          {
+            "entry_id": "aaa-111",
+            "parsed_item": {"Intent": "add_item", "Confidence_level": "high",
+                            "Request_items": {"name": "wings", "quantity": 1, "details": ""},
+                            "Request_details": "wings"},
+            "qa": [{"question": "What heat level for the wings — Mild, Medium, or Spicy?", "answer": null}]
+          },
+          {
+            "entry_id": "bbb-222",
+            "parsed_item": {"Intent": "add_item", "Confidence_level": "high",
+                            "Request_items": {"name": "chicken sandwich", "quantity": 1, "details": ""},
+                            "Request_details": "chicken sandwich"},
+            "qa": [{"question": "What heat level for the chicken sandwich — Mild, Medium, or Spicy?", "answer": null}]
+          }
+        ]
+        Transcript:
+        C: Spicy please.
+        {
+          "Data": [],
+          "ModifiedEntries": [
+            {
+              "EntryId": "aaa-111",
+              "QA": [{"question": "What heat level for the wings — Mild, Medium, or Spicy?", "answer": "Spicy"}]
+            },
+            {
+              "EntryId": "bbb-222",
+              "QA": [{"question": "What heat level for the chicken sandwich — Mild, Medium, or Spicy?", "answer": "Spicy"}]
+            }
+          ]
+        }
         """
     ).strip(),
     final_reminders_prompt=dedent(
@@ -825,6 +870,10 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
        requestedModifications is the list of raw modifier strings from the customer's request and
        existingModifierIds is the modifierIds list from the matched line item returned by step 1.
        - allValid == True                → IMMEDIATELY call updateItemInOrder (do NOT return text yet)
+       - Non-empty toRemove (and no invalid/requireChoice) → use toRemove modifier IDs as removeModifiers,
+         IMMEDIATELY call updateItemInOrder (do NOT return text yet)
+       - allValid == True AND non-empty toRemove → combine: addModifiers from valid, removeModifiers from toRemove,
+         IMMEDIATELY call updateItemInOrder (do NOT return text yet)
        - Non-empty invalid or requireChoice → STOP → ask the customer to clarify the modifier.
     4. Call updateItemInOrder(target={lineItemId from step 1}, updates={addModifiers/removeModifiers from step 3}).
        IMPORTANT — note preservation: Only include "note" in the updates dict when the customer
@@ -858,7 +907,9 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
 
     For CONFIRM_ORDER:
     - Call calcOrderPrice() — for internal tracking only. Do NOT surface the total or any price in your reply.
-      After calcOrderPrice returns → reply with exactly: "Thank you. Your order has been received. Allow me a moment to set your pickup time."
+      After calcOrderPrice returns:
+      - If lineItems is empty → do NOT confirm. Tell the customer their cart is empty and ask what they would like to add.
+      - Otherwise → reply with exactly: "Thank you. Your order has been received. Allow me a moment to set your pickup time."
       Only include the total if the customer explicitly asked for it in the same message.
 
     For CANCEL_ORDER:
@@ -878,6 +929,13 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
 
     For MENU_QUESTION (customer asks what is available or off today):
     - Call getItemsNotAvailableToday() → list unavailable items.
+
+    For MENU_QUESTION (customer asks about modifiers, options, or customizations for a specific item,
+    e.g. "what mods can I get for the chicken sando", "what are the options for X", "can I customize Y"):
+    - Call findClosestMenuItems(itemName) → use the returned modifier_groups to list all available options.
+    - List every modifier group by name and every option within it.
+    - Do NOT call validateRequestedItem. Do NOT ask for the customer's choice. Do NOT leave a clarification queue entry.
+    - This is a read-only informational answer — always mark done after replying.
 
     CONFIRMED ORDER RULE (check first, before all other rules):
     If context_object["is_order_confirmed"] is True, the customer's order has already been
