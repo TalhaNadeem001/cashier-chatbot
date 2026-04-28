@@ -75,6 +75,8 @@ from src.chatbot.utils import (
     save_intent_queue,
     get_ordering_stage,
     set_ordering_stage,
+    get_off_topic_count,
+    increment_off_topic_count,
 )
 from src.config import settings
 
@@ -231,6 +233,11 @@ _ADD_ITEMS_TO_ORDER_PARAMETERS_JSON_SCHEMA: dict[str, Any] = {
                         "items": {"type": "string"},
                     },
                     "note": {"type": ["string", "null"]},
+                    "confidence": {
+                        "type": "string",
+                        "enum": ["high", "medium"],
+                        "description": "Item resolution confidence. 'high' = verbatim exact match (matchConfidence 'exact'). 'medium' = fuzzy auto-confirmed (matchConfidence 'auto_exact') or a 'close' match the customer confirmed via clarification.",
+                    },
                 },
                 "required": ["itemId"],
                 "additionalProperties": False,
@@ -690,6 +697,59 @@ class Orchestrator:
                     session_id=request.session_id,
                 )
 
+            # BRANCH: customer replied to "is this order under [name]?"
+            if stage == "awaiting_name_confirm":
+                has_new_name = any(i.intent.value == "introduce_name" for i in parsed_data)
+                has_confirm = any(i.intent.value == "confirm_order" for i in parsed_data)
+                if has_new_name or has_confirm:
+                    await cache_set(
+                        _session_status_redis_key(request.session_id), "confirmed"
+                    )
+                    await set_ordering_stage(request.session_id, "ordering")
+                    branch_reply = "Thank you. Your order has been received. Allow me a moment to set your pickup time."
+                    print(
+                        "[Orchestrator] name confirmed, order confirmed inline, stage → ordering"
+                    )
+                else:
+                    await set_ordering_stage(
+                        request.session_id, "awaiting_name_before_confirm"
+                    )
+                    branch_reply = "What name should I put the order under?"
+                    print(
+                        "[Orchestrator] name rejected, asking for new name, stage → awaiting_name_before_confirm"
+                    )
+                ai_now = datetime.now(timezone.utc).isoformat()
+                await cache_list_append(
+                    redis_key,
+                    json.dumps(
+                        {
+                            "role": "assistant",
+                            "content": branch_reply,
+                            "timestamp": ai_now,
+                        }
+                    ),
+                )
+                await log_firebase_event(
+                    event_type="ai_reply",
+                    message=branch_reply,
+                    merchant_id=request.merchant_id,
+                    session_id=request.session_id,
+                    order_id=order_id_for_logs,
+                    extra={"stage": stage, "source": "orchestrator"},
+                )
+                await log_firebase_event(
+                    event_type="flow_end",
+                    message="handle_message completed with awaiting_name_confirm reply",
+                    merchant_id=request.merchant_id,
+                    session_id=request.session_id,
+                    order_id=order_id_for_logs,
+                    extra={"stage": stage, "source": "orchestrator"},
+                )
+                return ChatbotV2MessageResponse(
+                    system_response=branch_reply,
+                    session_id=request.session_id,
+                )
+
             # NAME GATE: require a name before confirming the order.
             if stage == "awaiting_order_confirm" and only_confirm:
                 profile = await getHumanProfile(
@@ -734,6 +794,50 @@ class Orchestrator:
                         order_id=order_id_for_logs,
                         extra={
                             "stage": "awaiting_name_before_confirm",
+                            "source": "orchestrator",
+                        },
+                    )
+                    return ChatbotV2MessageResponse(
+                        system_response=gate_reply,
+                        session_id=request.session_id,
+                    )
+                else:
+                    existing_name = profile["name"]
+                    await set_ordering_stage(request.session_id, "awaiting_name_confirm")
+                    gate_reply = f"Just to confirm, your order will be placed under {existing_name} — is that correct?"
+                    print(
+                        f"[Orchestrator] name gate: name on record={existing_name!r}, asking to confirm, stage → awaiting_name_confirm"
+                    )
+                    ai_now = datetime.now(timezone.utc).isoformat()
+                    await cache_list_append(
+                        redis_key,
+                        json.dumps(
+                            {
+                                "role": "assistant",
+                                "content": gate_reply,
+                                "timestamp": ai_now,
+                            }
+                        ),
+                    )
+                    await log_firebase_event(
+                        event_type="ai_reply",
+                        message=gate_reply,
+                        merchant_id=request.merchant_id,
+                        session_id=request.session_id,
+                        order_id=order_id_for_logs,
+                        extra={
+                            "stage": "awaiting_name_confirm",
+                            "source": "orchestrator",
+                        },
+                    )
+                    await log_firebase_event(
+                        event_type="flow_end",
+                        message="handle_message completed with name-confirm gate reply",
+                        merchant_id=request.merchant_id,
+                        session_id=request.session_id,
+                        order_id=order_id_for_logs,
+                        extra={
+                            "stage": "awaiting_name_confirm",
                             "source": "orchestrator",
                         },
                     )
@@ -832,6 +936,29 @@ class Orchestrator:
                         f"intent={intent_label!r}",
                     )
                     continue
+
+                # Off-topic escalation: reply first, then escalate to human on the 2nd ask
+                if intent_label in ("identity_question", "outside_agent_scope"):
+                    new_count = await increment_off_topic_count(request.session_id)
+                    if new_count >= 2:
+                        result = await self.execution_agent.run_single(
+                            entry=entry,
+                            context_object=prepared_context,
+                        )
+                        entry["status"] = "done"
+                        replies.append(result.reply)
+                        await humanInterventionNeeded(
+                            session_id=prepared_context.session_id,
+                            escalation_type="off_topic_question",
+                            merchant_id=prepared_context.original_merchant_id or "",
+                        )
+                        print(
+                            "[Orchestrator] off-topic question: replied then escalated to human",
+                            f"entry_id={entry.get('entry_id')!r}",
+                            f"intent={intent_label!r}",
+                            f"count={new_count}",
+                        )
+                        continue
 
                 result = await self.execution_agent.run_single(
                     entry=entry,

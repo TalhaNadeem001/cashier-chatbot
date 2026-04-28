@@ -475,7 +475,7 @@ def _find_closest_menu_items_from_menu(
             return {
                 "exact_match": auto_exact,
                 "candidates": candidates,
-                "match_confidence": "exact",
+                "match_confidence": "auto_exact",
             }
 
     # Size-family detection: if 2+ top candidates share the same base name after
@@ -1352,10 +1352,15 @@ async def validateRequestedItem(
             matchConfidence values. For ``"exact"``, populated only when
             ``include_candidate_details=True``; otherwise an empty list.
 
-        matchConfidence ("exact" | "close" | "none" | "category_match" | "size_variant" | "wing_type_ambiguous")
-            ``"exact"``              — item found verbatim; proceed with exactMatch.
+        matchConfidence ("exact" | "auto_exact" | "close" | "none" | "category_match" | "size_variant" | "wing_type_ambiguous")
+            ``"exact"``              — item found verbatim in the menu index; proceed with exactMatch.
+                                       Pass ``confidence: "high"`` to addItemsToOrder.
+            ``"auto_exact"``         — fuzzy match auto-confirmed (score ≥ CONFIRMED_THRESHOLD, no
+                                       close competitor); proceed with exactMatch like ``"exact"``.
+                                       Pass ``confidence: "medium"`` to addItemsToOrder.
             ``"close"``              — ambiguous; ask the customer to confirm which item
-                                       they meant before adding.
+                                       they meant before adding. If the customer confirms, pass
+                                       ``confidence: "medium"`` to addItemsToOrder.
             ``"none"``               — item not on the menu; tell the customer it is unavailable.
             ``"category_match"``     — phrase matched a category name (e.g. "wings" → "Wings").
                                        Extra field: ``matched_category`` (str) — category display name.
@@ -1450,7 +1455,7 @@ async def validateRequestedItem(
             (e.g. ``"12 Pc Boneless Wings"``) as itemName.
             All downstream fields (itemId, available, valid, …) are ``None``.
 
-        matchConfidence == "exact" and available == False
+        matchConfidence == "exact" or "auto_exact" and available == False
             Item exists but cannot be ordered. Tell the customer it is
             currently unavailable. ``valid``/``invalid``/``asNote``/
             ``missingRequireChoice``/``allValid`` are all ``None``.
@@ -1458,7 +1463,10 @@ async def validateRequestedItem(
         matchConfidence == "exact" and available == True and allValid == True
             Safe to add the item. Use ``itemId`` and the ``valid`` modifier
             list (plus ``asNote`` strings as the line-item note) when calling
-            addItemsToOrder.
+            addItemsToOrder. Pass ``confidence: "high"``.
+
+        matchConfidence == "auto_exact" and available == True and allValid == True
+            Same as ``"exact"`` — safe to add. Pass ``confidence: "medium"``.
 
         matchConfidence == "exact" and available == True and non-empty invalid
             One or more modifications could not be resolved. Ask the customer
@@ -1533,7 +1541,7 @@ async def validateRequestedItem(
             "matchConfidence": match_confidence,
         }
 
-        if match_confidence != "exact":
+        if match_confidence not in ("exact", "auto_exact"):
             # Forward any extra fields from match_result (wing_types, size_options,
             # size_family_base, matched_category) so the agent can read them directly.
             extra_fields = {
@@ -1696,10 +1704,13 @@ async def addItemsToOrder(session_id: str, items: list[dict] | None = None, cred
             exists without adding anything.
 
             Each spec is a dict with:
-              - ``itemId``    (str, required)       — Clover item UUID from the menu.
-              - ``quantity``  (int, optional)        — how many to add; defaults to 1.
-              - ``modifiers`` (list[str], optional)  — list of Clover modifier UUIDs to apply.
-              - ``note``      (str | None, optional) — free-text note for the line item.
+              - ``itemId``     (str, required)       — Clover item UUID from the menu.
+              - ``quantity``   (int, optional)        — how many to add; defaults to 1.
+              - ``modifiers``  (list[str], optional)  — list of Clover modifier UUIDs to apply.
+              - ``note``       (str | None, optional) — free-text note for the line item.
+              - ``confidence`` ("high" | "medium", optional) — how the item was resolved:
+                  "high"   = verbatim exact match (validateRequestedItem returned matchConfidence "exact").
+                  "medium" = fuzzy auto-confirmed ("auto_exact") or close match customer confirmed.
 
     Returns a dict:
 
@@ -1708,12 +1719,13 @@ async def addItemsToOrder(session_id: str, items: list[dict] | None = None, cred
 
         addedItems (list[dict])
             One entry per successfully added line item:
-              - ``lineItemId``       (str)       — Clover line item id.
-              - ``itemId``           (str)       — the item UUID that was added.
-              - ``name``             (str)       — item display name from the menu.
-              - ``quantity``         (int)       — quantity added.
-              - ``modifiersApplied`` (list[str]) — modifier UUIDs that were successfully attached.
-              - ``lineTotal``        (int)       — line price in cents from Clover response.
+              - ``lineItemId``       (str)            — Clover line item id.
+              - ``itemId``           (str)            — the item UUID that was added.
+              - ``name``             (str)            — item display name from the menu.
+              - ``quantity``         (int)            — quantity added.
+              - ``modifiersApplied`` (list[str])      — modifier UUIDs that were successfully attached.
+              - ``lineTotal``        (int)            — line price in cents from Clover response.
+              - ``confidence``       (str | None)     — echoed from the item spec ("high", "medium", or None).
 
         failedItems (list[dict])
             One entry per item or modifier that could not be processed:
@@ -1754,11 +1766,12 @@ async def addItemsToOrder(session_id: str, items: list[dict] | None = None, cred
     failed_items: list[dict] = []
     last_added_line_item_id: str | None = None
 
-    for i, spec in enumerate(items):
+    for spec in items:
         item_id = spec.get("itemId", "")
         quantity = spec.get("quantity") or 1
         modifiers: list[str] = spec.get("modifiers") or []
         note: str | None = spec.get("note")
+        confidence: str | None = spec.get("confidence")
 
         in_by_id = item_id in by_id
         in_by_modifier_id = item_id in by_modifier_id
@@ -1848,6 +1861,7 @@ async def addItemsToOrder(session_id: str, items: list[dict] | None = None, cred
                         "quantity": 1,
                         "modifiersApplied": modifiers_applied,
                         "lineTotal": response.get("price", 0),
+                        "confidence": confidence,
                     }
                 )
                 last_added_line_item_id = line_item_id

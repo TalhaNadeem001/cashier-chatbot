@@ -60,11 +60,21 @@ _SUMMARIZE_HISTORY_MAX_OUTPUT_TOKENS = 180
 # confirmed and no specific pickup time has been requested.
 _DEFAULT_PICKUP_MINUTES: int = 30
 
+# Combo items that are sold as bundles. These are tracked here for reference
+# but excluded from the system menu — customers order individual components.
+_COMBO_ITEMS: dict[str, str] = {
+    "TC23CJG848T0C": "2 Tenders & Fries",
+    "9GRXSAZGRY88G": "2 Sandos & Fries",
+    "WD778SKQJWKJR": "Sando + Tender & Fries",
+    "W0QYPBG50G2RP": "Sando & Fries",
+}
+
 # Clover item IDs that should never appear in the system menu.
 # Add IDs here for placeholder or misconfigured items that exist in Clover
 # but should not be orderable by customers.
 _MENU_ITEM_ID_BLOCKLIST: frozenset[str] = frozenset({
     "KYNK3BZB1798J",  # "Wings" — Clover placeholder, real wing items are the sized variants
+    *_COMBO_ITEMS,    # combo bundles excluded — customers order individual components
 })
 
 # Clover item IDs whose display name in Clover is wrong or has an accidental
