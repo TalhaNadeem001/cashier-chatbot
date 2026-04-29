@@ -391,11 +391,29 @@ _SODA_ALIASES: frozenset[str] = frozenset({
 _SODA_CANONICAL = "can of pop"
 
 _FISH_SANDWICH_ALIASES: frozenset[str] = frozenset({
+    "fish",
     "fish sandwich",
     "fish cod sandwich",
     "fish battered cod sandwich",
 })
 _FISH_SANDWICH_CANONICAL = "fish battered cod"
+
+_SIGNATURE_BURGER_ALIASES: frozenset[str] = frozenset({
+    "chef's signature burger",
+    "chef's burger"
+})
+_SIGNATURE_BURGER_CANONICAL = "signature bbq burger"
+
+_HOT_HONEY_BURGER_ALIASES: frozenset[str] = frozenset({
+    "hot honey burger",
+    "rays burger"
+})
+_HOT_HONEY_BURGER_CANONICAL = "rays hot honey burger"
+
+_ONION_RINGS_ALIASES: frozenset[str] = frozenset({
+    "battered onion rings",
+})
+_ONION_RINGS_CANONICAL = "breaded onion rings"
 
 
 def _find_closest_menu_items_from_menu(
@@ -432,6 +450,42 @@ def _find_closest_menu_items_from_menu(
             f"original={item_name!r} → rewriting to {_FISH_SANDWICH_CANONICAL!r}"
         )
         item_name = _FISH_SANDWICH_CANONICAL
+        alias_rewritten = True
+
+    if (
+        normalized_input in _SIGNATURE_BURGER_ALIASES
+        and _get_local_item(item_name, items_by_name) is None
+        and _SIGNATURE_BURGER_CANONICAL in items_by_name
+    ):
+        print(
+            f"[findClosestMenuItems] signature burger alias matched "
+            f"original={item_name!r} → rewriting to {_SIGNATURE_BURGER_CANONICAL!r}"
+        )
+        item_name = _SIGNATURE_BURGER_CANONICAL
+        alias_rewritten = True
+
+    if (
+        normalized_input in _HOT_HONEY_BURGER_ALIASES
+        and _get_local_item(item_name, items_by_name) is None
+        and _HOT_HONEY_BURGER_CANONICAL in items_by_name
+    ):
+        print(
+            f"[findClosestMenuItems] hot honey burger alias matched "
+            f"original={item_name!r} → rewriting to {_HOT_HONEY_BURGER_CANONICAL!r}"
+        )
+        item_name = _HOT_HONEY_BURGER_CANONICAL
+        alias_rewritten = True
+
+    if (
+        normalized_input in _ONION_RINGS_ALIASES
+        and _get_local_item(item_name, items_by_name) is None
+        and _ONION_RINGS_CANONICAL in items_by_name
+    ):
+        print(
+            f"[findClosestMenuItems] onion rings alias matched "
+            f"original={item_name!r} → rewriting to {_ONION_RINGS_CANONICAL!r}"
+        )
+        item_name = _ONION_RINGS_CANONICAL
         alias_rewritten = True
 
     exact_match = _get_local_item(item_name, items_by_name)
