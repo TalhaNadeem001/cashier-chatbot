@@ -100,10 +100,17 @@ DEFAULT_PARSING_AGENT_PROMPTS = ParsingAgentPrompts(
         (case-insensitive), the entire "N pc/piece" phrase is part of the item name —
         NOT the order quantity. The order quantity defaults to 1 unless a separate
         explicit count precedes the item family name.
+        The same applies when a number immediately precedes an item description containing
+        the word "wings" — treat the leading number as part of the item name (a size attempt),
+        not as the order quantity, even without a "pc/pcs/piece/pieces" suffix.
         Examples:
-          "12 pc boneless wings"         → name="12 pc boneless wings", quantity=1
+          "12 pc bone in wings"         → name="12 pc bone in wings", quantity=1
           "2 orders of 12 pc wings"      → name="12 pc wings", quantity=2
-          "12 boneless wings"            → name="boneless wings", quantity=12  (no "pc" → quantity)
+          "12 [sauce name] wings"            → name="12 [sauce name] wings", quantity=1
+          "10 boneless wings"            → name="10 boneless wings", quantity=1 
+          "2 orders of 30 boneless wings" → name="30 boneless wings", quantity=2
+          "10x 10 boneless wings" → name="10 boneless wings", quantity=10
+          "3x of 24 bone in wings" → name="24 bone in wings", quantity=3
         ITEM NAME vs DETAILS — CONNECTOR SPLIT RULES
         The following English patterns reliably mark where the item name ends and
         modifiers/additions begin. Apply them in order:
@@ -159,6 +166,19 @@ DEFAULT_PARSING_AGENT_PROMPTS = ParsingAgentPrompts(
         If the questions are clearly asking for different things (e.g. one asks for a flavor and
         another asks for a size), fill only the entries you are confident about and leave the rest
         unanswered.
+        MULTI-ANSWER RESOLUTION
+        When the customer's message contains multiple answers and there are multiple pending
+        questions, match each answer to the question it semantically answers — not by position.
+        For each pending question, read its full text: it names the item and the type of
+        information being asked. Use that context to determine which part of the customer's
+        reply belongs to it.
+        Each answer maps to exactly one question. Do NOT assign an answer to a question it does not address.
+        Example:
+          Question 1: "What did you mean by 'no onions' for the Classic Burger?"
+          Question 2: "What size Boneless Wings would you like — 6 Pc, 12 Pc, 18 pc, 24 Pc, or 30 Pc?"
+          Customer reply: "No Shaved Grilled Onion, 12 pc"
+          Correct: "No Shaved Grilled Onion" → Question 1, "12 pc" → Question 2
+          Wrong: applying "12 pc" to Question 1 or "No Shaved Grilled Onion" to Question 2
         5. New intents from this message go in Data as usual (even if the message also answers
            unfulfilled entries).
         6. If the message is purely answering unfulfilled entries (no new order action), Data may
@@ -885,15 +905,19 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
          When they answer, re-call validateRequestedItem with just the type name
          (e.g. "boneless wings") as itemName. That call will return size_variant —
          follow the size_variant rule below to resolve the size.
-       - matchConfidence "size_variant"  ▶ FIRST check whether the customer's original item name
-         already contains a number that matches one of the size_options entries (e.g. customer
-         said "30 piece boneless wings" and size_options contains "30 Pc"). Compare the leading
-         number in each size_options entry against any number present in the customer's phrasing.
-         If exactly one size_options entry matches, treat it as the confirmed size — re-call
+       - matchConfidence "size_variant"  ▶ FIRST check whether the customer specified a number
+         that exactly matches the leading number of one of the size_options entries. Look for
+         the number in both the item name string AND the quantity field from the parsed intent
+         (e.g. customer said "10 boneless wings" → quantity=10; customer said "30 piece boneless
+         wings" → name contains "30"). Extract the customer's number, then compare it against the
+         leading number of each size_options entry using EXACT integer equality only — do NOT
+         round, approximate, or pick the nearest option. "10" does NOT match "12 Pc".
+         If exactly one size_options entry matches exactly, treat it as the confirmed size — re-call
          validateRequestedItem immediately with the full reconstructed name
          (size_options entry + " " + size_family_base) as itemName. Do NOT ask for clarification.
-         If no entry matches (customer gave no number, or the number is ambiguous), STOP → list
-         ALL entries from size_options and ask which size the customer wants for size_family_base.
+         If no entry matches exactly (customer gave no number, or their number is not in the
+         size_options list), STOP → list ALL entries from size_options and ask which size the
+         customer wants for size_family_base.
          (e.g. "What size Boneless Wings would you like — 6 Pc, 12 Pc, 18 Pc, 24 Pc, or 30 Pc?")
          When they answer, match their reply to the closest entry in size_options (use that exact
          label, not the customer's raw wording) and re-call validateRequestedItem with the
