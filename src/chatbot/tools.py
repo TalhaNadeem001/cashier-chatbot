@@ -420,6 +420,7 @@ def _find_closest_menu_items_from_menu(
     ):
         item_name = _SODA_CANONICAL
 
+    alias_rewritten = False
     fish_sandwich_in_menu = _FISH_SANDWICH_CANONICAL in items_by_name
     if (
         normalized_input in _FISH_SANDWICH_ALIASES
@@ -431,6 +432,7 @@ def _find_closest_menu_items_from_menu(
             f"original={item_name!r} → rewriting to {_FISH_SANDWICH_CANONICAL!r}"
         )
         item_name = _FISH_SANDWICH_CANONICAL
+        alias_rewritten = True
 
     exact_match = _get_local_item(item_name, items_by_name)
     top_matches = process.extract(
@@ -443,6 +445,7 @@ def _find_closest_menu_items_from_menu(
             "exact_match": exact_match,
             "candidates": candidates,
             "match_confidence": "exact",
+            "alias_rewritten": alias_rewritten,
         }
 
     if not top_matches or top_matches[0][1] < LOW_MENU_MATCH_THRESHOLD:
@@ -1585,8 +1588,15 @@ async def validateRequestedItem(
         # matched menu item name and may carry modifier intent (e.g. "spicy" in
         # "spicy chicken sando"). Done before any resolution so both sources can be
         # merged into a single resolver call.
+        # Skip when an alias rewrite occurred: the entire input IS the alias, so
+        # diffing it against the canonical name produces false modifier tokens.
         matched_name_words = set(str(item_row.get("name", "")).strip().lower().split())
-        leftover_words = [w for w in itemName.lower().split() if w not in matched_name_words]
+        alias_was_rewritten = match_result.get("alias_rewritten", False)
+        leftover_words = (
+            []
+            if alias_was_rewritten
+            else [w for w in itemName.lower().split() if w not in matched_name_words]
+        )
 
         # Build unified details: explicit details + leftover words → one resolver pass.
         parts: list[str] = []

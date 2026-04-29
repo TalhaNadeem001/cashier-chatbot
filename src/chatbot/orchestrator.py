@@ -911,6 +911,7 @@ class Orchestrator:
             replies: list[str] = []
             entries_processed = 0
             all_succeeded = True
+            any_order_updated = False
             order_confirmed_this_turn = False
             processed_intents: set[str] = set()
 
@@ -967,6 +968,8 @@ class Orchestrator:
                 escalated = False
                 if result.success:
                     entry["status"] = "done"
+                    if result.order_updated:
+                        any_order_updated = True
                     if entry.get("parsed_item", {}).get("Intent") == "confirm_order":
                         order_confirmed_this_turn = True
                 else:
@@ -1029,6 +1032,7 @@ class Orchestrator:
                 entries_processed > 0
                 and not queue
                 and all_succeeded
+                and any_order_updated
                 and not only_greetings_queued
                 and not only_informational_queued
                 and not escalation_queued

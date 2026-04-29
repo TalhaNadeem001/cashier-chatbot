@@ -347,6 +347,14 @@ Removed session-based fallback document naming for Firestore logs.
 ### File
 - `src/chatbot/tools.py` — `log_firebase_event(...)` now requires a non-empty `order_id` and no longer uses `session:{session_id}` fallback doc IDs.
 
+## 2026-04-29 - False clarification on alias-matched items (fish sandwich)
+
+**Problem:** "fish sandwich" matched via alias → "Fish Battered Cod" with `matchConfidence="exact"`, but the system still asked for clarification. Root cause: `validateRequestedItem` diffs `itemName` ("fish sandwich") against the matched item name ("Fish Battered Cod") to extract leftover modifier tokens. "sandwich" is not in `{"fish","battered","cod"}`, so it becomes `leftover_words=["sandwich"]` → `unified_details="sandwich"` → AI resolver marks it `unresolvable` → `invalid=["sandwich"]` → `allValid=False`. The downgrade guard didn't fire because "fish" appears in both names, so only one of two content words was orphaned (`orphaned_set ≠ itemName_content_words`).
+
+**Fix (`src/chatbot/tools.py`):**
+- `_find_closest_menu_items_from_menu`: added `alias_rewritten = False` default; sets `alias_rewritten = True` when the fish sandwich alias path is taken; includes `"alias_rewritten": alias_rewritten` in the `exact_match` return dict.
+- `validateRequestedItem`: reads `alias_was_rewritten = match_result.get("alias_rewritten", False)`; when `True`, sets `leftover_words = []` instead of diffing — the entire input IS the alias, so no tokens are residual modifiers.
+
 ## 2026-04-28 - orchestrator handle_message syntax fix
 
 ### Overview
