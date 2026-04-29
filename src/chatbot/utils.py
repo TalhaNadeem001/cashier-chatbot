@@ -130,6 +130,10 @@ def _session_status_redis_key(session_id: str) -> str:
     return f"session:{session_id}:status"
 
 
+def _session_name_provided_redis_key(session_id: str) -> str:
+    return f"session:{session_id}:name_provided"
+
+
 def _session_order_state_redis_key(session_id: str) -> str:
     return f"orderstate:{session_id}"
 

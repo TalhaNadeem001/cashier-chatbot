@@ -11,7 +11,7 @@ from typing import Any, TypeVar
 
 from src import firebase as _firebase
 from src.chatbot import llm_client
-from src.chatbot.constants import _PARSE_VALIDATION_ERROR_PREFIX
+from src.chatbot.constants import _PARSE_VALIDATION_ERROR_PREFIX, _SESSION_CLARIFICATION_AND_INTENT_TTL_SECONDS
 from src.chatbot.exceptions import AIServiceError
 from src.chatbot.llm_messages import LLMMessage
 from src.chatbot.promptsv2 import (
@@ -41,6 +41,7 @@ from src.chatbot.tools import (
     calcOrderPrice,
     cancelOrder,
     changeItemQuantity,
+    confirmOrder,
     findClosestMenuItems,
     getHumanProfile,
     getMenuLink,
@@ -69,6 +70,7 @@ from datetime import datetime, timezone
 from src.cache import cache_get, cache_list_append, cache_set
 from src.chatbot.utils import (
     _session_messages_redis_key,
+    _session_name_provided_redis_key,
     _session_status_redis_key,
     extract_questions_from_reply,
     get_intent_queue,
@@ -644,6 +646,11 @@ class Orchestrator:
                             phone_number=execution_context.phone_number,
                             firebase_uid=execution_context.original_merchant_id or "",
                         )
+                        await cache_set(
+                            _session_name_provided_redis_key(request.session_id),
+                            "1",
+                            ttl=_SESSION_CLARIFICATION_AND_INTENT_TTL_SECONDS,
+                        )
                         print(
                             f"[Orchestrator] introduce_name handled inline name={name!r}"
                         )
@@ -652,8 +659,13 @@ class Orchestrator:
             if stage == "awaiting_name_before_confirm":
                 has_name = any(i.intent.value == "introduce_name" for i in parsed_data)
                 if has_name:
-                    await cache_set(
-                        _session_status_redis_key(request.session_id), "confirmed"
+                    await confirmOrder(
+                        session_id=request.session_id,
+                        creds=execution_context.clover_creds,
+                    )
+                    await askingForPickupTime(
+                        session_id=request.session_id,
+                        firebase_uid=execution_context.original_merchant_id or "",
                     )
                     await set_ordering_stage(request.session_id, "ordering")
                     branch_reply = "Thank you. Your order has been received. Allow me a moment to set your pickup time."
@@ -702,8 +714,13 @@ class Orchestrator:
                 has_new_name = any(i.intent.value == "introduce_name" for i in parsed_data)
                 has_confirm = any(i.intent.value == "confirm_order" for i in parsed_data)
                 if has_new_name or has_confirm:
-                    await cache_set(
-                        _session_status_redis_key(request.session_id), "confirmed"
+                    await confirmOrder(
+                        session_id=request.session_id,
+                        creds=execution_context.clover_creds,
+                    )
+                    await askingForPickupTime(
+                        session_id=request.session_id,
+                        firebase_uid=execution_context.original_merchant_id or "",
                     )
                     await set_ordering_stage(request.session_id, "ordering")
                     branch_reply = "Thank you. Your order has been received. Allow me a moment to set your pickup time."
@@ -752,6 +769,9 @@ class Orchestrator:
 
             # NAME GATE: require a name before confirming the order.
             if stage == "awaiting_order_confirm" and only_confirm:
+                name_provided_this_session = await cache_get(
+                    _session_name_provided_redis_key(request.session_id)
+                ) == "1"
                 profile = await getHumanProfile(
                     phone_number=execution_context.phone_number,
                     firebase_uid=execution_context.original_merchant_id or "",
@@ -796,6 +816,45 @@ class Orchestrator:
                             "stage": "awaiting_name_before_confirm",
                             "source": "orchestrator",
                         },
+                    )
+                    return ChatbotV2MessageResponse(
+                        system_response=gate_reply,
+                        session_id=request.session_id,
+                    )
+                elif name_provided_this_session:
+                    await confirmOrder(
+                        session_id=request.session_id,
+                        creds=execution_context.clover_creds,
+                    )
+                    await askingForPickupTime(
+                        session_id=request.session_id,
+                        firebase_uid=execution_context.original_merchant_id or "",
+                    )
+                    await set_ordering_stage(request.session_id, "ordering")
+                    gate_reply = "Thank you. Your order has been received. Allow me a moment to set your pickup time."
+                    print(
+                        "[Orchestrator] name gate: name provided this session, confirming directly, stage → ordering"
+                    )
+                    ai_now = datetime.now(timezone.utc).isoformat()
+                    await cache_list_append(
+                        redis_key,
+                        json.dumps({"role": "assistant", "content": gate_reply, "timestamp": ai_now}),
+                    )
+                    await log_firebase_event(
+                        event_type="ai_reply",
+                        message=gate_reply,
+                        merchant_id=request.merchant_id,
+                        session_id=request.session_id,
+                        order_id=order_id_for_logs,
+                        extra={"stage": "ordering", "source": "orchestrator"},
+                    )
+                    await log_firebase_event(
+                        event_type="flow_end",
+                        message="handle_message completed with direct confirm (name provided this session)",
+                        merchant_id=request.merchant_id,
+                        session_id=request.session_id,
+                        order_id=order_id_for_logs,
+                        extra={"stage": "ordering", "source": "orchestrator"},
                     )
                     return ChatbotV2MessageResponse(
                         system_response=gate_reply,
@@ -863,7 +922,10 @@ class Orchestrator:
             only_greetings_queued = bool(items_to_queue) and all(
                 i.intent.value == "greeting" for i in items_to_queue
             )
-            for item in items_to_queue:
+            confirm_items = [i for i in items_to_queue if i.intent.value == "confirm_order"]
+            non_confirm_items = [i for i in items_to_queue if i.intent.value != "confirm_order"]
+            has_pending_confirm = bool(confirm_items)
+            for item in non_confirm_items:
                 new_entry = {
                     "entry_id": str(uuid.uuid4()),
                     "status": "pending",
@@ -1018,6 +1080,73 @@ class Orchestrator:
             await save_intent_queue(request.session_id, queue)
 
             final_reply = "\n".join(r.strip() for r in replies if r.strip()) or "Understood."
+
+            # NAME GATE: customer sent confirm in the same turn as other items.
+            if has_pending_confirm and all_succeeded and not is_order_confirmed:
+                name_provided_this_session = await cache_get(
+                    _session_name_provided_redis_key(request.session_id)
+                ) == "1"
+                profile = await getHumanProfile(
+                    phone_number=execution_context.phone_number,
+                    firebase_uid=execution_context.original_merchant_id or "",
+                )
+                if not profile.get("name"):
+                    await set_ordering_stage(request.session_id, "awaiting_name_before_confirm")
+                    gate_reply = "What name should I put the order under?"
+                    print(
+                        "[Orchestrator] name gate (inline confirm): no name on record, stage → awaiting_name_before_confirm"
+                    )
+                elif name_provided_this_session:
+                    await confirmOrder(
+                        session_id=request.session_id,
+                        creds=execution_context.clover_creds,
+                    )
+                    await askingForPickupTime(
+                        session_id=request.session_id,
+                        firebase_uid=execution_context.original_merchant_id or "",
+                    )
+                    await set_ordering_stage(request.session_id, "ordering")
+                    gate_reply = "Thank you. Your order has been received. Allow me a moment to set your pickup time."
+                    print(
+                        "[Orchestrator] name gate (inline confirm): name provided this session, confirming directly, stage → ordering"
+                    )
+                else:
+                    existing_name = profile["name"]
+                    await set_ordering_stage(request.session_id, "awaiting_name_confirm")
+                    gate_reply = f"Just to confirm, your order will be placed under {existing_name} — is that correct?"
+                    print(
+                        f"[Orchestrator] name gate (inline confirm): name on record={existing_name!r}, stage → awaiting_name_confirm"
+                    )
+                combined_reply = (
+                    f"{final_reply}\n{gate_reply}"
+                    if final_reply and final_reply != "Understood."
+                    else gate_reply
+                )
+                ai_now = datetime.now(timezone.utc).isoformat()
+                await cache_list_append(
+                    redis_key,
+                    json.dumps({"role": "assistant", "content": combined_reply, "timestamp": ai_now}),
+                )
+                await log_firebase_event(
+                    event_type="ai_reply",
+                    message=combined_reply,
+                    merchant_id=request.merchant_id,
+                    session_id=request.session_id,
+                    order_id=order_id_for_logs,
+                    extra={"stage": stage, "source": "orchestrator"},
+                )
+                await log_firebase_event(
+                    event_type="flow_end",
+                    message="handle_message completed with inline confirm name gate",
+                    merchant_id=request.merchant_id,
+                    session_id=request.session_id,
+                    order_id=order_id_for_logs,
+                    extra={"stage": stage, "source": "orchestrator"},
+                )
+                return ChatbotV2MessageResponse(
+                    system_response=combined_reply,
+                    session_id=request.session_id,
+                )
 
             # Update ordering stage
             if order_confirmed_this_turn:
