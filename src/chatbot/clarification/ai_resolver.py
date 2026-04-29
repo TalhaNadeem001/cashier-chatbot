@@ -86,7 +86,7 @@ async def resolve_modifiers_for_item(
         for opt in available_options
     ]
     slim_existing = [
-        {"modifierId": m["modifierId"], "name": m["name"]}
+        {"modifierId": m["modifierId"], "name": m["name"], "groupId": m.get("groupId"), "groupName": m.get("groupName")}
         for m in (existing_modifiers or [])
     ]
     system_content = MODIFIER_RESOLUTION_SYSTEM_PROMPT.format(

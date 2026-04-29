@@ -50,6 +50,8 @@ Critical rules:
 - Every modifierId in "resolved" MUST exist verbatim in the available options list.
 - Every modifierId in "to_remove" MUST exist verbatim in the currently applied modifiers list.
 - Do not include the same modifier twice in "resolved".
+- Same-group replacement: if a modifier you are adding to "resolved" has the same groupId as any modifier
+  in the existing modifiers list, add that existing modifier's modifierId to "to_remove" automatically.
 - Return only valid JSON matching the required schema.\
 """
 

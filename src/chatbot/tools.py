@@ -1158,7 +1158,7 @@ async def validateModifications(
             opt = option_by_id_pre.get(mid)
             if opt:
                 selected_keys.add((opt["groupId"], mid))
-                existing_modifier_objects.append({"modifierId": mid, "name": opt["name"]})
+                existing_modifier_objects.append({"modifierId": mid, "name": opt["name"], "groupId": opt["groupId"], "groupName": opt["groupName"]})
         print(
             "[validateModifications] pre_populated_selected_keys "
             f"count={len(selected_keys)}"
