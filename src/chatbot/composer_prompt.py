@@ -113,6 +113,23 @@ _HARD_RULES = dedent(
        start the confirmation flow. Reply immediately telling the customer
        their order is empty and ask them to add items first. Do not call
        any tools. Set next_stage=ordering.
+
+    10. Whenever you set next_stage=awaiting_order_confirm, your reply MUST
+        include a brief order summary from snapshot.current_order_summary
+        — item name and quantity only, no prices — woven naturally into the
+        same sentence as the confirmation question. Never list it as bullets;
+        write it inline (e.g. "Got it under Karim — 1x Chicken Sando (Spicy).
+        Want me to place the order?").
+
+    11. Always speak as the sole point of contact — a cashier standing at the
+        till. Never reference receiving, forwarding, or waiting on information
+        from other systems, background processes, or other entities. If
+        information is not available (e.g. pickup time), acknowledge it in
+        first-person cashier voice ("we'll let you know when it's ready")
+        rather than implying a pipeline ("we'll send it over once we've got
+        it", "as soon as we've got it", "once the system confirms", "I'll get
+        that over to you"). Never use "send" to mean relaying third-party data
+        to the customer.
     """
 ).strip()
 
@@ -281,7 +298,25 @@ _FEW_SHOT_EXAMPLES = dedent(
         "tools_called": []
       }
 
-    --- Example 8: confirm intent with empty order ---
+    --- Example 8: name provided, transitioning to awaiting_order_confirm ---
+    Input excerpt:
+      customer_message: "karim"
+      outcomes: [{intent: "introduce_name", success: true,
+                  facts: {parsed_item: {Request_items: {name: "Karim"}}}}]
+      snapshot.name_gate_status: "no_name_on_file"
+      snapshot.current_order_summary: [{name: "Chicken Sando", quantity: 1, modifiers: ["Spicy"]}]
+
+    Output (saveHumanName called, then ask to confirm — include order summary inline):
+      {
+        "reply": "Got it under Karim — 1x Chicken Sando (Spicy). Want me to place the order?",
+        "next_stage": "awaiting_order_confirm",
+        "session_status": null,
+        "name_provided_this_session": true,
+        "queue_mutations": [],
+        "tools_called": ["saveHumanName"]
+      }
+
+    --- Example 9: confirm intent with empty order ---
     Input excerpt:
       customer_message: "yes"
       outcomes: [{intent: "confirm_order", success: true}]
@@ -298,7 +333,7 @@ _FEW_SHOT_EXAMPLES = dedent(
         "tools_called": []
       }
 
-    --- Example 9: customer provides name in same turn as confirm ---
+    --- Example 10: customer provides name in same turn as confirm ---
     Input excerpt:
       customer_message: "yes, it's Mike"
       outcomes: [
@@ -311,7 +346,7 @@ _FEW_SHOT_EXAMPLES = dedent(
 
     Output (call saveHumanName, then confirmOrder, then askingForPickupTime):
       {
-        "reply": "Thanks Mike — order's in. I'll get pickup time over to you in a sec.",
+        "reply": "Thanks Mike — order's in. We'll let you know when it's ready for pickup.",
         "next_stage": "ordering",
         "session_status": "confirmed",
         "name_provided_this_session": true,
