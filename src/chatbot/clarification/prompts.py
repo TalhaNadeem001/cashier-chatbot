@@ -50,8 +50,16 @@ Critical rules:
 - Every modifierId in "resolved" MUST exist verbatim in the available options list.
 - Every modifierId in "to_remove" MUST exist verbatim in the currently applied modifiers list.
 - Do not include the same modifier twice in "resolved".
-- Same-group replacement: if a modifier you are adding to "resolved" has the same groupId as any modifier
-  in the existing modifiers list, add that existing modifier's modifierId to "to_remove" automatically.
+- Same-group cap: each option carries a "maxAllowed" field (0 = unlimited) that applies to its entire group.
+  When building "resolved", for each group track: E = existing modifiers in that group not yet in "to_remove",
+  N = new modifiers you are adding to that group. If maxAllowed > 0 and E + N > maxAllowed, auto-remove
+  the oldest existing modifier(s) from that group (add their IDs to "to_remove") until E + N <= maxAllowed.
+  Only apply this auto-remove when you would otherwise exceed the cap — do NOT remove existing modifiers
+  when there is still room.
+- Overflow rule: if the customer explicitly requests more modifiers for a single group than maxAllowed
+  permits even after clearing all existing modifiers for that group (i.e., N alone > maxAllowed > 0),
+  resolve only the first maxAllowed matches (highest-confidence) and place the remainder in "unresolvable"
+  with the reason "exceeds max allowed for [groupName] (max: [maxAllowed])".
 - Return only valid JSON matching the required schema.\
 """
 

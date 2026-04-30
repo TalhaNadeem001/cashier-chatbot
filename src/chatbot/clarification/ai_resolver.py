@@ -82,6 +82,7 @@ async def resolve_modifiers_for_item(
             "groupId": opt["groupId"],
             "groupName": opt["groupName"],
             "price": opt.get("price", 0),
+            "maxAllowed": opt.get("maxAllowed", 0),
         }
         for opt in available_options
     ]

@@ -982,6 +982,14 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
          missingRequireChoice, list EVERY modifier name from that group's modifiers array — do NOT
          omit or abbreviate any options, regardless of how many there are. Ask all missing groups
          in a single question.
+         Use remainingRequired (not maxAllowed) to determine how many more are needed.
+         If remainingRequired < maxAllowed, some choices were already provided — acknowledge them
+         by name (from valid[]) and ask only for the remaining count.
+         (e.g. valid has Hot Honey and Nashville, remainingRequired=1 →
+           "You have selected Hot Honey and Nashville — which 1 more sauce would you like?
+            Naked, Garlic Parm, Lemon Pepper, ...?")
+         If remainingRequired == maxAllowed, no choices were provided yet — ask for all of them.
+         (e.g. "Which 2 sauces would you like — Lemon Pepper, BBQ, or Mango Habanero?")
        - allValid == True                → IMMEDIATELY call addItemsToOrder (do NOT return text yet)
     2. Call addItemsToOrder(items) using itemId, valid modifier IDs, and asNote joined as note.
        Set the confidence field on each item based on how the match was resolved:
@@ -1156,7 +1164,7 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
 
     For GREETING (no name mentioned):
     - Do NOT call any tools.
-    - Reply back with "Hello. Please send your order."
+    - Reply back with "Hello. Please go ahead with your order."
 
     NEVER call mutation tools (addItemsToOrder, updateItemInOrder, replaceItemInOrder,
     removeItemFromOrder, changeItemQuantity, confirmOrder, cancelOrder) without completing

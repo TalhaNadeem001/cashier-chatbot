@@ -420,3 +420,22 @@ Tag appended on a new line: `"extra crispy\n[High]"`. Stripped with regex `\n?\[
 - When `note_value is None` in `updateItemInOrder`, the note is cleared — this is intentional.
 - The confidence tag is written **only once** at item creation (`addItemsToOrder`). Subsequent note updates via `updateItemInOrder` (e.g., `asNote` from `validateModifications`) write the new note verbatim without re-attaching the tag. This prevents `"medium [High]"` appearing in Clover.
 - `_extract_confidence_tag` remains defined in `utils.py` but is no longer imported in `tools.py`.
+
+## 2026-04-30 - Wings Sauce Flavor Count Rule
+
+### Overview
+Boneless wing items allow a number of sauce/flavor selections proportional to their size:
+6 pc → 1, 12 pc → 2, 18 pc → 3, 24 pc → 4, 30 pc → 5.
+
+### How It Works
+- **`src/chatbot/utils.py`** — two constants: `WINGS_SAUCE_GROUP_ID = "9YPVZH2K458QC"` and `WINGS_FLAVOR_RULE` (item ID → max flavors). In `_normalize_menu`, after `by_id` is built, the Wings Sauce group on each target item gets `max_allowed` set to the mapped value.
+- **`src/chatbot/clarification/ai_resolver.py`** — `slim_options` now includes `maxAllowed` so the resolver sees the per-group cap.
+- **`src/chatbot/clarification/prompts.py`** — `MODIFIER_RESOLUTION_SYSTEM_PROMPT` updated: same-group auto-remove only fires when at capacity (not always); overflow beyond `maxAllowed` lands in `unresolvable`.
+- **`src/chatbot/promptsv2.py`** — `missingRequireChoice` clarification rule: when `maxAllowed > 1`, the agent asks for exactly that many sauces.
+
+### Enforcement path
+`unresolvable` items from the resolver flow into `truly_invalid` → `allValid = False` in both `validateRequestedItem` (ADD_ITEM) and `validateModifications` (MODIFY_ITEM). No changes to `tools.py` needed.
+
+### Gotchas
+- The rule targets only the five specific item IDs in `WINGS_FLAVOR_RULE`. Adding a new wing size = one new entry in that dict.
+- The Wings Sauce group ID (`9YPVZH2K458QC`) is hardcoded. If Clover regenerates group IDs, update `WINGS_SAUCE_GROUP_ID`.

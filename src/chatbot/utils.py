@@ -11,6 +11,21 @@ from src.menu.loader import build_normalized_items
 
 _CONFIDENCE_TAG_RE = re.compile(r'\n?\[(High|Medium|Low)\]$')
 
+# Wings Sauce modifier group — max selections per wing size (item ID → allowed flavor count).
+WINGS_SAUCE_GROUP_ID = "9YPVZH2K458QC"
+WINGS_FLAVOR_RULE: dict[str, int] = {
+    "Y23V3Y50YC2A4": 1,  # 6 Pc Boneless Wings
+    "3MTKGTDGFXYGY": 2,  # 12 Pc Boneless Wings
+    "HA3DPK1KJ4CZ2": 3,  # 18 pc Boneless Wings
+    "Q4AGCP1BEXGSJ": 4,  # 24 Pc Boneless Wings
+    "DEN3QFHP4Z4KP": 5,  # 30 Pc Boneless Wings
+    "K8MSAER2Y7CXT": 1,  # 6 Pc Bone In Wings
+    "V61WT12A0E0MR": 2,  # 12 Pc Bone In Wings
+    "VXPV404K62DWR": 3,  # 18 Pc Bone In Wings
+    "MT8CBN0DJR8R2": 4,  # 24 Pc Bone In Wings
+    "CQBF5VHZABBQ0": 5,  # 30 Pc Bone In Wings
+}
+
 
 def _append_confidence_tag(note: str | None, confidence: str | None) -> str | None:
     tag_map = {"high": "[High]", "medium": "[Medium]"}
@@ -382,6 +397,15 @@ async def _normalize_menu(raw: dict) -> dict:
             by_name[norm_name_key] = _merge_numeric_name_variants(
                 norm_name_key, by_name[norm_name_key]
             )
+
+    for item_id, item in by_id.items():
+        max_flavors = WINGS_FLAVOR_RULE.get(item_id)
+        if max_flavors is not None:
+            for group in item.get("modifier_groups") or []:
+                if group.get("id") == WINGS_SAUCE_GROUP_ID:
+                    group["max_allowed"] = max_flavors
+                    group["min_required"] = max_flavors
+                    break
 
     for item in by_id.values():
         item.pop("_original_name", None)
