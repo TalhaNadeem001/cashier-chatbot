@@ -795,3 +795,96 @@ def test_execution_tracker_mutated_by_tool_wrappers(monkeypatch):
 
     assert tracker.actions_executed == ["added 2x Burger"]
     assert tracker.order_updated is True
+
+
+# ─── run_single self-escalation ──────────────────────────────────────────────
+
+
+def test_run_single_escalates_when_qa_count_exceeds_max(monkeypatch):
+    """Calls humanInterventionNeeded_idempotent and sets escalated=True when qa_count_after > MAX."""
+    from src.config import settings
+
+    async def fake_generate(messages, *, function_tools, temperature, max_tool_calls, **kwargs):
+        return "Which size would you like?"
+
+    monkeypatch.setattr(llm_client, "generate_text_with_tools", fake_generate)
+
+    escalated_calls: list[dict] = []
+
+    async def fake_escalate(*, session_id, escalation_type, merchant_id):
+        escalated_calls.append({"session_id": session_id, "escalation_type": escalation_type})
+        return {"success": True}
+
+    monkeypatch.setattr(orchestrator_mod, "humanInterventionNeeded_idempotent", fake_escalate)
+
+    entry = {
+        "entry_id": "e-1",
+        "status": "pending",
+        "parsed_item": {"Intent": "add_item", "Request_items": {"name": "burger"}},
+        "qa": [{"question": f"q{i}", "answer": f"a{i}"} for i in range(settings.MAX_CLARIFICATION_QUESTIONS)],
+    }
+    agent = ExecutionAgent(system_prompt="")
+    result = asyncio.run(agent.run_single(entry=entry, context_object=_context_object()))
+
+    assert result.escalated is True
+    assert len(escalated_calls) == 1
+    assert escalated_calls[0]["escalation_type"] == "questions_about_their_order"
+
+
+def test_run_single_does_not_escalate_on_success_path(monkeypatch):
+    """Does not call humanInterventionNeeded_idempotent when LLM returns no questions."""
+    from src.config import settings
+
+    async def fake_generate(messages, *, function_tools, temperature, max_tool_calls, **kwargs):
+        return "I added the burger."
+
+    monkeypatch.setattr(llm_client, "generate_text_with_tools", fake_generate)
+
+    escalated_calls: list[dict] = []
+
+    async def fake_escalate(*, session_id, escalation_type, merchant_id):
+        escalated_calls.append({})
+        return {"success": True}
+
+    monkeypatch.setattr(orchestrator_mod, "humanInterventionNeeded_idempotent", fake_escalate)
+
+    entry = {
+        "entry_id": "e-2",
+        "status": "pending",
+        "parsed_item": {"Intent": "add_item", "Request_items": {"name": "burger"}},
+        # qa already over max — but success path must not escalate regardless
+        "qa": [{"question": f"q{i}", "answer": f"a{i}"} for i in range(settings.MAX_CLARIFICATION_QUESTIONS + 1)],
+    }
+    agent = ExecutionAgent(system_prompt="")
+    result = asyncio.run(agent.run_single(entry=entry, context_object=_context_object()))
+
+    assert result.escalated is False
+    assert len(escalated_calls) == 0
+
+
+def test_run_single_does_not_escalate_when_threshold_not_breached(monkeypatch):
+    """Does not escalate when qa_count_after <= MAX_CLARIFICATION_QUESTIONS."""
+    async def fake_generate(messages, *, function_tools, temperature, max_tool_calls, **kwargs):
+        return "Which size would you like?"
+
+    monkeypatch.setattr(llm_client, "generate_text_with_tools", fake_generate)
+
+    escalated_calls: list[dict] = []
+
+    async def fake_escalate(*, session_id, escalation_type, merchant_id):
+        escalated_calls.append({})
+        return {"success": True}
+
+    monkeypatch.setattr(orchestrator_mod, "humanInterventionNeeded_idempotent", fake_escalate)
+
+    entry = {
+        "entry_id": "e-3",
+        "status": "pending",
+        "parsed_item": {"Intent": "add_item", "Request_items": {"name": "burger"}},
+        "qa": [],  # qa_count_after = 0 + 1 = 1, well under MAX
+    }
+    agent = ExecutionAgent(system_prompt="")
+    result = asyncio.run(agent.run_single(entry=entry, context_object=_context_object()))
+
+    assert result.escalated is False
+    assert len(escalated_calls) == 0

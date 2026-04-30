@@ -41,7 +41,6 @@ from src.chatbot.tools import (
     calcOrderPrice,
     cancelOrder,
     changeItemQuantity,
-    confirmOrder,
     findClosestMenuItems,
     getHumanProfile,
     getMenuLink,
@@ -49,7 +48,6 @@ from src.chatbot.tools import (
     getOrderLineItems,
     getPreviousKMessages,
     getPreviousOrdersDetails,
-    humanInterventionNeeded,
     prepare_clover_data,
     replaceItemInOrder,
     removeItemFromOrder,
@@ -64,6 +62,10 @@ from src.chatbot.tools import (
     reset_firebase_log_context,
     set_firebase_log_context,
     update_firebase_log_context,
+)
+from src.chatbot.guarded_tools import (
+    confirmOrder_guarded,
+    humanInterventionNeeded_idempotent,
 )
 from datetime import datetime, timezone
 
@@ -659,9 +661,11 @@ class Orchestrator:
             if stage == "awaiting_name_before_confirm":
                 has_name = any(i.intent.value == "introduce_name" for i in parsed_data)
                 if has_name:
-                    await confirmOrder(
+                    await confirmOrder_guarded(
                         session_id=request.session_id,
                         creds=execution_context.clover_creds,
+                        phone_number=execution_context.phone_number,
+                        firebase_uid=execution_context.original_merchant_id or "",
                     )
                     await askingForPickupTime(
                         session_id=request.session_id,
@@ -714,9 +718,11 @@ class Orchestrator:
                 has_new_name = any(i.intent.value == "introduce_name" for i in parsed_data)
                 has_confirm = any(i.intent.value == "confirm_order" for i in parsed_data)
                 if has_new_name or has_confirm:
-                    await confirmOrder(
+                    await confirmOrder_guarded(
                         session_id=request.session_id,
                         creds=execution_context.clover_creds,
+                        phone_number=execution_context.phone_number,
+                        firebase_uid=execution_context.original_merchant_id or "",
                     )
                     await askingForPickupTime(
                         session_id=request.session_id,
@@ -822,9 +828,11 @@ class Orchestrator:
                         session_id=request.session_id,
                     )
                 elif name_provided_this_session:
-                    await confirmOrder(
+                    await confirmOrder_guarded(
                         session_id=request.session_id,
                         creds=execution_context.clover_creds,
+                        phone_number=execution_context.phone_number,
+                        firebase_uid=execution_context.original_merchant_id or "",
                     )
                     await askingForPickupTime(
                         session_id=request.session_id,
@@ -990,7 +998,7 @@ class Orchestrator:
 
                 # Post-confirmation: route non-informational requests directly to human
                 if is_order_confirmed and intent_label not in _INFORMATIONAL_INTENTS:
-                    await humanInterventionNeeded(
+                    await humanInterventionNeeded_idempotent(
                         session_id=prepared_context.session_id,
                         escalation_type="post_confirm_request",
                         merchant_id=prepared_context.original_merchant_id or "",
@@ -1014,7 +1022,7 @@ class Orchestrator:
                         )
                         entry["status"] = "done"
                         replies.append(result.reply)
-                        await humanInterventionNeeded(
+                        await humanInterventionNeeded_idempotent(
                             session_id=prepared_context.session_id,
                             escalation_type="off_topic_question",
                             merchant_id=prepared_context.original_merchant_id or "",
@@ -1049,7 +1057,7 @@ class Orchestrator:
                             .get("Request_items", {})
                             .get("name", "unknown item")
                         )
-                        await humanInterventionNeeded(
+                        await humanInterventionNeeded_idempotent(
                             session_id=prepared_context.session_id,
                             escalation_type="questions_about_their_order",
                             merchant_id=prepared_context.original_merchant_id or "",
@@ -1101,9 +1109,11 @@ class Orchestrator:
                         "[Orchestrator] name gate (inline confirm): no name on record, stage → awaiting_name_before_confirm"
                     )
                 elif name_provided_this_session:
-                    await confirmOrder(
+                    await confirmOrder_guarded(
                         session_id=request.session_id,
                         creds=execution_context.clover_creds,
+                        phone_number=execution_context.phone_number,
+                        firebase_uid=execution_context.original_merchant_id or "",
                     )
                     await askingForPickupTime(
                         session_id=request.session_id,
@@ -1600,11 +1610,27 @@ class ExecutionAgent:
         clarification_questions = extract_questions_from_reply(agent_reply)
         success = not bool(clarification_questions)
 
+        # Defense in depth: if this run's new clarifications would push the entry
+        # over the max-clarification budget, escalate now via the idempotent tool.
+        # The orchestrator's existing escalation check still runs after this and
+        # calls the same idempotent tool again — that second call no-ops.
+        escalated = False
+        if clarification_questions:
+            qa_count_after = len(qa) + len(clarification_questions)
+            if qa_count_after > settings.MAX_CLARIFICATION_QUESTIONS:
+                await humanInterventionNeeded_idempotent(
+                    session_id=context_object.session_id,
+                    escalation_type="questions_about_their_order",
+                    merchant_id=context_object.original_merchant_id or "",
+                )
+                escalated = True
+
         reply_preview = agent_reply.replace("\n", " ")[:300]
         print(
             "[ExecutionAgent] run_single done",
             f"entry_id={entry_id!r}",
             f"success={success}",
+            f"escalated={escalated}",
             f"clarification_q_count={len(clarification_questions)}",
             f"actions_executed={tracker.actions_executed!r}",
             f"order_updated={tracker.order_updated}",
@@ -1617,6 +1643,7 @@ class ExecutionAgent:
             clarification_questions=clarification_questions,
             actions_executed=tracker.actions_executed,
             order_updated=tracker.order_updated,
+            escalated=escalated,
         )
 
     def _build_single_intent_messages(
@@ -1725,7 +1752,7 @@ class ExecutionAgent:
 
         async def _order_confirmed_escalate(action: str) -> dict[str, Any]:
             print(f"[ExecutionAgent] order_confirmed_guard triggered for action={action!r}")
-            result = await humanInterventionNeeded(
+            result = await humanInterventionNeeded_idempotent(
                 session_id=runtime.context.session_id,
                 escalation_type="made_changes_to_order",
                 merchant_id=runtime.context.original_merchant_id or "",
@@ -1904,7 +1931,7 @@ class ExecutionAgent:
 
         async def _human_intervention_needed_tool(*, escalation_type: str) -> dict[str, Any]:
             args = {"escalation_type": escalation_type}
-            out = await humanInterventionNeeded(
+            out = await humanInterventionNeeded_idempotent(
                 session_id=runtime.context.session_id,
                 escalation_type=escalation_type,
                 merchant_id=runtime.context.original_merchant_id or "",

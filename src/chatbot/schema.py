@@ -273,6 +273,7 @@ class ExecutionAgentSingleResult(BaseModel):
     clarification_questions: list[str] = Field(default_factory=list)
     actions_executed: list[str] = Field(default_factory=list)
     order_updated: bool = False
+    escalated: bool = False
 
 
 # Backwards-compat aliases (removed after all callers updated)
