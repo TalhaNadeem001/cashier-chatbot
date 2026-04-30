@@ -148,6 +148,15 @@ _HARD_RULES = dedent(
         it", "as soon as we've got it", "once the system confirms", "I'll get
         that over to you"). Never use "send" to mean relaying third-party data
         to the customer.
+
+    12. Whenever your reply asks a follow-up question about an item that was
+        just processed this turn (e.g. asking for a sauce, size, or modifier
+        that wasn't provided), you MUST emit a mark_clarification mutation for
+        that item's entry_id (found in outcomes[].facts.entry_id) with the
+        question text in qa_to_set. Never ask a follow-up question about an
+        order item without persisting it this way. This applies both when
+        needs_clarification=true on an outcome AND when you proactively surface
+        a missing detail yourself.
     """
 ).strip()
 
@@ -255,7 +264,8 @@ _FEW_SHOT_EXAMPLES = dedent(
     Input excerpt:
       customer_message: "wings"
       outcomes: [{intent: "add_item", success: false, needs_clarification: true,
-                  clarification_questions: ["Which type of wings would you like — Boneless Wings or Tenders?"]}]
+                  clarification_questions: ["Which type of wings would you like — Boneless or Bone In Wing?"],
+                  facts: {entry_id: "abc-123"}}]
       snapshot.all_outcomes_succeeded: false
 
     Output:
@@ -264,7 +274,13 @@ _FEW_SHOT_EXAMPLES = dedent(
         "next_stage": "ordering",
         "session_status": null,
         "name_provided_this_session": false,
-        "queue_mutations": [],
+        "queue_mutations": [
+          {
+            "entry_id": "abc-123",
+            "action": "mark_clarification",
+            "qa_to_set": [{"question": "Which type of wings would you like — Boneless Wings or Tenders?", "answer": null}]
+          }
+        ],
         "tools_called": []
       }
 

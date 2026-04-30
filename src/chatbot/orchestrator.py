@@ -1476,7 +1476,7 @@ class Orchestrator:
                 result = await self.execution_agent.run_single(
                     entry=entry, context_object=prepared_context,
                 )
-                outcome = outcome_from_executor_result(intent=intent_label, result=result)
+                outcome = outcome_from_executor_result(intent=intent_label, result=result, entry_id=entry.get("entry_id", ""))
                 outcomes.append(outcome)
                 if result.success or getattr(result, "escalated", False):
                     entry["status"] = "done"

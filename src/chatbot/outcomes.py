@@ -6,7 +6,7 @@ from src.chatbot.schema import ActionOutcome, ExecutionAgentSingleResult
 
 
 def outcome_from_executor_result(
-    *, intent: str, result: ExecutionAgentSingleResult
+    *, intent: str, result: ExecutionAgentSingleResult, entry_id: str = ""
 ) -> ActionOutcome:
     """Convert an ExecutionAgentSingleResult into the ActionOutcome shape
     Composer consumes. Preserves the executor's free-text reply as a hint
@@ -16,6 +16,7 @@ def outcome_from_executor_result(
         intent=intent,
         success=result.success,
         facts={
+            "entry_id": entry_id,
             "actions_executed": list(result.actions_executed),
             "order_updated": result.order_updated,
         },
