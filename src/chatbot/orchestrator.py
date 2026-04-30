@@ -922,6 +922,10 @@ class Orchestrator:
             only_greetings_queued = bool(items_to_queue) and all(
                 i.intent.value == "greeting" for i in items_to_queue
             )
+            escalation_items = [i for i in items_to_queue if i.intent.value == "escalation"]
+            if escalation_items:
+                items_to_queue = [escalation_items[0]]
+                only_greetings_queued = False
             confirm_items = [i for i in items_to_queue if i.intent.value == "confirm_order"]
             non_confirm_items = [i for i in items_to_queue if i.intent.value != "confirm_order"]
             has_pending_confirm = bool(confirm_items)

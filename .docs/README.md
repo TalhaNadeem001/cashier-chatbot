@@ -10,3 +10,4 @@ This folder contains feature-level documentation written by Claude after making 
 |---|---|
 | `chatbot-tools.md` | `removeItemFromOrder` and other agent tool functions in `src/chatbot/tools.py` |
 | `post-confirmation-flow.md` | Post-confirmation routing: informational questions answered by bot, requests routed to human |
+| `parsing-agent-prompts.md` | Parsing agent prompt structure, intent labels, allergy escalation rule |

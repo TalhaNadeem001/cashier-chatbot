@@ -70,7 +70,7 @@ DEFAULT_PARSING_AGENT_PROMPTS = ParsingAgentPrompts(
         restaurant_question -> Customer is asking about the restaurant (hours, location, etc.).
         pickuptime_question -> Customer is explicitly asking about or suggesting a pickup or wait time as a standalone intent, with no accompanying order action in the same message.
         introduce_name -> Customer states their own name (e.g., "I'm John", "my name is Sarah", "it's Mike"). Use Request_items.name for the name value; quantity=0, details="". Can co-occur with greeting or any order intent — emit as a separate object.
-        escalation -> Customer has a complaint, dispute, or needs human intervention. This includes ANY message where the customer says something is wrong, incorrect, or missing (e.g. "my total is wrong", "the price is off", "that's not what I ordered", "I was overcharged").
+        escalation -> Customer has a complaint, dispute, or needs human intervention. This includes ANY message where the customer says something is wrong, incorrect, or missing (e.g. "my total is wrong", "the price is off", "that's not what I ordered", "I was overcharged"). This ALSO includes ANY allergy, dietary restriction, or food safety question (e.g. "is this gluten-free?", "can this be made dairy-free?", "does X contain nuts?", "is this safe for someone with a nut allergy?") — these must always be escalation regardless of whether they sound like a menu question.
         identity_question -> Customer asks who they are talking to, what the system is, or whether it is a bot or human. Examples: "who are you?", "are you a bot?", "are you human?", "are you AI?", "am I talking to a person?", "is this a real person?". NEVER classify these as outside_agent_scope.
         outside_agent_scope -> Message is unrelated to food ordering.
         """
@@ -141,6 +141,13 @@ DEFAULT_PARSING_AGENT_PROMPTS = ParsingAgentPrompts(
         "What is my total?" → order_question
         "My total is wrong", "the price is incorrect", "I was overcharged", "that's not right" → escalation
         Any message asserting something is wrong, missing, or incorrect → escalation, NOT order_question.
+        ALLERGY / FOOD SAFETY vs MENU QUESTION DISTINCTION
+        "What sauces are available?", "What comes on the burger?" → menu_question
+        "Is this gluten-free?", "Can this be made without dairy?", "Does X contain nuts?",
+        "Is this safe for someone with X allergy?", "Are the buns gluten-free?",
+        "Can the wings be made without dairy?" → escalation
+        Any question about whether an item is safe to eat for a specific allergy or dietary
+        restriction → escalation, NOT menu_question.
         DO NOT OVER-INFER
         Only extract what is clearly stated.
         UNFULFILLED QUEUE RESOLUTION
@@ -654,6 +661,32 @@ DEFAULT_PARSING_AGENT_PROMPTS = ParsingAgentPrompts(
               "Confidence_level": "high",
               "Request_items": {"name": "", "quantity": 0, "details": ""},
               "Request_details": "Ready in 30 minutes."
+            }
+          ],
+          "ModifiedEntries": []
+        }
+        --- Example 19 ---
+        Transcript:
+        C: Hello, I want to order for pickup but I have a few allergies. Are the buns gluten-free? Can the wings be made without dairy?
+        {
+          "Data": [
+            {
+              "Intent": "greeting",
+              "Confidence_level": "high",
+              "Request_items": {"name": "", "quantity": 0, "details": ""},
+              "Request_details": "Hello, I want to order for pickup."
+            },
+            {
+              "Intent": "escalation",
+              "Confidence_level": "high",
+              "Request_items": {"name": "", "quantity": 0, "details": ""},
+              "Request_details": "Are the buns gluten-free?"
+            },
+            {
+              "Intent": "escalation",
+              "Confidence_level": "high",
+              "Request_items": {"name": "", "quantity": 0, "details": ""},
+              "Request_details": "Can the wings be made without dairy?"
             }
           ],
           "ModifiedEntries": []
