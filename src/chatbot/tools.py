@@ -1799,6 +1799,15 @@ async def addItemsToOrder(session_id: str, items: list[dict] | None = None, cred
         updatedOrderTotal (int)
             Current order total in cents after all additions; 0 when the fetch fails.
 
+        missingRequiredModifiers (list[dict])
+            One entry per item that was blocked because required modifier groups had no
+            customer-provided selection. Each entry has:
+              - ``itemId``   (str)        — the item UUID that was blocked.
+              - ``itemName`` (str)        — display name.
+              - ``groups``   (list[dict]) — each missing group: groupId, groupName,
+                                           minRequired, modifiers (list of {id, name}).
+            Empty list when all items passed the required-modifier check.
+
     Decision guide for the agent:
         - ``success`` True  → confirm all items added, quote ``updatedOrderTotal`` to the customer.
         - ``success`` False, addedItems non-empty → partial success; tell customer what was added
@@ -1807,6 +1816,10 @@ async def addItemsToOrder(session_id: str, items: list[dict] | None = None, cred
         - ``failedItems[].reason`` contains "ambiguous" → ask customer to clarify item vs modifier.
         - ``failedItems[].reason`` contains "not found" → item is not on the menu; suggest alternatives.
         - ``failedItems[].reason`` contains "modifier before" → modifiers must follow an item spec.
+        - ``missingRequiredModifiers`` non-empty → DO NOT report a failure to the customer.
+          Re-call validateRequestedItem(itemName, details) for each blocked item (same itemName,
+          same details). Apply the missingRequireChoice STOP rule, collect the customer's choices,
+          then retry addItemsToOrder with the modifier IDs included.
     """
     print(f"[addItemsToOrder] start session_id={session_id!r} item_count={len(items or [])}")
     if creds is None:
@@ -1828,6 +1841,7 @@ async def addItemsToOrder(session_id: str, items: list[dict] | None = None, cred
 
     added_items: list[dict] = []
     failed_items: list[dict] = []
+    missing_required_map: dict[str, list[dict]] = {}
     last_added_line_item_id: str | None = None
 
     for spec in items:
@@ -1887,6 +1901,26 @@ async def addItemsToOrder(session_id: str, items: list[dict] | None = None, cred
 
         # NORMAL PATH
         item_row = by_id[item_id]
+
+        # Required modifier gate — reject before touching Clover if any min_required group is unsatisfied
+        missing_groups: list[dict] = []
+        for group in item_row.get("modifier_groups") or []:
+            min_req = int(group.get("min_required") or 0)
+            if min_req > 0:
+                group_mod_ids = {m["id"] for m in group.get("modifiers") or []}
+                provided = sum(1 for m in modifiers if m in group_mod_ids)
+                if provided < min_req:
+                    missing_groups.append({
+                        "groupId": group["id"],
+                        "groupName": group["name"],
+                        "minRequired": min_req,
+                        "modifiers": [{"id": m["id"], "name": m["name"]} for m in group.get("modifiers") or []],
+                    })
+        if missing_groups:
+            missing_required_map[item_id] = missing_groups
+            failed_items.append({"itemId": item_id, "reason": f"missing required modifier groups: {[g['groupName'] for g in missing_groups]}"})
+            continue
+
         item_price: int = item_row.get("price") or 0
         try:
             for _ in range(quantity):
@@ -1945,6 +1979,10 @@ async def addItemsToOrder(session_id: str, items: list[dict] | None = None, cred
         "addedItems": added_items,
         "failedItems": failed_items,
         "updatedOrderTotal": updated_total,
+        "missingRequiredModifiers": [
+            {"itemId": iid, "itemName": by_id[iid].get("name", ""), "groups": groups}
+            for iid, groups in missing_required_map.items()
+        ],
     }
     print(
         f"[addItemsToOrder] done added={len(added_items)} failed={len(failed_items)} "

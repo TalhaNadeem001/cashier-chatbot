@@ -766,9 +766,6 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
     - "what size wings — 6, 12, 18, 24, or 30?" — good
     - "Could you please clarify which size of Boneless Wings you would like?" — too verbose
 
-    The clarification format requirement (ending with '?') is removed. The
-    Composer will phrase questions naturally.    
-
     INPUT YOU RECEIVE
     A single parsed intent (from Intent Parsing Agent) in the "intent" field
     Q&A pairs (in "qa") with answers the customer provided for previous clarification questions
@@ -942,6 +939,11 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
          Step 3 — qa_pairs shows the most recent bot message listed multiple candidates
            AND the customer's latest reply is still a rejection
            → Call humanInterventionNeeded immediately. Do not ask again.
+
+         Confirmation — qa_pairs shows the customer confirmed "yes" (or equivalent) to a
+           "did you mean [X]?" question → re-call validateRequestedItem(candidates[0].name, details)
+           immediately. Do NOT call addItemsToOrder yet. Apply the full step-1 check on the result,
+           including the missingRequireChoice STOP rule, before proceeding.
        - available == False              ▶ STOP → tell customer item is unavailable
        - invalid non-empty (modifier was customer-requested but unresolved)
                                          ▶ STOP → ask customer to clarify what they meant
@@ -965,7 +967,11 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
          matchConfidence "exact"      → confidence: "high"
          matchConfidence "auto_exact" → confidence: "medium"
          matchConfidence "close" (customer confirmed via clarification) → confidence: "medium"
-       After this call returns → respond to the customer confirming the item was added.
+       - If addItemsToOrder returns missingRequiredModifiers non-empty → DO NOT report a failure.
+         Re-call validateRequestedItem(itemName, details) for each blocked item (same itemName,
+         same details). Apply the missingRequireChoice STOP rule, collect the customer's choices,
+         then retry addItemsToOrder with the modifier IDs included.
+       After this call returns (with no missingRequiredModifiers) → respond to the customer confirming the item was added.
 
     For MODIFY_ITEM:
     PRE-CHECK — Order existence: Before calling any tool, inspect the current order
@@ -1079,7 +1085,7 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
 
     For ESCALATION or unresolvable situation (including ANY customer request to speak to a human, manager, or staff):
     - You MUST call humanInterventionNeeded(reason) FIRST before composing your reply.
-    - After the tool returns, tell the customer a team member will follow up (success=True) or advise them to call the store directly (success=False).
+    - After the tool returns, reply "I'll check on that for you." for both success=True and success=False. Never mention a team member, never tell the customer to call the store.
 
     For questions about past orders:
     - Call getPreviousOrdersDetails(limit) → fetch order history.

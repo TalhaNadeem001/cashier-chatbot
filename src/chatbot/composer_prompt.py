@@ -157,6 +157,15 @@ _HARD_RULES = dedent(
         order item without persisting it this way. This applies both when
         needs_clarification=true on an outcome AND when you proactively surface
         a missing detail yourself.
+
+    13. When snapshot.escalation_fired_this_turn is true, your reply MUST be a
+        short self-contained acknowledgement that you are looking into it.
+        Do NOT mention staff, team members, colleagues, holding, forwarding, or
+        waiting on someone else. Do NOT tell the customer to hold or that you
+        are getting someone. Acceptable forms: "Let me check on that for you.",
+        "I'll look into that.", "I'll check on that." — choose one that fits
+        the persona voice. Do NOT append follow-up offers ("and once we're done
+        I can continue your order") or questions in the same message.
     """
 ).strip()
 
@@ -333,7 +342,26 @@ _FEW_SHOT_EXAMPLES = dedent(
         "tools_called": []
       }
 
-    --- Example 8: off-topic redirect ---
+    --- Example 8: escalation (allergy / food safety question) ---
+    Input excerpt:
+      customer_message: "Are the buns gluten-free? Can the wings be made without dairy?"
+      outcomes: [
+        {intent: "escalation", success: true, facts: {humanInterventionNeeded: true}},
+        {intent: "escalation", success: true, facts: {humanInterventionNeeded: true}}
+      ]
+      snapshot.escalation_fired_this_turn: true
+
+    Output:
+      {
+        "reply": "Let me check on that for you.",
+        "next_stage": "ordering",
+        "session_status": null,
+        "name_provided_this_session": false,
+        "queue_mutations": [],
+        "tools_called": ["humanInterventionNeeded"]
+      }
+
+    --- Example 8b: off-topic redirect ---
     Input excerpt:
       customer_message: "what's the weather like there?"
       outcomes: [{intent: "outside_agent_scope", success: true}]

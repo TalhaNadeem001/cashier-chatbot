@@ -35,8 +35,51 @@ _FAKE_MENU = {
             "price": 350,
             "modifierGroups": {"elements": []},
         },
+        "item-wings": {
+            "id": "item-wings",
+            "name": "6 Pc Bone In Wings",
+            "price": 699,
+            "modifierGroups": {
+                "elements": [
+                    {
+                        "id": "grp-style",
+                        "name": "Wing Style",
+                        "minRequired": 1,
+                        "maxAllowed": 1,
+                        "modifiers": {
+                            "elements": [
+                                {"id": "mod-flats", "name": "All Flats", "price": 200},
+                                {"id": "mod-mixed", "name": "Mixed", "price": 0},
+                                {"id": "mod-drums", "name": "All Drums", "price": 200},
+                            ]
+                        },
+                    },
+                    {
+                        "id": "grp-sauce",
+                        "name": "Wings Sauce",
+                        "minRequired": 2,
+                        "maxAllowed": 3,
+                        "modifiers": {
+                            "elements": [
+                                {"id": "mod-hot-honey", "name": "Hot Honey", "price": 0},
+                                {"id": "mod-buffalo", "name": "Buffalo", "price": 0},
+                                {"id": "mod-bbq", "name": "BBQ", "price": 0},
+                            ]
+                        },
+                    },
+                ]
+            },
+        },
     },
-    "by_modifier_id": {"mod-spicy": "item-chicken"},
+    "by_modifier_id": {
+        "mod-spicy": "item-chicken",
+        "mod-flats": "item-wings",
+        "mod-mixed": "item-wings",
+        "mod-drums": "item-wings",
+        "mod-hot-honey": "item-wings",
+        "mod-buffalo": "item-wings",
+        "mod-bbq": "item-wings",
+    },
     "by_name": {},
     "by_category": {},
 }
@@ -228,6 +271,174 @@ def test_unknown_item_fails():
     assert len(result["failedItems"]) == 1
     assert "not found" in result["failedItems"][0]["reason"].lower()
     assert result["addedItems"] == []
+
+
+def test_missing_required_modifiers_rejects_before_adding_line_item():
+    order_response = {"id": "order-1", "total": 0}
+
+    async def _test():
+        with (
+            patch("src.chatbot.tools.cache_get", new_callable=AsyncMock, return_value="order-1"),
+            patch("src.chatbot.tools.cache_set", new_callable=AsyncMock),
+            patch("src.chatbot.tools._menu_items_cached_or_fresh", new_callable=AsyncMock, return_value=_FAKE_MENU),
+            patch("src.chatbot.tools.add_clover_line_item", new_callable=AsyncMock) as mock_add_line,
+            patch("src.chatbot.tools.add_clover_modification", new_callable=AsyncMock) as mock_add_mod,
+            patch("src.chatbot.tools.fetch_clover_order", new_callable=AsyncMock, return_value=order_response),
+        ):
+            result = await addItemsToOrder(
+                "session-1",
+                [
+                    {
+                        "itemId": "item-wings",
+                        "quantity": 1,
+                        "modifiers": ["mod-hot-honey", "mod-buffalo"],
+                    }
+                ],
+                creds=_FAKE_CREDS,
+            )
+            mock_add_line.assert_not_awaited()
+            mock_add_mod.assert_not_awaited()
+            return result
+
+    result = _run(_test())
+    assert result["success"] is False
+    assert result["addedItems"] == []
+    assert len(result["failedItems"]) == 1
+    failure = result["failedItems"][0]
+    assert failure["itemId"] == "item-wings"
+    assert failure["missingRequiredModifiers"] == [
+        {
+            "id": "grp-style",
+            "name": "Wing Style",
+            "minRequired": 1,
+            "maxAllowed": 1,
+            "remainingRequired": 1,
+            "modifiers": [
+                {"id": "mod-flats", "name": "All Flats", "price": 200},
+                {"id": "mod-mixed", "name": "Mixed", "price": 0},
+                {"id": "mod-drums", "name": "All Drums", "price": 200},
+            ],
+        }
+    ]
+    assert result["missingRequiredModifiers"] == [
+        {
+            "itemId": "item-wings",
+            "name": "6 Pc Bone In Wings",
+            "groups": failure["missingRequiredModifiers"],
+        }
+    ]
+
+
+def test_partially_satisfied_required_group_reports_remaining_count():
+    order_response = {"id": "order-1", "total": 0}
+
+    async def _test():
+        with (
+            patch("src.chatbot.tools.cache_get", new_callable=AsyncMock, return_value="order-1"),
+            patch("src.chatbot.tools.cache_set", new_callable=AsyncMock),
+            patch("src.chatbot.tools._menu_items_cached_or_fresh", new_callable=AsyncMock, return_value=_FAKE_MENU),
+            patch("src.chatbot.tools.add_clover_line_item", new_callable=AsyncMock) as mock_add_line,
+            patch("src.chatbot.tools.add_clover_modification", new_callable=AsyncMock),
+            patch("src.chatbot.tools.fetch_clover_order", new_callable=AsyncMock, return_value=order_response),
+        ):
+            result = await addItemsToOrder(
+                "session-1",
+                [
+                    {
+                        "itemId": "item-wings",
+                        "quantity": 1,
+                        "modifiers": ["mod-mixed", "mod-hot-honey"],
+                    }
+                ],
+                creds=_FAKE_CREDS,
+            )
+            mock_add_line.assert_not_awaited()
+            return result
+
+    result = _run(_test())
+    assert result["success"] is False
+    missing = result["failedItems"][0]["missingRequiredModifiers"]
+    assert missing == [
+        {
+            "id": "grp-sauce",
+            "name": "Wings Sauce",
+            "minRequired": 2,
+            "maxAllowed": 3,
+            "remainingRequired": 1,
+            "modifiers": [
+                {"id": "mod-hot-honey", "name": "Hot Honey", "price": 0},
+                {"id": "mod-buffalo", "name": "Buffalo", "price": 0},
+                {"id": "mod-bbq", "name": "BBQ", "price": 0},
+            ],
+        }
+    ]
+
+
+def test_modifier_from_another_item_rejects_before_adding_line_item():
+    order_response = {"id": "order-1", "total": 0}
+
+    async def _test():
+        with (
+            patch("src.chatbot.tools.cache_get", new_callable=AsyncMock, return_value="order-1"),
+            patch("src.chatbot.tools.cache_set", new_callable=AsyncMock),
+            patch("src.chatbot.tools._menu_items_cached_or_fresh", new_callable=AsyncMock, return_value=_FAKE_MENU),
+            patch("src.chatbot.tools.add_clover_line_item", new_callable=AsyncMock) as mock_add_line,
+            patch("src.chatbot.tools.add_clover_modification", new_callable=AsyncMock) as mock_add_mod,
+            patch("src.chatbot.tools.fetch_clover_order", new_callable=AsyncMock, return_value=order_response),
+        ):
+            result = await addItemsToOrder(
+                "session-1",
+                [{"itemId": "item-fries", "quantity": 1, "modifiers": ["mod-spicy"]}],
+                creds=_FAKE_CREDS,
+            )
+            mock_add_line.assert_not_awaited()
+            mock_add_mod.assert_not_awaited()
+            return result
+
+    result = _run(_test())
+    assert result["success"] is False
+    assert result["addedItems"] == []
+    assert result["failedItems"][0]["invalidModifiers"] == ["mod-spicy"]
+    assert "invalid modifiers" in result["failedItems"][0]["reason"]
+
+
+def test_required_modifiers_present_allows_add():
+    line_item_response = {"id": "li-wings", "price": 699}
+    order_response = {"id": "order-1", "total": 699}
+
+    async def _test():
+        with (
+            patch("src.chatbot.tools.cache_get", new_callable=AsyncMock, return_value="order-1"),
+            patch("src.chatbot.tools.cache_set", new_callable=AsyncMock),
+            patch("src.chatbot.tools._menu_items_cached_or_fresh", new_callable=AsyncMock, return_value=_FAKE_MENU),
+            patch("src.chatbot.tools.add_clover_line_item", new_callable=AsyncMock, return_value=line_item_response) as mock_add_line,
+            patch("src.chatbot.tools.add_clover_modification", new_callable=AsyncMock) as mock_add_mod,
+            patch("src.chatbot.tools.fetch_clover_order", new_callable=AsyncMock, return_value=order_response),
+        ):
+            result = await addItemsToOrder(
+                "session-1",
+                [
+                    {
+                        "itemId": "item-wings",
+                        "quantity": 1,
+                        "modifiers": ["mod-mixed", "mod-hot-honey", "mod-buffalo"],
+                    }
+                ],
+                creds=_FAKE_CREDS,
+            )
+            mock_add_line.assert_awaited_once()
+            assert mock_add_mod.await_count == 3
+            return result
+
+    result = _run(_test())
+    assert result["success"] is True
+    assert result["failedItems"] == []
+    assert result["missingRequiredModifiers"] == []
+    assert result["addedItems"][0]["modifiersApplied"] == [
+        "mod-mixed",
+        "mod-hot-honey",
+        "mod-buffalo",
+    ]
 
 
 def test_partial_success():
