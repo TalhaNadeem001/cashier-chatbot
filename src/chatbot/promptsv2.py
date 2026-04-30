@@ -985,7 +985,7 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
          with the modification already applied.
 
     Normal MODIFY_ITEM flow (order already has items):
-    1. Call getOrderLineItems() to inspect the current cart.
+    1. Call getOrderLineItems() to inspect the current order.
        - itemName not found in lineItems → STOP → tell the customer that item is not in their order.
        - Multiple line items match → STOP → list the matching names and ask which one they mean.
        - Exactly one match → take the exact name and lineItemId from that line item.
@@ -1033,7 +1033,7 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
     For CONFIRM_ORDER:
     - Call calcOrderPrice() — for internal tracking only. Do NOT surface the total or any price in your reply.
       After calcOrderPrice returns:
-      - If lineItems is empty → do NOT confirm. Tell the customer their cart is empty and ask what they would like to add.
+      - If lineItems is empty → do NOT confirm. Tell the customer their order is empty and ask what they would like to add.
       - Otherwise → reply with exactly: "Thank you. Your order has been received. Allow me a moment to set your pickup time."
       Only include the total if the customer explicitly asked for it in the same message.
 

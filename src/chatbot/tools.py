@@ -50,7 +50,6 @@ from src.chatbot.constants import (
     _CLOVER_CREDS_REDIS_TTL_SECONDS,
     _COOKING_PREFERENCE_HINTS,
     _COOKING_MODIFIER_HINTS,
-    _DEFAULT_PICKUP_MINUTES,
     _SESSION_CLOVER_ORDER_REDIS_TTL_SECONDS,
     _SESSION_ORDER_DATA_REDIS_TTL_SECONDS,
     _SUMMARIZE_HISTORY_MAX_OUTPUT_TOKENS,
@@ -3041,7 +3040,7 @@ async def calcOrderPrice(session_id: str, creds: dict | None = None) -> dict:
     """Return the current Clover-backed price breakdown for the session order.
 
     Use this before confirming an order or when the execution agent needs an
-    authoritative subtotal / tax / total for the customer's current cart.
+    authoritative subtotal / tax / total for the customer's current order.
 
     Returns a dict:
 
@@ -3115,7 +3114,32 @@ async def calcOrderPrice(session_id: str, creds: dict | None = None) -> dict:
 
 
 async def confirmOrder(session_id: str, creds: dict | None = None) -> dict:
-    """Submit the current Clover order and mark the chat session as confirmed."""
+    """Submit the current Clover order and mark the chat session as confirmed.
+
+    When to call:
+        Call once when the customer confirms they want to place the order AND
+        snapshot.current_order_summary is non-empty. Do NOT call if the order
+        is empty — reply immediately that there is nothing to confirm.
+
+    Args:
+        session_id: The current chat session identifier.
+        creds: Clover credentials dict with keys token, merchant_id, base_url.
+
+    Returns a dict with:
+        success (bool): True if the order was submitted successfully.
+        orderId (str): The Clover order ID.
+        confirmedItems (list): Each item with lineItemId, name, quantity, price, lineTotal.
+        estimatedPickuptime (int | None): Always None — no pickup time is available from
+            this system. Do NOT invent or guess a number. Tell the customer their order
+            is placed and that pickup time will be confirmed by the restaurant.
+        error (str | None): Error message if success is False, else None.
+
+    Decision guide:
+        - success True  → confirm the order to the customer; tell them pickup time will
+                          be confirmed by the restaurant. Do not quote any minutes.
+        - success False → tell the customer the order could not be placed and ask them
+                          to try again or speak to staff.
+    """
     print(f"[confirmOrder] start session_id={session_id!r}")
 
     order_id = await cache_get(_session_clover_order_redis_key(session_id))
@@ -3179,10 +3203,7 @@ async def confirmOrder(session_id: str, creds: dict | None = None) -> dict:
             "success": True,
             "orderId": order_id,
             "confirmedItems": confirmed_items,
-            # Minutes until the order is ready for pickup. Populated so the
-            # agent can phrase the confirmation as "pickup in X minutes"
-            # instead of a hallucinated clock time.
-            "estimatedPickuptime": _DEFAULT_PICKUP_MINUTES,
+            "estimatedPickuptime": None,
             "error": None,
         }
         print(f"[confirmOrder] done item_count={len(confirmed_items)} total={breakdown['total']}")
@@ -3270,11 +3291,11 @@ async def cancelOrder(session_id: str, creds: dict | None = None) -> dict:
 
 
 async def getOrderLineItems(session_id: str, creds: dict | None = None, *, force_refresh: bool = False) -> dict:
-    """Return all line items currently in the customer's cart without modifying the order.
+    """Return all line items currently in the customer's order without modifying it.
 
     Use this tool when you need to inspect what is in the order before acting on it —
     for example, before replacing an item, confirming an order, or answering a customer
-    question about their cart contents.
+    question about their order contents.
 
     Parameters
     ----------
@@ -3297,7 +3318,7 @@ async def getOrderLineItems(session_id: str, creds: dict | None = None, *, force
                                                          Pass these as existingModifierIds to validateModifications
                                                          during MODIFY_ITEM so required groups already satisfied
                                                          are not re-prompted.
-                             Empty list when the cart has no items.
+                             Empty list when the order has no items.
         orderTotal (int)   — Current order total in cents from Clover.
         error (str | None) — Human-readable error message, or None on success.
 

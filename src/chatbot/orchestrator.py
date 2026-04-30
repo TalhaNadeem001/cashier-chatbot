@@ -1516,7 +1516,7 @@ class Orchestrator:
                 persona=persona,
                 merchant_id=request.merchant_id,
                 session_id=request.session_id,
-                phone_number=execution_context.phone_number,
+                phone_number=execution_context.phone_number or "",
                 firebase_uid=execution_context.original_merchant_id or "",
             )
 
@@ -2535,43 +2535,9 @@ class ExecutionAgent:
                 handler=_get_previous_orders_details_tool,
             ),
             llm_client.GeminiFunctionTool(
-                name="suggestedPickupTime",
-                description=(
-                    "MUST be called when the customer suggests a pickup time "
-                    "(e.g., 'I'll be there in 30 minutes', 'can I pick up in an hour?'). "
-                    "Convert the time to whole minutes and pass as pickup_time_minutes. "
-                    "Do NOT call for any other intent."
-                ),
-                parameters_json_schema=_SUGGESTED_PICKUP_TIME_PARAMETERS_JSON_SCHEMA,
-                handler=_guard("suggested_pickup_time", _suggested_pickup_time_tool),
-            ),
-            llm_client.GeminiFunctionTool(
-                name="askingForPickupTime",
-                description=(
-                    "MUST be called in two situations: "
-                    "(1) when the customer asks about pickup time (e.g., 'how long will it take?', "
-                    "'when will my order be ready?', 'what's my wait time?'); "
-                    "(2) always alongside confirmOrder — call both tools for every order confirmation. "
-                    "Do NOT call this when the customer is suggesting a pickup time — use suggestedPickupTime for that."
-                ),
-                parameters_json_schema=_ASKING_FOR_PICKUP_TIME_PARAMETERS_JSON_SCHEMA,
-                handler=_guard("asking_for_pickup_time", _asking_for_pickup_time_tool),
-            ),
-            llm_client.GeminiFunctionTool(
-                name="askingForWaitTime",
-                description=(
-                    "Call this ONLY when the customer asks specifically about the current wait time "
-                    "(e.g. 'what's the wait?', 'how long is the wait right now?', 'how busy are you?'). "
-                    "Do NOT call this for pickup-time questions or alongside confirmOrder — "
-                    "use askingForPickupTime for those."
-                ),
-                parameters_json_schema=_ASKING_FOR_WAIT_TIME_PARAMETERS_JSON_SCHEMA,
-                handler=_guard("asking_for_wait_time", _asking_for_wait_time_tool),
-            ),
-            llm_client.GeminiFunctionTool(
                 name="getOrderLineItems",
                 description=(
-                    "Return all line items currently in the customer's cart. "
+                    "Return all line items currently in the customer's order. "
                     "Call this at the start of MODIFY_ITEM to confirm the target item exists "
                     "in the order before mutating it."
                 ),

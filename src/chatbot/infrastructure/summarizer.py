@@ -20,7 +20,7 @@ Capture:
 - Items ordered, removed, or swapped (with quantities and modifiers)
 - Dietary preferences or constraints mentioned
 - Questions the customer asked and how they were answered
-- Current confirmed cart contents
+- Current confirmed order contents
 - Any pending or unresolved questions
 
 Rules:

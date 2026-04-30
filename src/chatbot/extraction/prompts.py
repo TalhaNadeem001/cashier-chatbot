@@ -15,7 +15,7 @@ You will also receive a short recent history window in the chat messages.
 
 ## Rules
 
-1. Treat the current order as the source of truth for what is already in the cart.
+1. Treat the current order as the source of truth for what is already in the order.
 2. Treat the latest user message as the primary mutation request.
 3. Use recent history only to resolve references such as "that one", "the other one", "same as before", "spicy", "double", "plain fries", "make it a combo", or answers to the cashier's recent question.
 4. Return the complete updated order after applying the customer's latest request.

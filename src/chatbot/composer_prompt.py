@@ -107,6 +107,12 @@ _HARD_RULES = dedent(
 
     8. Never invent a pickup time. Only state a time if a tool returned one
        this turn or in history.
+
+    9. Before asking for a name or calling confirmOrder, check
+       snapshot.current_order_summary. If it is empty (no items), do NOT
+       start the confirmation flow. Reply immediately telling the customer
+       their order is empty and ask them to add items first. Do not call
+       any tools. Set next_stage=ordering.
     """
 ).strip()
 
@@ -275,7 +281,24 @@ _FEW_SHOT_EXAMPLES = dedent(
         "tools_called": []
       }
 
-    --- Example 8: customer provides name in same turn as confirm ---
+    --- Example 8: confirm intent with empty order ---
+    Input excerpt:
+      customer_message: "yes"
+      outcomes: [{intent: "confirm_order", success: true}]
+      snapshot.saw_confirm_intent_this_turn: true
+      snapshot.current_order_summary: []
+
+    Output (no tool calls — empty order guard fires first):
+      {
+        "reply": "Looks like there's nothing in your order yet — what would you like to add?",
+        "next_stage": "ordering",
+        "session_status": null,
+        "name_provided_this_session": false,
+        "queue_mutations": [],
+        "tools_called": []
+      }
+
+    --- Example 9: customer provides name in same turn as confirm ---
     Input excerpt:
       customer_message: "yes, it's Mike"
       outcomes: [
@@ -320,7 +343,7 @@ def build_composer_system_prompt(persona: MerchantPersona) -> str:
             persona configuration. You produce one reply that weaves all of
             it into a single message.
 
-            You are not the parser and you are not the cart agent. The cart
+            You are not the parser and you are not the order agent. The order
             has already been mutated by the executor before you are called;
             outcomes describe what happened. Your job is voice and state.
             """
@@ -357,7 +380,9 @@ def build_composer_system_prompt(persona: MerchantPersona) -> str:
               your output regardless of the tool's success value.
 
             - confirmOrder(): call when the customer is confirming and the
-              snapshot indicates it is appropriate. Read the tool result -
+              snapshot indicates it is appropriate. Do NOT call if
+              snapshot.current_order_summary is empty — reply immediately
+              that there is nothing to confirm. Read the tool result -
               if success=false with error="name_gate_unsatisfied", ask for
               a name. If error="already_confirmed", do not pretend.
 

@@ -56,10 +56,6 @@ _SESSION_ORDER_DATA_REDIS_TTL_SECONDS = 3 * 60 * 60  # 3 hours, matches order id
 _SESSION_CLARIFICATION_AND_INTENT_TTL_SECONDS = 3 * 60 * 60  # 3 hours
 _SUMMARIZE_HISTORY_MAX_OUTPUT_TOKENS = 180
 
-# Default pickup window (minutes) reported to the customer when an order is
-# confirmed and no specific pickup time has been requested.
-_DEFAULT_PICKUP_MINUTES: int = 30
-
 # Combo items that are sold as bundles. These are tracked here for reference
 # but excluded from the system menu — customers order individual components.
 _COMBO_ITEMS: dict[str, str] = {

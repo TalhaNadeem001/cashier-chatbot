@@ -143,10 +143,10 @@ Whenever the message contains **any** combination of ordering a new item AND mod
 5. If a message could belong to two states, put the secondary one in "alternative".
 6. order_modifier_request ONLY when ALL three conditions hold: (a) `Current order` is non-empty, (b) the target item is present in `Current order`, AND (c) no new items are mentioned anywhere in the message — the message is solely about modifying an already-confirmed item. Example: "make it spicy", "remove the sauce", "change to mild". If any condition fails, use an item-level state instead.
 8. For "remove" phrasing, distinguish item removal vs modifier removal:
-   - remove_from_order when the user clearly wants fewer physical units/items in the cart.
+   - remove_from_order when the user clearly wants fewer physical units/items in the order.
    - order_modifier_request when user wants to remove/change an attribute/modifier (spicy, sauce, cheese, etc.) on the base item and no new item is mentioned.
 9. If the message mentions any new menu item — even alongside a modifier phrase (e.g. "extra spicy chicken sando", "spicy tenders and a coke") — do NOT classify as order_modifier_request. Use add_to_order, swap_item, or new_order as appropriate; the modifier will be captured downstream. Exception: "add extra [ingredient]" or "extra [ingredient] too/as well" where the word is a modifier add-on (e.g. "extra chicken", "extra sauce", "extra cheese") rather than a standalone full menu item name — classify as order_modifier_request when the base item is already in the order.
-10. If the user was discussing a specific menu item in a menu-question turn and then follows up with confirmation phrasing plus modifier wording (e.g. "yeah add this", "yea make that spicy"), treat it as ordering that item (with modifier details) rather than modifier-editing an existing cart line: classify as new_order when the cart is empty, otherwise add_to_order.
+10. If the user was discussing a specific menu item in a menu-question turn and then follows up with confirmation phrasing plus modifier wording (e.g. "yeah add this", "yea make that spicy"), treat it as ordering that item (with modifier details) rather than modifier-editing an existing order line: classify as new_order when the order is empty, otherwise add_to_order.
 ## Confidence guide
 
 - high   — The intent is unambiguous.
@@ -156,11 +156,11 @@ Whenever the message contains **any** combination of ordering a new item AND mod
 ## Examples
 
 [Current order: empty]
-"spicy chicken sando please" → new_order  (empty cart → can't be order_modifier_request)
+"spicy chicken sando please" → new_order  (empty order → can't be order_modifier_request)
 
 [Current order: {chicken sando x1}]
 "add a chicken sando, make it spicy" → add_to_order  (mixed: new item + modifier → item state, modifier captured downstream)
-"make it spicy" → order_modifier_request  (pure modifier, item already confirmed in cart)
+"make it spicy" → order_modifier_request  (pure modifier, item already confirmed in order)
 "add extra chicken too" → order_modifier_request  (pure modifier add-on, base item confirmed)
 "I want a burger with no onions" → add_to_order  (new item + modifier → item state)
 "I want a burger with no onions and a Sprite" → add_to_order  (multiple new items + modifier → item state)
@@ -224,8 +224,8 @@ Classify the user's latest message into exactly one state. Use conversation hist
 - vague_message      — Intent is genuinely unclear even in context ("hmm", "maybe"). Not for off-topic messages with clear intent.
 - restaurant_question — Questions about the restaurant itself: hours, location, parking, seating, reservations, policies, contact.
 - menu_question      — Questions about the menu: dishes, drinks, beverages, ingredients, allergens, dietary options, pricing, available customizations.
-- food_order         — Cart-level actions: adding/removing whole items, changing quantities, canceling the order, adding modifiers to existing items.
-- order_review       — User is asking what's currently in their cart or what their running total is ("what do I have so far?", "read back my order", "what's my total?", "how much is this?").
+- food_order         — Order-level actions: adding/removing whole items, changing quantities, canceling the order, adding modifiers to existing items.
+- order_review       — User is asking what's currently in their order or what their running total is ("what do I have so far?", "read back my order", "what's my total?", "how much is this?").
 - pickup_ping        — Time-related queries: when food will be ready, wait times, order status, ETA.
 - pickup_time_suggestion — Customer is telling us when they plan to pick up their order ("can I get this in 2 hours?", "I'll be there in 30 minutes", "pickup around 3pm").
 - misc               — Clear intent unrelated to the restaurant (weather, sports, compliments, general chat).
@@ -317,7 +317,7 @@ You will receive:
 3. When unsure, confirm rather than guess. The code falls back to add_to_order if needed.
 4. Never invent a state not in this list: add_to_order, remove_from_order, swap_item, cancel_order, order_modifier_request.
 5. If the proposed state is remove_from_order but the current order is empty, that is wrong — correct it.
-6. If the proposed state is order_modifier_request but the **base item** is only **implied** (e.g. guessed from a sauce/modifier pairing like tartar–fish, or several cart lines could match with no explicit name), reject it — set confirmed: false and corrected_state to the more appropriate state (usually add_to_order).
+6. If the proposed state is order_modifier_request but the **base item** is only **implied** (e.g. guessed from a sauce/modifier pairing like tartar–fish, or several order lines could match with no explicit name), reject it — set confirmed: false and corrected_state to the more appropriate state (usually add_to_order).
 
 ## Output format
 

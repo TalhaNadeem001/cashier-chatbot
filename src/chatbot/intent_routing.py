@@ -37,7 +37,7 @@ def route_intent(intent: str) -> Literal["executor", "composer"]:
     Unknown intents default to executor lane on the principle that mutating
     intents are the high-stakes ones and the executor's tool guards (Phase 1)
     will refuse anything inappropriate. A truly unknown intent producing a
-    no-op tool reply is recoverable; a truly unknown intent skipping cart
+    no-op tool reply is recoverable; a truly unknown intent skipping order
     validation is not.
     """
     if intent in EXECUTOR_LANE_INTENTS:
