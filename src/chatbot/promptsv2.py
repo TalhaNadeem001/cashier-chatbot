@@ -55,10 +55,14 @@ DEFAULT_PARSING_AGENT_PROMPTS = ParsingAgentPrompts(
         Case A — Single-item confirmation: QA contains a "Did you mean [X]?" or
         "Just to confirm, did you mean [X]?" question AND the customer's latest message
         is an affirmative reply. Extract [X] exactly as written (preserving capitalisation).
-        Case B — Multi-item selection: QA contains a question that lists multiple item names
-        (e.g. "Did you mean any of the following?\nItem A\nItem B\nItem C") AND the
-        customer's latest message exactly matches one of those listed item names (case-insensitive).
-        Set ConfirmedItemName to the matching name exactly as it appears in the question list.
+        Case B — Numbered-list selection: QA contains a question that lists multiple item names
+        as a numbered list (e.g. "Which one did you mean?\n1. Item A\n2. Item B\n3. Item C").
+        The customer's reply is either:
+          (a) a number (e.g. "1", "2", "the first one", "option 2") — resolve to the candidate
+              at that position in the list (1-indexed) and set ConfirmedItemName to that name
+              exactly as it appears in the list.
+          (b) a verbatim name match (case-insensitive) — set ConfirmedItemName to that name
+              exactly as it appears in the list.
         Leave ConfirmedItemName null for modifier/size selections and all other cases.
         Return ONLY the JSON.
         No explanation. No preamble. No markdown fences.
@@ -216,16 +220,18 @@ DEFAULT_PARSING_AGENT_PROMPTS = ParsingAgentPrompts(
         right", "sure", "exactly", "that one", "that's it", etc.), set ConfirmedItemName
         to [X] exactly as it appears in the question (preserving capitalisation and spacing).
 
-        Case B — Multi-item selection:
-        When the QA question lists multiple item names (e.g. a message like
-        "I apologize for the confusion. Did you mean any of the following?\nAnimal Fries\nRegular Fries\nCan Of Pop")
-        and the customer's latest message is a verbatim (case-insensitive) match of exactly
-        one of those listed names, set ConfirmedItemName to that name exactly as it appears
-        in the question list (preserving capitalisation).
-        To detect this pattern: the question contains "Did you mean any of the following" or
-        "Which would you like" followed by a newline-separated or comma-separated list of
-        item names. Check whether the customer's reply matches any listed name exactly
-        (ignoring case and leading/trailing whitespace).
+        Case B — Numbered-list selection:
+        When the QA question presents a numbered list of item names (e.g.
+        "I found a few close matches. Which one did you mean?\n1. Animal Fries\n2. Regular Fries\n3. Can Of Pop")
+        and the customer's reply is either:
+          (a) a number or ordinal reference (e.g. "1", "2", "first", "the second one",
+              "option 2", "#1") — resolve to the item at that 1-indexed position in the
+              list and set ConfirmedItemName to that name exactly as it appears in the list.
+          (b) a verbatim name match (case-insensitive) of one of the listed names — set
+              ConfirmedItemName to that name exactly as it appears in the list.
+        To detect this pattern: the question contains a numbered list (lines starting with
+        "1.", "2.", etc.) of item names. Parse those lines to build the candidate list, then
+        match the customer's reply by number or by name.
 
         Only set ConfirmedItemName for item-name disambiguation questions. Do NOT set it
         when the question is about a modifier, size, sauce, or any other attribute — those
@@ -829,8 +835,8 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
     When any parsed intent has confidence_level of "low":
     - For add_item: Still call validateRequestedItem(itemName, details) first to identify what
       exists on the menu. If matchConfidence is "exact" and allValid is True, proceed normally.
-      If matchConfidence is "close", do NOT call any mutation tools — present candidates[0].name
-      and ask the customer to confirm before proceeding.
+      If matchConfidence is "close", do NOT call any mutation tools — list ALL candidates as a
+      numbered list and ask the customer which one they want before proceeding.
     - For modify_item, remove_item, and replace_item (old item only): Do NOT call
       validateRequestedItem. Instead start with getOrderLineItems() to confirm the item exists
       in the current order, then proceed with the normal flow for that intent. If the item is
@@ -975,19 +981,17 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
          step you are on for this item:
 
          Step 1 — No prior clarification attempt for this item appears in qa_pairs
-           → Ask: "Just to confirm, did you mean [candidates[0].name]?"
+           → List ALL items from candidates[] as a numbered list and ask which one the
+             customer wants. Format exactly as:
+             "I found a few close matches. Which one did you mean?
+             1. [candidates[0].name]
+             2. [candidates[1].name]
+             ..." (one line per candidate, starting at 1)
            → Do NOT call any mutation tool.
 
-         Step 2 — qa_pairs shows the most recent bot message was a single-item
-           "did you mean [X]?" question AND the customer's latest reply is a rejection
-           ("no", "nope", "not that", "that's not it", etc.)
-           → List ALL items from candidates[] by name and ask:
-             "I apologize for the confusion. Did you mean any of the following?" followed by
-             every candidate name on its own line.
-           → Do NOT call any mutation tool.
-
-         Step 3 — qa_pairs shows the most recent bot message listed multiple candidates
-           AND the customer's latest reply is still a rejection
+         Step 2 — qa_pairs shows the most recent bot message listed multiple candidates
+           AND the customer's latest reply is still a rejection (not a number, not a name
+           from the list, explicitly says no/none/neither/other)
            → Call humanInterventionNeeded immediately. Do not ask again.
 
          Confirmation — confirmed_item_name is set in your context (the orchestrator has
