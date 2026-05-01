@@ -471,3 +471,22 @@ Explicitly stores the confirmed menu item name and close-match candidates in the
 - `leftover_words` is computed from the customer's original item name against each candidate name independently. Stopwords are NOT filtered here (unlike the orphan-downgrade check) — minor words in the original query that are absent from the candidate name still show up as leftover and get passed to the modifier resolver, which ignores truly irrelevant tokens.
 - **Exact match** also populates `confirmed_item_name` and `close_match_candidates`, set immediately when the entry goes `need_clarification` (not deferred to a parser turn). The tracker captures them when `matchConfidence` is `"exact"` or `"auto_exact"` and `allValid == False`. `leftoverWords` is now returned in the `validateRequestedItem` result and stored in the single-element candidate so `resolved_details` is initialised consistently for both paths.
 - `confirmed_item_name` has two write paths: parser (`ConfirmedItemName` in `ModifiedEntries`, for close-match) and tracker → orchestrator main loop (for exact/auto_exact). The modifier-answer accumulation branch (`elif entry.get("confirmed_item_name")`) is correct for both because the condition is the same.
+
+## 2026-05-01 - Close-match lists all candidates immediately
+
+### Change
+On a `matchConfidence == "close"` result, the execution agent now presents **all** candidates as a numbered list on the **first** clarification turn instead of asking about only `candidates[0]`. The 3-step flow collapses to 2 steps:
+
+1. **Step 1** — Agent lists all candidates numbered ("I found a few close matches. Which one did you mean?\n1. X\n2. Y\n..."). Customer picks by number OR by typing the name.
+2. **Step 2** — If customer still rejects (no number, no name match, explicit refusal) → `humanInterventionNeeded`.
+
+### Parser changes (`src/chatbot/promptsv2.py`)
+- **Output format preamble** (Case B): updated to describe numbered-list format; customer may reply with a number or an exact name.
+- **Parsing rules** (`CONFIRMED ITEM NAME DETECTION` Case B): updated to handle numeric picks ("1", "second", "option 2") by resolving to the item at that 1-indexed position, and name picks by case-insensitive match.
+
+### Execution agent changes (`src/chatbot/promptsv2.py`)
+- `matchConfidence "close"` section: Step 1 now formats all candidates as a numbered list. Old Steps 1 and 2 (single-ask then fallback list) removed.
+- `LOW CONFIDENCE BEHAVIOR` blurb updated to match.
+
+### No orchestrator or tools.py changes needed
+The orchestrator already handles `ConfirmedItemName` by string-matching against `close_match_candidates` by name. As long as the parser resolves the numeric pick to the correct candidate name, the existing flow works unchanged.

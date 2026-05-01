@@ -27,3 +27,7 @@ class AmbiguousMatchResolutionPayload(BaseModel):
 
 class OrderItemsResult(BaseModel):
     items: list[OrderItem] = Field(default_factory=list)
+
+
+class SemanticCandidateFilterPayload(BaseModel):
+    matching_candidate_keys: list[str] = Field(default_factory=list)

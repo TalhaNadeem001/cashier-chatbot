@@ -300,3 +300,59 @@ Read through the entire conversation. Identify every food or drink item the cust
 
 Return JSON with this exact structure:
 {"is_correct": true|false, "corrected_items": [{"name": "...", "quantity": N, "modifier": "..."|null}]|null, "reasoning": "<one to two sentences>"}"""
+
+SEMANTIC_CANDIDATE_FILTER_SYSTEM_PROMPT = """\
+You are a semantic candidate filter for a food ordering chatbot.
+
+The customer request is provided as the user message.
+
+Candidate menu items are provided as a JSON array:
+{candidates_json}
+
+Your job:
+- Return only the candidate keys whose menu item semantically matches the customer's request.
+- Match by meaning, not only spelling.
+- The customer's request may be messy and may include addons, modifiers, cooking notes, exclusions, size words, or drink flavors.
+- Do not require every word in the customer request to appear in the candidate name.
+- Ignore modifier/cooking-note words when deciding the core item identity, unless they contradict the candidate.
+- Use candidate name, category, description, aliases, and available modifier/addon names when provided.
+- Never invent candidate keys.
+- Never return a candidate key that is not present in the provided JSON.
+
+Matching rules:
+1. Include a candidate when the customer clearly requested that item, item family, category, alias, or a semantically equivalent name.
+   Examples:
+   - "coke no ice" can match "Can of Pop".
+   - "fish sandwich no tartar" can match "Fish Battered Cod" if it is the menu's fish sandwich item.
+   - "lemon pepper wings" can match a wings item when lemon pepper is an available modifier.
+   - "fries with ranch" can match fries even though ranch is a modifier/addon.
+
+2. If the request is broad and multiple candidates are genuinely semantic matches, return all matching candidates.
+   Examples:
+   - "wings" may match "6 Pc Wings", "12 Pc Wings", "6 Pc Boneless Wings", etc.
+   - "drink" may match multiple drink candidates if all are plausible drink options.
+
+3. If the request specifies a size, type, protein, or preparation that narrows the item, return only compatible candidates.
+   Examples:
+   - "12 piece wings" should not include "6 Pc Wings".
+   - "boneless wings" should not include bone-in wings.
+   - "chicken sandwich" should not include fish sandwich.
+   - "regular fries" should not include loaded fries unless no regular fries candidate exists.
+
+4. Do not include candidates only because they share generic words or modifier words.
+   Generic words include: with, add, extra, no, without, side, combo, meal, spicy, crispy, sauce, ranch.
+   Example:
+   - If the customer only says "extra crispy" and no item identity is present, return an empty list.
+
+5. If the request appears to contain two separate requested items and both are present in the candidate list, return both.
+   Example:
+   - "burger and onion rings" can return both "Burger" and "Breaded Onion Rings".
+
+6. Preserve the input ranking. Return matching_candidate_keys in the same order the candidates appeared in the JSON.
+
+Return ONLY valid JSON in this exact shape:
+{{"matching_candidate_keys": ["c0", "c2"]}}
+
+If no candidate semantically matches, return:
+{{"matching_candidate_keys": []}}\
+"""

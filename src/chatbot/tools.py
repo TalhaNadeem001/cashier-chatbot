@@ -20,7 +20,7 @@ from src.cache import (
     cache_set,
 )
 from src.chatbot.cart.ai_client import classify_modifier_or_addon_request
-from src.chatbot.clarification.ai_resolver import resolve_modifiers_for_item
+from src.chatbot.clarification.ai_resolver import resolve_modifiers_for_item, resolve_semantic_candidate_matches
 from src.chatbot.clarification.constants import (
     AMBIGUITY_GAP,
     CONFIRMED_THRESHOLD,
@@ -415,6 +415,250 @@ _ONION_RINGS_ALIASES: frozenset[str] = frozenset({
 })
 _ONION_RINGS_CANONICAL = "breaded onion rings"
 
+_ALIAS_GROUPS: tuple[tuple[frozenset[str], str], ...] = (
+    (_SODA_ALIASES, _SODA_CANONICAL),
+    (_FISH_SANDWICH_ALIASES, _FISH_SANDWICH_CANONICAL),
+    (_SIGNATURE_BURGER_ALIASES, _SIGNATURE_BURGER_CANONICAL),
+    (_HOT_HONEY_BURGER_ALIASES, _HOT_HONEY_BURGER_CANONICAL),
+    (_ONION_RINGS_ALIASES, _ONION_RINGS_CANONICAL),
+)
+
+
+def _normalized_aliases(aliases: frozenset[str] | set[str]) -> set[str]:
+    return {_normalize_phrase(a) for a in aliases if _normalize_phrase(a)}
+
+
+def _contains_token_span(tokens: list[str], span_tokens: list[str]) -> bool:
+    if not tokens or not span_tokens or len(span_tokens) > len(tokens):
+        return False
+    span_len = len(span_tokens)
+    return any(tokens[i:i + span_len] == span_tokens for i in range(len(tokens) - span_len + 1))
+
+
+def _embedded_alias_canonical_queries(item_name: str, items_by_name: dict) -> list[str]:
+    """Return canonical item names whose aliases appear inside a longer phrase.
+
+    This intentionally returns query hypotheses only. It must not mutate item_name.
+    """
+    tokens = _phrase_tokens(item_name)
+    if not tokens:
+        return []
+
+    queries: list[str] = []
+    seen: set[str] = set()
+
+    for aliases, canonical in _ALIAS_GROUPS:
+        if canonical not in items_by_name:
+            continue
+
+        for alias in sorted(_normalized_aliases(aliases), key=lambda a: len(_phrase_tokens(a)), reverse=True):
+            alias_tokens = _phrase_tokens(alias)
+            if not alias_tokens:
+                continue
+
+            # Avoid extremely broad single-token embedded aliases except for soda/pop aliases.
+            # Exact alias rewriting still handles exact "fish" → fish sandwich.
+            is_soda_group = canonical == _SODA_CANONICAL
+            if len(alias_tokens) == 1 and not is_soda_group:
+                continue
+
+            if _contains_token_span(tokens, alias_tokens):
+                if canonical not in seen:
+                    queries.append(canonical)
+                    seen.add(canonical)
+                break
+
+    return queries
+
+
+_MAX_MATCH_QUERY_HYPOTHESES = 160
+_MAX_CONTIGUOUS_SPAN_TOKENS = 6
+_MAX_SUBSEQUENCE_SOURCE_TOKENS = 10
+_MAX_SUBSEQUENCE_HYPOTHESES = 80
+
+_LOW_VALUE_QUERY_TOKENS: frozenset[str] = frozenset({
+    "a", "an", "the", "please",
+    "no", "without", "hold", "remove", "minus",
+    "with", "add", "added", "extra", "plus",
+    "light", "easy", "heavy",
+    "on", "side", "sides",
+    "only", "plain",
+    "rare", "medium", "well", "done",
+    "crispy", "crisp", "soft",
+})
+
+_ITEM_BOUNDARY_TOKENS: frozenset[str] = frozenset({
+    "and", "&",
+})
+
+
+def _menu_name_token_set(items_by_name: dict) -> set[str]:
+    """Build normalized token set from menu item keys and display names."""
+    tokens: set[str] = set()
+
+    for key, item_defs in items_by_name.items():
+        tokens.update(_phrase_tokens(key))
+
+        if isinstance(item_defs, list):
+            for item in item_defs:
+                tokens.update(_phrase_tokens(item.get("name", "")))
+        elif isinstance(item_defs, dict):
+            tokens.update(_phrase_tokens(item_defs.get("name", "")))
+
+    return tokens
+
+
+def _is_low_value_query(tokens: list[str]) -> bool:
+    if not tokens:
+        return True
+    return all(token in _LOW_VALUE_QUERY_TOKENS for token in tokens)
+
+
+def _generate_corrupted_item_queries(item_name: str, items_by_name: dict) -> list[tuple[str, float]]:
+    """Generate item-name query hypotheses from a corrupted parsed item phrase.
+
+    Returns list of (query, penalty). Penalty is subtracted from fuzzy score.
+    This function must not return public output fields.
+    """
+    normalized = _normalize_phrase(item_name)
+    tokens = _phrase_tokens(item_name)
+    menu_tokens = _menu_name_token_set(items_by_name)
+
+    queries: list[tuple[str, float]] = []
+    seen: set[str] = set()
+
+    def add_query(query: str, penalty: float = 0.0) -> None:
+        query = _normalize_phrase(query)
+        if not query or query in seen:
+            return
+        query_tokens = _phrase_tokens(query)
+        if _is_low_value_query(query_tokens):
+            return
+        seen.add(query)
+        queries.append((query, penalty))
+
+    # 1. Full original phrase.
+    add_query(normalized, 0.0)
+
+    # 2. Canonical item names from aliases embedded in the phrase.
+    for canonical in _embedded_alias_canonical_queries(item_name, items_by_name):
+        add_query(canonical, 0.0)
+
+    # 3. Contiguous spans. These catch "cheeseburger" inside
+    #    "cheeseburger no pickles extra cheese".
+    n = len(tokens)
+    for start in range(n):
+        for end in range(start + 1, min(n, start + _MAX_CONTIGUOUS_SPAN_TOKENS) + 1):
+            span_tokens = tokens[start:end]
+
+            if _is_low_value_query(span_tokens):
+                continue
+
+            # Avoid generating spans that have no overlap with menu vocabulary.
+            if menu_tokens and not any(token in menu_tokens for token in span_tokens):
+                continue
+
+            # If the span starts immediately after "and", it may be a second item,
+            # not a modifier-contaminated name. Keep it as a possible candidate, but
+            # penalize it enough to avoid auto-selecting it too eagerly.
+            dropped = n - len(span_tokens)
+            boundary_penalty = 4.0 if start > 0 and tokens[start - 1] in _ITEM_BOUNDARY_TOKENS else 0.0
+            penalty = min(14.0, 2.0 * dropped) + boundary_penalty
+
+            add_query(" ".join(span_tokens), penalty)
+
+    # 4. Filtered query with common note/modifier words removed.
+    filtered_tokens = [t for t in tokens if t not in _LOW_VALUE_QUERY_TOKENS]
+    if filtered_tokens and filtered_tokens != tokens:
+        add_query(" ".join(filtered_tokens), min(10.0, 1.5 * (len(tokens) - len(filtered_tokens))))
+
+    # 5. Limited ordered subsequences for non-contiguous names.
+    #    Keep capped to avoid combinatorial explosion.
+    if 2 <= n <= _MAX_SUBSEQUENCE_SOURCE_TOKENS:
+        generated = 0
+        for subset_len in range(min(n - 1, _MAX_CONTIGUOUS_SPAN_TOKENS), 0, -1):
+            for indices in itertools.combinations(range(n), subset_len):
+                if generated >= _MAX_SUBSEQUENCE_HYPOTHESES:
+                    break
+
+                subseq_tokens = [tokens[i] for i in indices]
+                if _is_low_value_query(subseq_tokens):
+                    continue
+                if menu_tokens and not any(token in menu_tokens for token in subseq_tokens):
+                    continue
+
+                dropped = n - len(subseq_tokens)
+                add_query(" ".join(subseq_tokens), min(16.0, 2.5 * dropped))
+                generated += 1
+
+            if generated >= _MAX_SUBSEQUENCE_HYPOTHESES:
+                break
+
+    return queries[:_MAX_MATCH_QUERY_HYPOTHESES]
+
+
+def _collect_top_menu_matches(
+    *,
+    item_name: str,
+    items_by_name: dict,
+    limit: int = 5,
+) -> list[tuple[str, float, object]]:
+    """Return RapidFuzz-shaped top matches using multiple query hypotheses.
+
+    The returned tuple shape must remain compatible with _build_candidates:
+    (menu_name, score, index_or_key)
+    """
+    items_name_set = set(items_by_name)
+    if not items_name_set:
+        return []
+
+    best_by_name: dict[str, tuple[float, object]] = {}
+
+    for query, penalty in _generate_corrupted_item_queries(item_name, items_by_name):
+        matches = process.extract(query, items_name_set, scorer=_combined_scorer, limit=limit)
+        for name, score, key in matches:
+            adjusted_score = max(0.0, min(100.0, float(score) - float(penalty)))
+
+            previous = best_by_name.get(name)
+            if previous is None or adjusted_score > previous[0]:
+                best_by_name[name] = (adjusted_score, key)
+
+    return [
+        (name, score, key)
+        for name, (score, key) in sorted(
+            best_by_name.items(),
+            key=lambda item: item[1][0],
+            reverse=True,
+        )[:limit]
+    ]
+
+
+def _best_category_match_for_corrupted_phrase(
+    *,
+    item_name: str,
+    items_by_category: dict,
+    items_by_name: dict,
+) -> tuple[str, float, object] | None:
+    if not items_by_category:
+        return None
+
+    category_names = set(items_by_category)
+    best: tuple[str, float, object] | None = None
+
+    # Reuse generated item queries, but match them against category names.
+    for query, penalty in _generate_corrupted_item_queries(item_name, items_by_name):
+        candidate = process.extractOne(query, category_names, scorer=_combined_scorer)
+        if candidate is None:
+            continue
+
+        name, score, key = candidate
+        adjusted_score = max(0.0, min(100.0, float(score) - float(penalty)))
+
+        if best is None or adjusted_score > best[1]:
+            best = (name, adjusted_score, key)
+
+    return best
+
 
 def _find_closest_menu_items_from_menu(
     *,
@@ -426,22 +670,22 @@ def _find_closest_menu_items_from_menu(
     items_by_name = menu_items.get("by_name", {})
     items_name_set = set(items_by_name)
 
-    # Soda alias pre-processing: if the customer named a soda variant and the menu
-    # has no exact match for it but does have the canonical "can of pop" item,
-    # rewrite item_name so fuzzy matching resolves correctly.
-    normalized_input = item_name.lower().strip()
+    original_item_name = item_name
+    normalized_input = _normalize_phrase(item_name)
+
+    alias_rewritten = False
     can_of_pop_in_menu = _SODA_CANONICAL in items_by_name
     if (
-        normalized_input in _SODA_ALIASES
+        normalized_input in _normalized_aliases(_SODA_ALIASES)
         and _get_local_item(item_name, items_by_name) is None
         and can_of_pop_in_menu
     ):
         item_name = _SODA_CANONICAL
+        alias_rewritten = True
 
-    alias_rewritten = False
     fish_sandwich_in_menu = _FISH_SANDWICH_CANONICAL in items_by_name
     if (
-        normalized_input in _FISH_SANDWICH_ALIASES
+        normalized_input in _normalized_aliases(_FISH_SANDWICH_ALIASES)
         and _get_local_item(item_name, items_by_name) is None
         and fish_sandwich_in_menu
     ):
@@ -453,7 +697,7 @@ def _find_closest_menu_items_from_menu(
         alias_rewritten = True
 
     if (
-        normalized_input in _SIGNATURE_BURGER_ALIASES
+        normalized_input in _normalized_aliases(_SIGNATURE_BURGER_ALIASES)
         and _get_local_item(item_name, items_by_name) is None
         and _SIGNATURE_BURGER_CANONICAL in items_by_name
     ):
@@ -465,7 +709,7 @@ def _find_closest_menu_items_from_menu(
         alias_rewritten = True
 
     if (
-        normalized_input in _HOT_HONEY_BURGER_ALIASES
+        normalized_input in _normalized_aliases(_HOT_HONEY_BURGER_ALIASES)
         and _get_local_item(item_name, items_by_name) is None
         and _HOT_HONEY_BURGER_CANONICAL in items_by_name
     ):
@@ -477,7 +721,7 @@ def _find_closest_menu_items_from_menu(
         alias_rewritten = True
 
     if (
-        normalized_input in _ONION_RINGS_ALIASES
+        normalized_input in _normalized_aliases(_ONION_RINGS_ALIASES)
         and _get_local_item(item_name, items_by_name) is None
         and _ONION_RINGS_CANONICAL in items_by_name
     ):
@@ -488,12 +732,18 @@ def _find_closest_menu_items_from_menu(
         item_name = _ONION_RINGS_CANONICAL
         alias_rewritten = True
 
-    exact_match = _get_local_item(item_name, items_by_name)
-    top_matches = process.extract(
-        item_name, items_name_set, scorer=_combined_scorer, limit=5
+    # Generate embedded alias hypotheses only when the whole input was NOT alias-rewritten.
+    # (If alias_rewritten is True, the canonical is already in item_name.)
+    hypothesis_queries = (
+        _embedded_alias_canonical_queries(original_item_name, items_by_name)
+        if not alias_rewritten
+        else []
     )
 
+    exact_match = _get_local_item(item_name, items_by_name)
+
     if exact_match is not None:
+        top_matches = process.extract(item_name, items_name_set, scorer=_combined_scorer, limit=5)
         candidates = _build_candidates(top_matches, details, items_by_name, item_name=item_name)
         return {
             "exact_match": exact_match,
@@ -502,11 +752,38 @@ def _find_closest_menu_items_from_menu(
             "alias_rewritten": alias_rewritten,
         }
 
+    top_matches = _collect_top_menu_matches(
+        item_name=original_item_name,
+        items_by_name=items_by_name,
+        limit=5,
+    )
+
     if not top_matches or top_matches[0][1] < LOW_MENU_MATCH_THRESHOLD:
+        # Embedded alias fallback: if the phrase contained a known alias token span,
+        # resolve the canonical directly before trying category matching or giving up.
+        for hyp_canonical in hypothesis_queries:
+            hyp_match = _get_local_item(hyp_canonical, items_by_name)
+            if hyp_match is not None:
+                hyp_top = process.extract(hyp_canonical, items_name_set, scorer=_combined_scorer, limit=5)
+                hyp_candidates = _build_candidates(hyp_top, details, items_by_name, item_name=original_item_name)
+                print(
+                    f"[findClosestMenuItems] embedded alias fallback "
+                    f"original={original_item_name!r} → resolved to {hyp_canonical!r}"
+                )
+                return {
+                    "exact_match": hyp_match,
+                    "candidates": hyp_candidates,
+                    "match_confidence": "exact",
+                    "alias_rewritten": True,
+                }
         # Category fallback: try matching against category names before giving up
         items_by_category = menu_items.get("by_category", {})
         if items_by_category:
-            best_cat = process.extractOne(item_name, set(items_by_category), scorer=_combined_scorer)
+            best_cat = _best_category_match_for_corrupted_phrase(
+                item_name=original_item_name,
+                items_by_category=items_by_category,
+                items_by_name=items_by_name,
+            )
             if best_cat and best_cat[1] >= LOW_MENU_MATCH_THRESHOLD:
                 matched_cat = best_cat[0]
                 category_items = items_by_category[matched_cat]
@@ -519,7 +796,7 @@ def _find_closest_menu_items_from_menu(
         return _no_match
 
     best_score = top_matches[0][1]
-    candidates = _build_candidates(top_matches, details, items_by_name, item_name=item_name)
+    candidates = _build_candidates(top_matches, details, items_by_name, item_name=original_item_name)
 
     # If the top fuzzy match is high-confidence with no close competitor, auto-confirm
     # it as exact — mirrors FuzzyMatcher.match_item which confirms at CONFIRMED_THRESHOLD.
@@ -624,28 +901,44 @@ def _find_best_word_subset_match(
         match_result   – result from _find_closest_menu_items_from_menu
         excluded_words – list[str] words absent from the winning subset (original order)
     """
-    words = item_name.lower().strip().split()
-    n = len(words)
-    if n < 2:
+    words = _phrase_tokens(item_name)
+    if not words:
         return None
 
+    if len(words) > _MAX_SUBSEQUENCE_SOURCE_TOKENS:
+        words = words[:_MAX_SUBSEQUENCE_SOURCE_TOKENS]
+
+    n = len(words)
     items_name_set = set(menu_items.get("by_name", {}))
     best_score = -1.0
     best_indices: tuple[int, ...] | None = None
 
     # Enumerate all ordered subsets (subsequences preserving word order) from
-    # length n-1 down to 2. Longer subsets are tried first so ties are broken
+    # length n-1 down to 1. Longer subsets are tried first so ties are broken
     # in favour of the subset that drops the fewest words.
-    for subset_len in range(n - 1, 1, -1):
+    generated = 0
+    for subset_len in range(n - 1, 0, -1):
         for indices in itertools.combinations(range(n), subset_len):
-            candidate = " ".join(words[i] for i in indices)
+            if generated >= _MAX_SUBSEQUENCE_HYPOTHESES:
+                break
+
+            candidate_tokens = [words[i] for i in indices]
+            if _is_low_value_query(candidate_tokens):
+                continue
+
+            candidate = " ".join(candidate_tokens)
             top = process.extractOne(candidate, items_name_set, scorer=_combined_scorer)
+            generated += 1
+
             if top is None:
                 continue
             score = float(top[1])
             if score >= LOW_MENU_MATCH_THRESHOLD and score > best_score:
                 best_score = score
                 best_indices = indices
+
+        if generated >= _MAX_SUBSEQUENCE_HYPOTHESES:
+            break
 
     if best_indices is None:
         return None
@@ -769,46 +1062,109 @@ def _score_details_against_item(details: str, item_def: dict) -> float:
     return best[1] if best else 0.0
 
 
-def _normalize_word(word: str) -> str:
-    """Lowercase, strip accents, expand hyphens/slashes — canonical form for name matching.
+_TOKEN_RE = re.compile(r"[a-z0-9]+(?:'[a-z0-9]+)?", re.IGNORECASE)
 
-    "jalapeño" → "jalapeno",  "bone-in" is handled at the token level by _expand_token.
-    """
-    return unicodedata.normalize("NFKD", word).encode("ascii", "ignore").decode("ascii")
+
+def _normalize_word(word: str) -> str:
+    """Lowercase, strip accents, expand hyphens/slashes — canonical form for name matching."""
+    return (
+        unicodedata.normalize("NFKD", str(word))
+        .encode("ascii", "ignore")
+        .decode("ascii")
+        .lower()
+    )
 
 
 def _expand_token(token: str) -> list[str]:
-    """Normalize and split a hyphen/slash-connected token into sub-tokens.
+    """Normalize and split a hyphen/slash/underscore-connected token into sub-tokens."""
+    return [_normalize_word(t) for t in re.split(r"[-/_]", str(token)) if t]
 
-    "bone-in" → ["bone", "in"],  "jalapeño" → ["jalapeno"],  "s&p" → ["s&p"].
+
+def _normalize_phrase(text: str | None) -> str:
+    """Normalize free text for menu matching.
+
+    Lowercases, strips accents, expands common separators, removes most
+    punctuation, and collapses whitespace.
     """
-    return [_normalize_word(t) for t in re.split(r"[-/]", token) if t]
+    if not text:
+        return ""
+    normalized = unicodedata.normalize("NFKD", str(text))
+    normalized = normalized.encode("ascii", "ignore").decode("ascii")
+    normalized = normalized.lower()
+    normalized = re.sub(r"[/_-]+", " ", normalized)
+    normalized = re.sub(r"[^a-z0-9'& ]+", " ", normalized)
+    return re.sub(r"\s+", " ", normalized).strip()
+
+
+def _phrase_tokens(text: str | None) -> list[str]:
+    """Return normalized tokens for a free-text phrase."""
+    return _TOKEN_RE.findall(_normalize_phrase(text))
+
+
+def _candidate_equivalent_name_tokens(item_def: dict) -> set[str]:
+    """Tokens that should count as naming the candidate item.
+
+    Includes canonical item name tokens and tokens from aliases that map to this
+    item's canonical menu name. This prevents "coke" from appearing as leftover
+    when it resolved to "Can of Pop".
+    """
+    display_name = item_def.get("name", "")
+    tokens: set[str] = set(_phrase_tokens(display_name))
+
+    normalized_display = _normalize_phrase(display_name)
+
+    for aliases, canonical in _ALIAS_GROUPS:
+        if normalized_display == _normalize_phrase(canonical):
+            for alias in aliases:
+                tokens.update(_phrase_tokens(alias))
+
+    return tokens
 
 
 def _build_candidates(
     top_matches: list, details: str | None, items_by_name: dict, *, item_name: str = ""
 ) -> list[dict]:
-    raw_candidates = []
-    for name, _, _ in top_matches[:3]:
+    raw_candidates: list[tuple[dict, float]] = []
+
+    for match in top_matches[:3]:
+        name = match[0]
+        name_score = float(match[1])
+
         defn = _get_local_item(name, items_by_name)
         if defn is None:
             continue
-        # Build normalized candidate name word set: expand hyphens + strip accents.
-        candidate_name_words: set[str] = set()
-        for w in str(defn.get("name", "")).lower().split():
-            candidate_name_words.update(_expand_token(w))
-        # A token is leftover only if at least one of its normalized sub-tokens is
-        # absent from the candidate name — handles "bone-in" and "jalapeño"/"jalapeno".
+
+        candidate_name_words = _candidate_equivalent_name_tokens(defn)
+
         leftover = [
-            w for w in item_name.lower().split()
+            w for w in _phrase_tokens(item_name)
             if not all(sub in candidate_name_words for sub in _expand_token(w))
         ]
-        raw_candidates.append({**defn, "leftover_words": leftover})
+
+        raw_candidates.append(({**defn, "leftover_words": leftover}, name_score))
+
+    if not raw_candidates:
+        return []
+
     if not details:
-        return raw_candidates
-    scored = [(c, _score_details_against_item(details, c)) for c in raw_candidates]
+        return [candidate for candidate, _ in raw_candidates]
+
+    scored: list[tuple[dict, float]] = []
+    for candidate, name_score in raw_candidates:
+        effective_details_parts = []
+        if details:
+            effective_details_parts.append(details)
+        if candidate.get("leftover_words"):
+            effective_details_parts.append(" ".join(candidate["leftover_words"]))
+
+        effective_details = " ".join(part for part in effective_details_parts if part).strip()
+        detail_score = _score_details_against_item(effective_details, candidate) if effective_details else 0.0
+
+        final_score = (0.75 * name_score) + (0.25 * detail_score)
+        scored.append((candidate, final_score))
+
     scored.sort(key=lambda x: x[1], reverse=True)
-    return [c for c, _ in scored]
+    return [candidate for candidate, _ in scored]
 
 
 async def check_item_availability(
@@ -1199,8 +1555,8 @@ async def validateModifications(
 
     Decision guide for the agent:
         - ``allValid`` True → safe to apply modifiers; pass ``asNote`` joined as the line-item note.
-        - Non-empty ``invalid`` or ``requireChoice`` → ask the customer to clarify.
-        - Empty ``valid`` with all requested values in ``invalid`` → fail closed; do not mutate the order.
+        - Non-empty ``requireChoice`` → ask the customer to choose from the required modifier group.
+        - Non-empty ``invalid`` → entries are moved into ``asNote``; proceed without clarification.
     """
     requested = [
         str(value).strip()
@@ -1294,6 +1650,7 @@ async def validateModifications(
                 }
             )
 
+    as_note.extend(truly_invalid)
     require_choice = _required_modifier_groups(item_row, selected_keys)
     result = {
         "valid": valid,
@@ -1301,7 +1658,7 @@ async def validateModifications(
         "invalid": truly_invalid,
         "asNote": as_note,
         "requireChoice": require_choice,
-        "allValid": not truly_invalid and not require_choice,
+        "allValid": not require_choice,
     }
     print(
         f"[validateModifications] done "
@@ -1627,13 +1984,57 @@ async def validateRequestedItem(
         }
 
         if match_confidence not in ("exact", "auto_exact"):
-            # Forward any extra fields from match_result (wing_types, size_options,
-            # size_family_base, matched_category) so the agent can read them directly.
-            extra_fields = {
-                k: v for k, v in match_result.items()
-                if k not in ("exact_match", "candidates", "match_confidence")
-            }
-            return {**base, **_null_downstream, **extra_fields}
+            # Semantic filter: narrow candidates before presenting them to the agent.
+            # Only runs when there are candidates and the confidence is one of the
+            # ambiguous states that will trigger a clarification question.
+            if match_confidence in {"close", "category_match", "size_variant", "wing_type_ambiguous"} and candidates:
+                semantic_candidates = await resolve_semantic_candidate_matches(
+                    candidates=candidates,
+                    user_query=itemName,
+                )
+                if semantic_candidates:
+                    candidates = semantic_candidates
+                    base["candidates"] = semantic_candidates
+                    print(
+                        f"[validateRequestedItem] semantic filter "
+                        f"itemName={itemName!r} confidence={match_confidence!r} "
+                        f"before={len(match_result.get('candidates', []))} "
+                        f"after={len(semantic_candidates)}"
+                    )
+                    if len(semantic_candidates) == 1:
+                        # Single unambiguous match — promote to exact so the
+                        # exact-match branch runs and modifier resolution fires inline.
+                        exact_match = semantic_candidates[0]
+                        match_confidence = "exact"
+                        base["exactMatch"] = exact_match
+                        base["matchConfidence"] = match_confidence
+                        base["candidates"] = []
+
+            # When semantic filtering promoted match_confidence to auto_exact, fall
+            # through to the exact-match branch below instead of returning early.
+            if match_confidence not in ("exact", "auto_exact"):
+                # Forward any extra fields from match_result (wing_types, size_options,
+                # size_family_base, matched_category) so the agent can read them directly.
+                extra_fields = {
+                    k: v for k, v in match_result.items()
+                    if k not in ("exact_match", "candidates", "match_confidence")
+                }
+                if match_confidence == "size_variant":
+                    # Compute words from itemName that don't belong to the base family name or
+                    # size labels — these are modifier hints (e.g. "Buffalo" in "12 boneless
+                    # Buffalo wings") that the agent should pass to validateModifications directly.
+                    display_base: str = extra_fields.get("size_family_base", "")
+                    size_options_list: list[str] = extra_fields.get("size_options", [])
+                    base_tokens = set(re.sub(r"[^a-z0-9 ]", " ", display_base.lower()).split())
+                    size_tokens: set[str] = set()
+                    for opt in size_options_list:
+                        size_tokens.update(opt.lower().split())
+                    stop_words = {"pc", "pcs", "piece", "pieces", "a", "the", "of", "with", "and", "some"}
+                    all_filter = base_tokens | size_tokens | stop_words
+                    raw_tokens = re.findall(r"\b[a-z]+\b", itemName.lower())
+                    extra_fields["leftoverWords"] = [t for t in raw_tokens if t not in all_filter]
+                    extra_fields["merchantId"] = str(creds.get("merchant_id", "")).strip()
+                return {**base, **_null_downstream, **extra_fields}
 
         # --- exact match branch ---
         if not include_candidate_details:

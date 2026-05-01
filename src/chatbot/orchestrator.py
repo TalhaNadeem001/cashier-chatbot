@@ -220,6 +220,14 @@ def _ensure_branch_outcomes(
 
 _EXECUTION_AGENT_SYSTEM_PROMPT = DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT
 
+_ITEM_MUTATION_INTENTS: frozenset[str] = frozenset({
+    "add_item",
+    "modify_item",
+    "replace_item",
+    "remove_item",
+    "change_item_number",
+})
+
 _VALIDATE_REQUESTED_ITEM_PARAMETERS_JSON_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
@@ -500,8 +508,11 @@ class ExecutionToolRuntime:
 class ExecutionTracker:
     actions_executed: list[str] = field(default_factory=list)
     order_updated: bool = False
+    mutation_tool_called: bool = False
     close_match_candidates: list[dict] | None = None
     confirmed_item_name: str | None = None
+    pending_leftover_words: list[str] = field(default_factory=list)
+    pending_size_variant_candidates: list[dict] = field(default_factory=list)
 
 
 class Orchestrator:
@@ -1434,7 +1445,8 @@ class Orchestrator:
                         entry["confirmed_item_name"] = mod.confirmed_item_name
                         candidates = entry.get("close_match_candidates") or []
                         entry["close_match_candidates"] = [
-                            c for c in candidates if c.get("name") == mod.confirmed_item_name
+                            c for c in candidates
+                            if c.get("name", "").lower() == mod.confirmed_item_name.lower()
                         ]
                         confirmed_candidate = next(iter(entry["close_match_candidates"]), None)
                         leftover = confirmed_candidate.get("leftover_words", []) if confirmed_candidate else []
@@ -1559,6 +1571,7 @@ class Orchestrator:
             )
 
             # --- Call Composer with retries ---
+            print(f"[Composer] queue before call: {json.dumps([{k: v for k, v in e.items() if k != 'parsed_item'} for e in queue])}")
             async def _call_composer() -> ComposerOutput:
                 return await self.composer.voice(
                     composer_input, creds=execution_context.clover_creds,
@@ -2077,6 +2090,22 @@ class ExecutionAgent:
         clarification_questions = extract_questions_from_reply(agent_reply)
         success = not bool(clarification_questions)
 
+        # Mutation guard: if the agent claimed success but no item-mutation tool
+        # actually succeeded, override to force clarification so the entry is retried.
+        if success:
+            intent_val = (entry.get("parsed_item") or {}).get("Intent", "")
+            no_tool_called = intent_val in _ITEM_MUTATION_INTENTS and not tracker.mutation_tool_called
+            tool_failed = tracker.mutation_tool_called and not tracker.order_updated
+            if no_tool_called or tool_failed:
+                print(
+                    f"[ExecutionAgent][GUARD] mutation guard triggered "
+                    f"intent={intent_val!r} mutation_tool_called={tracker.mutation_tool_called} "
+                    f"order_updated={tracker.order_updated}"
+                )
+                success = False
+                agent_reply = "I wasn't able to complete that — please try again."
+                clarification_questions = []
+
         # Defense in depth: if this run's new clarifications would push the entry
         # over the max-clarification budget, escalate now via the idempotent tool.
         # The orchestrator's existing escalation check still runs after this and
@@ -2285,6 +2314,9 @@ class ExecutionAgent:
                 confidence = out.get("matchConfidence")
                 if confidence == "close":
                     tracker.close_match_candidates = out.get("candidates") or []
+                elif confidence == "size_variant":
+                    tracker.pending_leftover_words = out.get("leftoverWords", [])
+                    tracker.pending_size_variant_candidates = out.get("candidates", [])
                 elif confidence in ("exact", "auto_exact") and out.get("allValid") is False:
                     exact_match = out.get("exactMatch") or {}
                     tracker.confirmed_item_name = exact_match.get("name") or ""
@@ -2292,12 +2324,16 @@ class ExecutionAgent:
                         **exact_match,
                         "itemId": out.get("itemId"),
                         "merchantId": out.get("merchantId"),
-                        "leftover_words": out.get("leftoverWords", []),
+                        "leftover_words": tracker.pending_leftover_words or out.get("leftoverWords", []),
                     }]
+                    tracker.pending_leftover_words = []
+                    tracker.pending_size_variant_candidates = []
             return out
 
         async def _add_items_to_order_tool(*, items: list[dict]) -> dict[str, Any]:
             args = {"items": items}
+            if tracker is not None:
+                tracker.mutation_tool_called = True
             result = await addItemsToOrder(runtime.context.session_id, items, creds=runtime.context.clover_creds)
             if result.get("success") and tracker is not None:
                 for added in result.get("addedItems", []):
@@ -2321,6 +2357,8 @@ class ExecutionAgent:
                 "orderPosition": orderPosition,
                 "itemName": itemName,
             }
+            if tracker is not None:
+                tracker.mutation_tool_called = True
             result = await replaceItemInOrder(
                 runtime.context.session_id,
                 replacement,
@@ -2339,6 +2377,8 @@ class ExecutionAgent:
 
         async def _remove_item_from_order_tool(*, target: dict) -> dict[str, Any]:
             args = {"target": target}
+            if tracker is not None:
+                tracker.mutation_tool_called = True
             result = await removeItemFromOrder(runtime.context.session_id, target, creds=runtime.context.clover_creds)
             if result.get("success") and tracker is not None:
                 name = str((result.get("removedItem") or {}).get("name", ""))
@@ -2353,6 +2393,8 @@ class ExecutionAgent:
             newQuantity: int,
         ) -> dict[str, Any]:
             args = {"target": target, "newQuantity": newQuantity}
+            if tracker is not None:
+                tracker.mutation_tool_called = True
             result = await changeItemQuantity(
                 runtime.context.session_id,
                 target,
@@ -2373,6 +2415,8 @@ class ExecutionAgent:
             updates: dict,
         ) -> dict[str, Any]:
             args = {"target": target, "updates": updates}
+            if tracker is not None:
+                tracker.mutation_tool_called = True
             result = await updateItemInOrder(
                 runtime.context.session_id, target, updates, creds=runtime.context.clover_creds
             )
@@ -2514,6 +2558,21 @@ class ExecutionAgent:
                 creds=runtime.context.clover_creds,
             )
             _log_tool_call_io("validateModifications", args, out)
+            if tracker is not None and not out.get("allValid") and out.get("requireChoice"):
+                matched = next(
+                    (c for c in tracker.pending_size_variant_candidates if c.get("id") == itemId),
+                    None,
+                )
+                if matched and not tracker.confirmed_item_name:
+                    tracker.confirmed_item_name = matched.get("name") or ""
+                    tracker.close_match_candidates = [{
+                        **matched,
+                        "itemId": itemId,
+                        "merchantId": merchantId,
+                        "leftover_words": tracker.pending_leftover_words,
+                    }]
+                    tracker.pending_leftover_words = []
+                    tracker.pending_size_variant_candidates = []
             return out
 
         tools_list = [

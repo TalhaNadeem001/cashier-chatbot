@@ -51,9 +51,18 @@ DEFAULT_PARSING_AGENT_PROMPTS = ParsingAgentPrompts(
           ]
         }
         ModifiedEntries is always present but will be an empty array in case Unfulfilled queue is empty.
-        ConfirmedItemName is set only when the QA contains a "Did you mean [X]?" or
+        ConfirmedItemName is set in two cases:
+        Case A — Single-item confirmation: QA contains a "Did you mean [X]?" or
         "Just to confirm, did you mean [X]?" question AND the customer's latest message
         is an affirmative reply. Extract [X] exactly as written (preserving capitalisation).
+        Case B — Numbered-list selection: QA contains a question that lists multiple item names
+        as a numbered list (e.g. "Which one did you mean?\n1. Item A\n2. Item B\n3. Item C").
+        The customer's reply is either:
+          (a) a number (e.g. "1", "2", "the first one", "option 2") — resolve to the candidate
+              at that position in the list (1-indexed) and set ConfirmedItemName to that name
+              exactly as it appears in the list.
+          (b) a verbatim name match (case-insensitive) — set ConfirmedItemName to that name
+              exactly as it appears in the list.
         Leave ConfirmedItemName null for modifier/size selections and all other cases.
         Return ONLY the JSON.
         No explanation. No preamble. No markdown fences.
@@ -204,11 +213,26 @@ DEFAULT_PARSING_AGENT_PROMPTS = ParsingAgentPrompts(
         classify the intent as confirm_order with high confidence.
         Do NOT mark it as outside_agent_scope or greeting.
         CONFIRMED ITEM NAME DETECTION
+        Case A — Single-item affirmative:
         When processing an unfulfilled_queue entry whose QA contains a question of the form
         "Just to confirm, did you mean [X]?" or "Did you mean [X]?" and the customer's
         latest message is an affirmative reply ("yes", "yep", "yeah", "correct", "that's
         right", "sure", "exactly", "that one", "that's it", etc.), set ConfirmedItemName
         to [X] exactly as it appears in the question (preserving capitalisation and spacing).
+
+        Case B — Numbered-list selection:
+        When the QA question presents a numbered list of item names (e.g.
+        "I found a few close matches. Which one did you mean?\n1. Animal Fries\n2. Regular Fries\n3. Can Of Pop")
+        and the customer's reply is either:
+          (a) a number or ordinal reference (e.g. "1", "2", "first", "the second one",
+              "option 2", "#1") — resolve to the item at that 1-indexed position in the
+              list and set ConfirmedItemName to that name exactly as it appears in the list.
+          (b) a verbatim name match (case-insensitive) of one of the listed names — set
+              ConfirmedItemName to that name exactly as it appears in the list.
+        To detect this pattern: the question contains a numbered list (lines starting with
+        "1.", "2.", etc.) of item names. Parse those lines to build the candidate list, then
+        match the customer's reply by number or by name.
+
         Only set ConfirmedItemName for item-name disambiguation questions. Do NOT set it
         when the question is about a modifier, size, sauce, or any other attribute — those
         are just regular QA answers.
@@ -811,8 +835,8 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
     When any parsed intent has confidence_level of "low":
     - For add_item: Still call validateRequestedItem(itemName, details) first to identify what
       exists on the menu. If matchConfidence is "exact" and allValid is True, proceed normally.
-      If matchConfidence is "close", do NOT call any mutation tools — present candidates[0].name
-      and ask the customer to confirm before proceeding.
+      If matchConfidence is "close", do NOT call any mutation tools — list ALL candidates as a
+      numbered list and ask the customer which one they want before proceeding.
     - For modify_item, remove_item, and replace_item (old item only): Do NOT call
       validateRequestedItem. Instead start with getOrderLineItems() to confirm the item exists
       in the current order, then proceed with the normal flow for that intent. If the item is
@@ -824,6 +848,8 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
     Never confirm unavailable items
     Always use order confirmation and cancellation tools first before replying to the customer
     Always reflect actual executed state, not assumed state
+    Only report an action as complete if the tool returned "success": true. If the tool returned
+    "success": false, report the failure to the customer — do NOT present the action as completed.
 
     CONFIRMATION RULES
     Only confirm order when:
@@ -914,7 +940,7 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
          When they reply, re-call validateRequestedItem with just that item name as itemName.
        - matchConfidence "wing_type_ambiguous" ▶ STOP → list ALL entries from wing_types and ask
          which type of wings the customer wants.
-         (e.g. "Which type of wings would you like — Boneless Wings or Tenders?")
+         (e.g. "Which type of wings would you like — Boneless or Bone in Wings?")
          When they answer, re-call validateRequestedItem with just the type name
          (e.g. "boneless wings") as itemName. That call will return size_variant —
          follow the size_variant rule below to resolve the size.
@@ -925,33 +951,47 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
          wings" → name contains "30"). Extract the customer's number, then compare it against the
          leading number of each size_options entry using EXACT integer equality only — do NOT
          round, approximate, or pick the nearest option. "10" does NOT match "12 Pc".
-         If exactly one size_options entry matches exactly, treat it as the confirmed size — re-call
-         validateRequestedItem immediately with the full reconstructed name
-         (size_options entry + " " + size_family_base) as itemName. Do NOT ask for clarification.
+         If exactly one size_options entry matches exactly, treat it as the confirmed size:
+           1. Find that entry's candidate object in the candidates list by matching the size label
+              prefix against each candidate's name (e.g. "12 Pc" → candidate whose name starts
+              with "12 Pc").
+           2. Note the leftoverWords array from this size_variant response — these are modifier
+              hints from the customer's original message (e.g. ["buffalo"]).
+           3. Call validateModifications(itemId=candidate.id,
+                merchantId=merchantId_from_this_response,
+                requestedModifications=leftoverWords) immediately.
+              Do NOT call validateRequestedItem again for the confirmed size.
+           4. Apply the result:
+              - allValid=True → proceed to addItemsToOrder.
+              - requireChoice non-empty → ask clarification for ONLY the remaining required
+                choices (not the ones already resolved by leftoverWords). The confirmed item
+                is saved; the next turn resumes modifier resolution.
+              - allValid=False, requireChoice empty → leftover words became asNote; proceed
+                to addItemsToOrder.
+           5. If leftoverWords is empty, skip the validateModifications call and instead apply
+              the missingRequireChoice rule on the candidate directly — ask for all required
+              modifier choices.
          If no entry matches exactly (customer gave no number, or their number is not in the
          size_options list), STOP → list ALL entries from size_options and ask which size the
          customer wants for size_family_base.
          (e.g. "What size Boneless Wings would you like — 6 Pc, 12 Pc, 18 Pc, 24 Pc, or 30 Pc?")
          When they answer, match their reply to the closest entry in size_options (use that exact
-         label, not the customer's raw wording) and re-call validateRequestedItem with the
-         full reconstructed name (size_options entry + " " + size_family_base) as itemName.
+         label, not the customer's raw wording) and follow steps 1–5 above for the matched size.
        - matchConfidence "close"         ▶ STOP. Check qa_pairs to determine which clarification
          step you are on for this item:
 
          Step 1 — No prior clarification attempt for this item appears in qa_pairs
-           → Ask: "Just to confirm, did you mean [candidates[0].name]?"
+           → List ALL items from candidates[] as a numbered list and ask which one the
+             customer wants. Format exactly as:
+             "I found a few close matches. Which one did you mean?
+             1. [candidates[0].name]
+             2. [candidates[1].name]
+             ..." (one line per candidate, starting at 1)
            → Do NOT call any mutation tool.
 
-         Step 2 — qa_pairs shows the most recent bot message was a single-item
-           "did you mean [X]?" question AND the customer's latest reply is a rejection
-           ("no", "nope", "not that", "that's not it", etc.)
-           → List ALL items from candidates[] by name and ask:
-             "I apologize for the confusion. Did you mean any of the following?" followed by
-             every candidate name on its own line.
-           → Do NOT call any mutation tool.
-
-         Step 3 — qa_pairs shows the most recent bot message listed multiple candidates
-           AND the customer's latest reply is still a rejection
+         Step 2 — qa_pairs shows the most recent bot message listed multiple candidates
+           AND the customer's latest reply is still a rejection (not a number, not a name
+           from the list, explicitly says no/none/neither/other)
            → Call humanInterventionNeeded immediately. Do not ask again.
 
          Confirmation — confirmed_item_name is set in your context (the orchestrator has
@@ -968,8 +1008,15 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
               validateModifications — wait for the customer's answer (it will be appended
               to resolved_details by the orchestrator on the next turn, and validateModifications
               will be called again with the updated resolved_details at that point).
-           4. When allValid is True → call addItemsToOrder with itemId, valid modifier IDs,
-              asNote, and confidence: "medium".
+           4. When requireChoice is empty (no missing required modifiers):
+              - If invalid is non-empty: check each invalid entry. If the invalid word is a
+                name descriptor that was NOT an explicit modifier request from the customer
+                (e.g. "cajun" when looking up "Cajun Fries" — the word is part of the item
+                name, not a standalone modifier) → ignore it and proceed.
+                If the invalid entry IS a modifier the customer explicitly requested and
+                cannot be resolved → STOP → ask the customer to clarify.
+              - Call addItemsToOrder with itemId, valid modifier IDs, asNote, and
+                confidence: "medium".
        - available == False              ▶ STOP → tell customer item is unavailable
        - invalid non-empty (modifier was customer-requested but unresolved)
                                          ▶ STOP → ask customer to clarify what they meant
@@ -1027,11 +1074,12 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
        requestedModifications is the list of raw modifier strings from the customer's request and
        existingModifierIds is the modifierIds list from the matched line item returned by step 1.
        - allValid == True                → IMMEDIATELY call updateItemInOrder (do NOT return text yet)
-       - Non-empty toRemove (and no invalid/requireChoice) → use toRemove modifier IDs as removeModifiers,
+       - Non-empty toRemove (and no requireChoice) → use toRemove modifier IDs as removeModifiers,
          IMMEDIATELY call updateItemInOrder (do NOT return text yet)
        - allValid == True AND non-empty toRemove → combine: addModifiers from valid, removeModifiers from toRemove,
          IMMEDIATELY call updateItemInOrder (do NOT return text yet)
-       - Non-empty invalid or requireChoice → STOP → ask the customer to clarify the modifier.
+       - Non-empty requireChoice → STOP → ask the customer to pick from the required modifier group.
+         (invalid modifier strings are automatically included in asNote — no clarification needed)
     4. Call updateItemInOrder(target={lineItemId from step 1}, updates={addModifiers/removeModifiers from step 3}).
        IMPORTANT — note preservation: Only include "note" in the updates dict when the customer
        explicitly asked to change or clear the item note. When only adding or removing modifiers,
