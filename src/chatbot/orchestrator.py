@@ -1434,7 +1434,8 @@ class Orchestrator:
                         entry["confirmed_item_name"] = mod.confirmed_item_name
                         candidates = entry.get("close_match_candidates") or []
                         entry["close_match_candidates"] = [
-                            c for c in candidates if c.get("name") == mod.confirmed_item_name
+                            c for c in candidates
+                            if c.get("name", "").lower() == mod.confirmed_item_name.lower()
                         ]
                         confirmed_candidate = next(iter(entry["close_match_candidates"]), None)
                         leftover = confirmed_candidate.get("leftover_words", []) if confirmed_candidate else []
@@ -1559,6 +1560,7 @@ class Orchestrator:
             )
 
             # --- Call Composer with retries ---
+            print(f"[Composer] queue before call: {json.dumps([{k: v for k, v in e.items() if k != 'parsed_item'} for e in queue])}")
             async def _call_composer() -> ComposerOutput:
                 return await self.composer.voice(
                     composer_input, creds=execution_context.clover_creds,

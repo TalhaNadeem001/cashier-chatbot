@@ -51,9 +51,14 @@ DEFAULT_PARSING_AGENT_PROMPTS = ParsingAgentPrompts(
           ]
         }
         ModifiedEntries is always present but will be an empty array in case Unfulfilled queue is empty.
-        ConfirmedItemName is set only when the QA contains a "Did you mean [X]?" or
+        ConfirmedItemName is set in two cases:
+        Case A — Single-item confirmation: QA contains a "Did you mean [X]?" or
         "Just to confirm, did you mean [X]?" question AND the customer's latest message
         is an affirmative reply. Extract [X] exactly as written (preserving capitalisation).
+        Case B — Multi-item selection: QA contains a question that lists multiple item names
+        (e.g. "Did you mean any of the following?\nItem A\nItem B\nItem C") AND the
+        customer's latest message exactly matches one of those listed item names (case-insensitive).
+        Set ConfirmedItemName to the matching name exactly as it appears in the question list.
         Leave ConfirmedItemName null for modifier/size selections and all other cases.
         Return ONLY the JSON.
         No explanation. No preamble. No markdown fences.
@@ -204,11 +209,24 @@ DEFAULT_PARSING_AGENT_PROMPTS = ParsingAgentPrompts(
         classify the intent as confirm_order with high confidence.
         Do NOT mark it as outside_agent_scope or greeting.
         CONFIRMED ITEM NAME DETECTION
+        Case A — Single-item affirmative:
         When processing an unfulfilled_queue entry whose QA contains a question of the form
         "Just to confirm, did you mean [X]?" or "Did you mean [X]?" and the customer's
         latest message is an affirmative reply ("yes", "yep", "yeah", "correct", "that's
         right", "sure", "exactly", "that one", "that's it", etc.), set ConfirmedItemName
         to [X] exactly as it appears in the question (preserving capitalisation and spacing).
+
+        Case B — Multi-item selection:
+        When the QA question lists multiple item names (e.g. a message like
+        "I apologize for the confusion. Did you mean any of the following?\nAnimal Fries\nRegular Fries\nCan Of Pop")
+        and the customer's latest message is a verbatim (case-insensitive) match of exactly
+        one of those listed names, set ConfirmedItemName to that name exactly as it appears
+        in the question list (preserving capitalisation).
+        To detect this pattern: the question contains "Did you mean any of the following" or
+        "Which would you like" followed by a newline-separated or comma-separated list of
+        item names. Check whether the customer's reply matches any listed name exactly
+        (ignoring case and leading/trailing whitespace).
+
         Only set ConfirmedItemName for item-name disambiguation questions. Do NOT set it
         when the question is about a modifier, size, sauce, or any other attribute — those
         are just regular QA answers.
@@ -968,8 +986,15 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
               validateModifications — wait for the customer's answer (it will be appended
               to resolved_details by the orchestrator on the next turn, and validateModifications
               will be called again with the updated resolved_details at that point).
-           4. When allValid is True → call addItemsToOrder with itemId, valid modifier IDs,
-              asNote, and confidence: "medium".
+           4. When requireChoice is empty (no missing required modifiers):
+              - If invalid is non-empty: check each invalid entry. If the invalid word is a
+                name descriptor that was NOT an explicit modifier request from the customer
+                (e.g. "cajun" when looking up "Cajun Fries" — the word is part of the item
+                name, not a standalone modifier) → ignore it and proceed.
+                If the invalid entry IS a modifier the customer explicitly requested and
+                cannot be resolved → STOP → ask the customer to clarify.
+              - Call addItemsToOrder with itemId, valid modifier IDs, asNote, and
+                confidence: "medium".
        - available == False              ▶ STOP → tell customer item is unavailable
        - invalid non-empty (modifier was customer-requested but unresolved)
                                          ▶ STOP → ask customer to clarify what they meant
