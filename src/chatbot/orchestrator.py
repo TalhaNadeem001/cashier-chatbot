@@ -511,6 +511,8 @@ class ExecutionTracker:
     mutation_tool_called: bool = False
     close_match_candidates: list[dict] | None = None
     confirmed_item_name: str | None = None
+    pending_leftover_words: list[str] = field(default_factory=list)
+    pending_size_variant_candidates: list[dict] = field(default_factory=list)
 
 
 class Orchestrator:
@@ -2312,6 +2314,9 @@ class ExecutionAgent:
                 confidence = out.get("matchConfidence")
                 if confidence == "close":
                     tracker.close_match_candidates = out.get("candidates") or []
+                elif confidence == "size_variant":
+                    tracker.pending_leftover_words = out.get("leftoverWords", [])
+                    tracker.pending_size_variant_candidates = out.get("candidates", [])
                 elif confidence in ("exact", "auto_exact") and out.get("allValid") is False:
                     exact_match = out.get("exactMatch") or {}
                     tracker.confirmed_item_name = exact_match.get("name") or ""
@@ -2319,8 +2324,10 @@ class ExecutionAgent:
                         **exact_match,
                         "itemId": out.get("itemId"),
                         "merchantId": out.get("merchantId"),
-                        "leftover_words": out.get("leftoverWords", []),
+                        "leftover_words": tracker.pending_leftover_words or out.get("leftoverWords", []),
                     }]
+                    tracker.pending_leftover_words = []
+                    tracker.pending_size_variant_candidates = []
             return out
 
         async def _add_items_to_order_tool(*, items: list[dict]) -> dict[str, Any]:
@@ -2551,6 +2558,21 @@ class ExecutionAgent:
                 creds=runtime.context.clover_creds,
             )
             _log_tool_call_io("validateModifications", args, out)
+            if tracker is not None and not out.get("allValid") and out.get("requireChoice"):
+                matched = next(
+                    (c for c in tracker.pending_size_variant_candidates if c.get("id") == itemId),
+                    None,
+                )
+                if matched and not tracker.confirmed_item_name:
+                    tracker.confirmed_item_name = matched.get("name") or ""
+                    tracker.close_match_candidates = [{
+                        **matched,
+                        "itemId": itemId,
+                        "merchantId": merchantId,
+                        "leftover_words": tracker.pending_leftover_words,
+                    }]
+                    tracker.pending_leftover_words = []
+                    tracker.pending_size_variant_candidates = []
             return out
 
         tools_list = [

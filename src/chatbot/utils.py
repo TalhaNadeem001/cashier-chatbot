@@ -404,7 +404,7 @@ async def _normalize_menu(raw: dict) -> dict:
             for group in item.get("modifier_groups") or []:
                 if group.get("id") == WINGS_SAUCE_GROUP_ID:
                     group["max_allowed"] = max_flavors
-                    group["min_required"] = max_flavors
+                    group["min_required"] = 1
                     break
 
     for item in by_id.values():

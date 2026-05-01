@@ -934,7 +934,7 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
          When they reply, re-call validateRequestedItem with just that item name as itemName.
        - matchConfidence "wing_type_ambiguous" ▶ STOP → list ALL entries from wing_types and ask
          which type of wings the customer wants.
-         (e.g. "Which type of wings would you like — Boneless Wings or Tenders?")
+         (e.g. "Which type of wings would you like — Boneless or Bone in Wings?")
          When they answer, re-call validateRequestedItem with just the type name
          (e.g. "boneless wings") as itemName. That call will return size_variant —
          follow the size_variant rule below to resolve the size.
@@ -945,16 +945,32 @@ DEFAULT_EXECUTION_AGENT_SYSTEM_PROMPT = dedent(
          wings" → name contains "30"). Extract the customer's number, then compare it against the
          leading number of each size_options entry using EXACT integer equality only — do NOT
          round, approximate, or pick the nearest option. "10" does NOT match "12 Pc".
-         If exactly one size_options entry matches exactly, treat it as the confirmed size — re-call
-         validateRequestedItem immediately with the full reconstructed name
-         (size_options entry + " " + size_family_base) as itemName. Do NOT ask for clarification.
+         If exactly one size_options entry matches exactly, treat it as the confirmed size:
+           1. Find that entry's candidate object in the candidates list by matching the size label
+              prefix against each candidate's name (e.g. "12 Pc" → candidate whose name starts
+              with "12 Pc").
+           2. Note the leftoverWords array from this size_variant response — these are modifier
+              hints from the customer's original message (e.g. ["buffalo"]).
+           3. Call validateModifications(itemId=candidate.id,
+                merchantId=merchantId_from_this_response,
+                requestedModifications=leftoverWords) immediately.
+              Do NOT call validateRequestedItem again for the confirmed size.
+           4. Apply the result:
+              - allValid=True → proceed to addItemsToOrder.
+              - requireChoice non-empty → ask clarification for ONLY the remaining required
+                choices (not the ones already resolved by leftoverWords). The confirmed item
+                is saved; the next turn resumes modifier resolution.
+              - allValid=False, requireChoice empty → leftover words became asNote; proceed
+                to addItemsToOrder.
+           5. If leftoverWords is empty, skip the validateModifications call and instead apply
+              the missingRequireChoice rule on the candidate directly — ask for all required
+              modifier choices.
          If no entry matches exactly (customer gave no number, or their number is not in the
          size_options list), STOP → list ALL entries from size_options and ask which size the
          customer wants for size_family_base.
          (e.g. "What size Boneless Wings would you like — 6 Pc, 12 Pc, 18 Pc, 24 Pc, or 30 Pc?")
          When they answer, match their reply to the closest entry in size_options (use that exact
-         label, not the customer's raw wording) and re-call validateRequestedItem with the
-         full reconstructed name (size_options entry + " " + size_family_base) as itemName.
+         label, not the customer's raw wording) and follow steps 1–5 above for the matched size.
        - matchConfidence "close"         ▶ STOP. Check qa_pairs to determine which clarification
          step you are on for this item:
 

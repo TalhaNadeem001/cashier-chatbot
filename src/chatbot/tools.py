@@ -1634,6 +1634,21 @@ async def validateRequestedItem(
                 k: v for k, v in match_result.items()
                 if k not in ("exact_match", "candidates", "match_confidence")
             }
+            if match_confidence == "size_variant":
+                # Compute words from itemName that don't belong to the base family name or
+                # size labels — these are modifier hints (e.g. "Buffalo" in "12 boneless
+                # Buffalo wings") that the agent should pass to validateModifications directly.
+                display_base: str = extra_fields.get("size_family_base", "")
+                size_options_list: list[str] = extra_fields.get("size_options", [])
+                base_tokens = set(re.sub(r"[^a-z0-9 ]", " ", display_base.lower()).split())
+                size_tokens: set[str] = set()
+                for opt in size_options_list:
+                    size_tokens.update(opt.lower().split())
+                stop_words = {"pc", "pcs", "piece", "pieces", "a", "the", "of", "with", "and", "some"}
+                all_filter = base_tokens | size_tokens | stop_words
+                raw_tokens = re.findall(r"\b[a-z]+\b", itemName.lower())
+                extra_fields["leftoverWords"] = [t for t in raw_tokens if t not in all_filter]
+                extra_fields["merchantId"] = str(creds.get("merchant_id", "")).strip()
             return {**base, **_null_downstream, **extra_fields}
 
         # --- exact match branch ---
