@@ -1,3 +1,5 @@
+import re
+
 from rapidfuzz import process
 
 from src.chatbot.cart.ai_client import resolve_closest_modifier_match
@@ -224,33 +226,50 @@ async def detect_non_default_items(ordered_item: dict, item_name: str) -> list[O
         )
 
     if category in ["Boneless Wings", "Bone-In Breaded Wings"]:
-        quantity = ordered_item.get("quantity", 1)
-        if quantity not in [6, 12, 18, 24, 30]:
-            follow_up_requirements.append(
-                OrderFollowUpRequirement(
-                    kind="wings_quantity",
-                    item_name=item_name,
-                    details={
-                        "allowed_quantities": [6, 12, 18, 24, 30],
-                        "flavors_per_quantity": _WINGS_QUANTITY_FLAVORS,
-                        "available_flavors": _WINGS_FLAVORS,
-                    },
+        # Piece count comes from the item name (e.g. "6Pc Boneless" → 6) when the
+        # menu encodes wing sizes as separate items. OrderItem.quantity is the
+        # number of *bundles* the customer is buying (1 unless they doubled up).
+        # Only fall back to treating OrderItem.quantity as a piece count for
+        # legacy/generic items where the name carries no size (e.g. plain
+        # "Boneless Wings" with a Quantity modifier group).
+        piece_count = _parse_wings_pieces_from_name(item_name)
+        piece_source: str
+        if piece_count is not None:
+            piece_source = "name"
+        else:
+            piece_count = ordered_item.get("quantity", 1)
+            piece_source = "quantity"
+
+        if piece_count not in [6, 12, 18, 24, 30]:
+            # Only emit a wings_quantity follow-up when the size couldn't be
+            # determined from the item name. If the item name does carry a
+            # valid size, we shouldn't pester the customer to re-pick quantity.
+            if piece_source == "quantity":
+                follow_up_requirements.append(
+                    OrderFollowUpRequirement(
+                        kind="wings_quantity",
+                        item_name=item_name,
+                        details={
+                            "allowed_quantities": [6, 12, 18, 24, 30],
+                            "flavors_per_quantity": _WINGS_QUANTITY_FLAVORS,
+                            "available_flavors": _WINGS_FLAVORS,
+                        },
+                    )
                 )
-            )
         elif not modifier:
             follow_up_requirements.append(
                 OrderFollowUpRequirement(
                     kind="wings_flavor",
                     item_name=item_name,
                     details={
-                        "quantity": quantity,
+                        "quantity": piece_count,
                         "available_flavors": _WINGS_FLAVORS,
-                        "max_flavors": await _max_wings_flavors(quantity),
+                        "max_flavors": await _max_wings_flavors(piece_count),
                     },
                 )
             )
         else:
-            max_flavors = await _max_wings_flavors(quantity)
+            max_flavors = await _max_wings_flavors(piece_count)
             if max_flavors is not None:
                 flavor_count = len([flavor for flavor in modifier.split(",") if flavor.strip()])
                 if flavor_count > max_flavors:
@@ -259,7 +278,7 @@ async def detect_non_default_items(ordered_item: dict, item_name: str) -> list[O
                             kind="wings_flavor_limit",
                             item_name=item_name,
                             details={
-                                "quantity": quantity,
+                                "quantity": piece_count,
                                 "max_flavors": max_flavors,
                                 "selected_count": flavor_count,
                             },
@@ -271,6 +290,38 @@ async def detect_non_default_items(ordered_item: dict, item_name: str) -> list[O
 
 async def _max_wings_flavors(quantity: int) -> int | None:
     return _WINGS_QUANTITY_FLAVORS.get(quantity)
+
+
+# Matches a piece count attached to "pc" / "piece" in the item name, e.g.:
+#   "6Pc Boneless"       → 6
+#   "12pc Boneless"      → 12
+#   "18 Piece Boneless"  → 18
+#   "24-pc Boneless"     → 24
+# Returns None when the name has no explicit piece count.
+_WINGS_PIECE_IN_NAME_RE = re.compile(
+    r"(?<![A-Za-z0-9])(\d+)\s*[-\s]?(?:pc|pcs|piece|pieces)\b",
+    re.IGNORECASE,
+)
+
+
+def _parse_wings_pieces_from_name(item_name: str) -> int | None:
+    """Extract a piece count from a wings item name, returning None if absent.
+
+    Only recognised piece counts (6/12/18/24/30) are returned so callers can
+    trust the result without additional range checks.
+    """
+    if not item_name:
+        return None
+    match = _WINGS_PIECE_IN_NAME_RE.search(item_name)
+    if match is None:
+        return None
+    try:
+        value = int(match.group(1))
+    except (TypeError, ValueError):
+        return None
+    if value in _WINGS_QUANTITY_FLAVORS:
+        return value
+    return None
 
 
 async def is_patties_in_mods(item_mods: str) -> bool:
